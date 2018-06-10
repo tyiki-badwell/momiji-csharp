@@ -44,7 +44,7 @@ namespace Momiji
                         {
                             foreach (var v in e.InnerExceptions)
                             {
-                                Trace.WriteLine("FtlIngest Process Exception:" + e.Message + " " + v.Message);
+                                Trace.WriteLine($"FtlIngest Process Exception:{e.Message} {v.Message}");
                             }
                         }
                         finally
@@ -71,7 +71,7 @@ namespace Momiji
                         2048,
                         0
                     );
-                    Trace.WriteLine("ftl_ingest_send_media_dts(FTL_VIDEO_DATA):" + status);
+                    Trace.WriteLine($"ftl_ingest_send_media_dts(FTL_VIDEO_DATA):{status}");
                     return status;
                 }
 
@@ -89,7 +89,7 @@ namespace Momiji
                         2048,
                         0
                     );
-                    Trace.WriteLine("ftl_ingest_send_media_dts(FTL_AUDIO_DATA):" + status);
+                    Trace.WriteLine($"ftl_ingest_send_media_dts(FTL_AUDIO_DATA):{status}");
                     return status;
                 }
 
@@ -97,64 +97,72 @@ namespace Momiji
                 {
                     Interop.Ftl.Status status;
                     status = Interop.Ftl.ftl_init();
-                    Trace.WriteLine("ftl_init:" + status);
+                    Trace.WriteLine($"ftl_init:{status}");
 
                     var handle = new PinnedBuffer<Interop.Ftl.Handle>(new Interop.Ftl.Handle());
 
                     status = Interop.Ftl.ftl_ingest_create(handle.AddrOfPinnedObject(), ref param);
-                    Trace.WriteLine("ftl_ingest_create:" + status);
+                    Trace.WriteLine($"ftl_ingest_create:{status}");
 
                     var logCancel = new CancellationTokenSource();
                     var logTask = PrintTrace(logCancel, handle);
 
                     status = Interop.Ftl.ftl_ingest_connect(handle.AddrOfPinnedObject());
-                    Trace.WriteLine("ftl_ingest_connect:" + status);
+                    Trace.WriteLine($"ftl_ingest_connect:{status}");
 
                     var ct = processCancel.Token;
 
-                    using (var buffer = new PinnedBuffer<byte[]>(new byte[2048]))
-                    {
-                        await Task.Run(() =>
-                        {
-                            ct.ThrowIfCancellationRequested();
-
-                            int a = 0;
-                            while (true)
-                            {
-                                if (ct.IsCancellationRequested)
-                                {
-                                    ct.ThrowIfCancellationRequested();
-                                }
-
-                                var audioStatus = SendAudio(handle, buffer);
-                                var videoStatus = SendVideo(handle, buffer);
-
-                                Trace.WriteLine("loop:" + a++);
-                                Thread.Sleep(50);
-                            }
-                        }, ct);
-                    }
-                    status = Interop.Ftl.ftl_ingest_disconnect(handle.AddrOfPinnedObject());
-                    Trace.WriteLine("ftl_ingest_disconnect:" + status);
-
-                    status = Interop.Ftl.ftl_ingest_destroy(handle.AddrOfPinnedObject());
-                    Trace.WriteLine("ftl_ingest_destroy:" + status);
-
-                    logCancel.Cancel();
                     try
-                    { 
-                        logTask.Wait();
-                    }
-                    catch (AggregateException e)
                     {
-                        foreach (var v in e.InnerExceptions)
+                        using (var buffer = new PinnedBuffer<byte[]>(new byte[2048]))
                         {
-                            Trace.WriteLine("FtlIngest Log Exception:" + e.Message + " " + v.Message);
+                            await Task.Run(() =>
+                            {
+                                ct.ThrowIfCancellationRequested();
+
+                                int a = 0;
+                                while (true)
+                                {
+                                    if (ct.IsCancellationRequested)
+                                    {
+                                        break;
+                                        //ct.ThrowIfCancellationRequested();
+                                    }
+
+                                    var audioStatus = SendAudio(handle, buffer);
+                                    var videoStatus = SendVideo(handle, buffer);
+
+                                    a++;
+                                    Trace.WriteLine($"loop:{a}");
+                                    Thread.Sleep(50);
+                                }
+                            }, ct);
                         }
                     }
                     finally
                     {
-                        logCancel.Dispose();
+                        status = Interop.Ftl.ftl_ingest_disconnect(handle.AddrOfPinnedObject());
+                        Trace.WriteLine($"ftl_ingest_disconnect:{status}");
+
+                        status = Interop.Ftl.ftl_ingest_destroy(handle.AddrOfPinnedObject());
+                        Trace.WriteLine($"ftl_ingest_destroy:{status}");
+
+                        logCancel.Cancel();
+                        try
+                        {
+                            logTask.Wait();
+                        }
+                        catch (AggregateException e)
+                        {
+                            foreach (var v in e.InnerExceptions)
+                            {
+                                Trace.WriteLine($"FtlIngest Log Exception:{e.Message} {v.Message}");
+                            }
+                        }
+                        finally
+                        {
+                            logCancel.Dispose();
+                        }
                     }
                 }
 
@@ -163,44 +171,50 @@ namespace Momiji
                     CancellationToken ct = logCancel.Token;
 
                     Trace.WriteLine("trace start");
-                    Interop.Ftl.Status status;
-                    using (var buffer = new PinnedBuffer<byte[]>(new byte[2048]))
+                    try
                     {
-                        await Task.Run(() =>
+                        Interop.Ftl.Status status;
+                        using (var buffer = new PinnedBuffer<byte[]>(new byte[2048]))
                         {
-                            ct.ThrowIfCancellationRequested();
-
-                            var msg = buffer.AddrOfPinnedObject();
-
-                            while (true)
+                            await Task.Run(() =>
                             {
-                                if (ct.IsCancellationRequested)
-                                {
-                                    ct.ThrowIfCancellationRequested();
-                                }
+                                ct.ThrowIfCancellationRequested();
 
-                                status = Interop.Ftl.ftl_ingest_get_status(handle.AddrOfPinnedObject(), msg, 500);
-                                if (status != Interop.Ftl.Status.FTL_SUCCESS)
-                                {
-                                    continue;
-                                }
+                                var msg = buffer.AddrOfPinnedObject();
 
-                                var type = (Interop.Ftl.StatusTypes)Marshal.ReadInt32(msg, 0);
-                                switch (type)
+                                while (true)
                                 {
-                                    case Interop.Ftl.StatusTypes.FTL_STATUS_LOG:
-                                        Interop.Ftl.FtlStatusLogMsg log = Marshal.PtrToStructure<Interop.Ftl.FtlStatusLogMsg>(msg + 8);
-                                        Trace.WriteLine(log.log_level + ":" + log.msg);
-                                        break;
+                                    if (ct.IsCancellationRequested)
+                                    {
+                                        ct.ThrowIfCancellationRequested();
+                                    }
 
-                                    default:
-                                        Trace.WriteLine(type);
-                                        break;
+                                    status = Interop.Ftl.ftl_ingest_get_status(handle.AddrOfPinnedObject(), msg, 500);
+                                    if (status != Interop.Ftl.Status.FTL_SUCCESS)
+                                    {
+                                        continue;
+                                    }
+
+                                    var type = (Interop.Ftl.StatusTypes)Marshal.ReadInt32(msg, 0);
+                                    switch (type)
+                                    {
+                                        case Interop.Ftl.StatusTypes.FTL_STATUS_LOG:
+                                            Interop.Ftl.FtlStatusLogMsg log = Marshal.PtrToStructure<Interop.Ftl.FtlStatusLogMsg>(msg + 8);
+                                            Trace.WriteLine($"{log.log_level}:{log.msg}");
+                                            break;
+
+                                        default:
+                                            Trace.WriteLine(type);
+                                            break;
+                                    }
                                 }
-                            }
-                        }, ct);
+                            }, ct);
+                        }
                     }
-                    Trace.WriteLine("trace end");
+                    finally
+                    {
+                        Trace.WriteLine("trace end");
+                    }
                 }
             }
         }

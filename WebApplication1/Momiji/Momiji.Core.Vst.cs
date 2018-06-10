@@ -78,7 +78,7 @@ namespace Momiji
                     Single opt
                 )
                 {
-                    Trace.WriteLine("AudioMasterCallBackProc opcode:" + opcode);
+                    Trace.WriteLine($"AudioMasterCallBackProc opcode:{opcode}");
                     switch (opcode)
                     {
                         case Interop.Vst.AudioMasterOpcodes.audioMasterVersion:
@@ -122,7 +122,7 @@ namespace Momiji
                     if (dll.IsInvalid)
                     {
                         var error = Marshal.GetHRForLastWin32Error();
-                        Trace.WriteLine("LoadLibrary error:" + error);
+                        Trace.WriteLine($"LoadLibrary error:{error}");
                         Marshal.ThrowExceptionForHR(error);
                     }
 
@@ -135,7 +135,7 @@ namespace Momiji
                     if (proc == IntPtr.Zero)
                     {
                         var error = Marshal.GetHRForLastWin32Error();
-                        Trace.WriteLine("GetProcAddress error:" + error);
+                        Trace.WriteLine($"GetProcAddress error:{error}");
                         Marshal.ThrowExceptionForHR(error);
                     }
 
@@ -146,31 +146,31 @@ namespace Momiji
                     var aeffect =
                         Marshal.PtrToStructure<Interop.Vst.AEffect>(aeffectPtr);
 
-                    Trace.WriteLine("magic:" + aeffect.magic);
-                    Trace.WriteLine("dispatcher:" + aeffect.dispatcher);
-                    Trace.WriteLine("processDeprecated:" + aeffect.processDeprecated);
-                    Trace.WriteLine("setParameter:" + aeffect.setParameter);
-                    Trace.WriteLine("getParameter:" + aeffect.getParameter);
+                    Trace.WriteLine($"magic:{aeffect.magic}");
+                    Trace.WriteLine($"dispatcher:{aeffect.dispatcher}");
+                    Trace.WriteLine($"processDeprecated:{aeffect.processDeprecated}");
+                    Trace.WriteLine($"setParameter:{aeffect.setParameter}");
+                    Trace.WriteLine($"getParameter:{aeffect.getParameter}");
 
-                    Trace.WriteLine("numPrograms:" + aeffect.numPrograms);
-                    Trace.WriteLine("numParams:" + aeffect.numParams);
-                    Trace.WriteLine("numInputs:" + aeffect.numInputs);
-                    Trace.WriteLine("numOutputs:" + aeffect.numOutputs);
-                    Trace.WriteLine("flags:" + aeffect.flags);
+                    Trace.WriteLine($"numPrograms:{aeffect.numPrograms}");
+                    Trace.WriteLine($"numParams:{aeffect.numParams}");
+                    Trace.WriteLine($"numInputs:{aeffect.numInputs}");
+                    Trace.WriteLine($"numOutputs:{aeffect.numOutputs}");
+                    Trace.WriteLine($"flags:{aeffect.flags}");
 
-                    //Trace.WriteLine("resvd1:"+aeffect.resvd1);
-                    //Trace.WriteLine("resvd2:"+aeffect.resvd2);
+                    //Trace.WriteLine($"resvd1:"+aeffect.resvd1);
+                    //Trace.WriteLine($"resvd2:"+aeffect.resvd2);
 
-                    Trace.WriteLine("initialDelay:" + aeffect.initialDelay);
+                    Trace.WriteLine($"initialDelay:{aeffect.initialDelay}");
 
-                    Trace.WriteLine("realQualitiesDeprecated:" + aeffect.realQualitiesDeprecated);
-                    Trace.WriteLine("offQualitiesDeprecated:" + aeffect.offQualitiesDeprecated);
-                    Trace.WriteLine("ioRatioDeprecated:" + aeffect.ioRatioDeprecated);
-                    //Trace.WriteLine("object:"+aeffect._object);
-                    Trace.WriteLine("user:" + aeffect.user);
+                    Trace.WriteLine($"realQualitiesDeprecated:{aeffect.realQualitiesDeprecated}");
+                    Trace.WriteLine($"offQualitiesDeprecated:{aeffect.offQualitiesDeprecated}");
+                    Trace.WriteLine($"ioRatioDeprecated:{aeffect.ioRatioDeprecated}");
+                    //Trace.WriteLine($"object:"+aeffect._object);
+                    Trace.WriteLine($"user:{aeffect.user}");
 
-                    Trace.WriteLine("uniqueID:" + aeffect.uniqueID);
-                    Trace.WriteLine("version:" + aeffect.version);
+                    Trace.WriteLine($"uniqueID:{aeffect.uniqueID}");
+                    Trace.WriteLine($"version:{aeffect.version}");
 
                     //Trace.WriteLine("processReplacing:"+aeffect.processReplacing);
                     //Trace.WriteLine("processDoubleReplacing:"+aeffect.processDoubleReplacing);
@@ -213,37 +213,41 @@ namespace Momiji
                     var ct = processCancel.Token;
 
                     Open(host);
-
-                    using (var buffer = new PinnedBuffer<IntPtr[]>(new IntPtr[numOutputs]))
-                    using (var buffer1 = new PinnedBuffer<float[]>(new float[host.BlockSize]))
-                    using (var buffer2 = new PinnedBuffer<float[]>(new float[host.BlockSize]))
+                    try
                     {
-                        buffer.Target()[0] = buffer1.AddrOfPinnedObject();
-                        buffer.Target()[1] = buffer2.AddrOfPinnedObject();
-
-                        await Task.Run(() =>
+                        using (var buffer = new PinnedBuffer<IntPtr[]>(new IntPtr[numOutputs]))
+                        using (var buffer1 = new PinnedBuffer<float[]>(new float[host.BlockSize]))
+                        using (var buffer2 = new PinnedBuffer<float[]>(new float[host.BlockSize]))
                         {
-                            ct.ThrowIfCancellationRequested();
+                            buffer.Target()[0] = buffer1.AddrOfPinnedObject();
+                            buffer.Target()[1] = buffer2.AddrOfPinnedObject();
 
-                            while (true)
+                            await Task.Run(() =>
                             {
-                                if (ct.IsCancellationRequested)
+                                ct.ThrowIfCancellationRequested();
+
+                                while (true)
                                 {
-                                    ct.ThrowIfCancellationRequested();
+                                    if (ct.IsCancellationRequested)
+                                    {
+                                        ct.ThrowIfCancellationRequested();
+                                    }
+
+                                    processReplacing(
+                                        aeffectPtr,
+                                        IntPtr.Zero,
+                                        buffer.AddrOfPinnedObject(),
+                                        host.BlockSize
+                                    );
+                                    Thread.Sleep(50);
                                 }
-
-                                processReplacing(
-                                    aeffectPtr,
-                                    IntPtr.Zero,
-                                    buffer.AddrOfPinnedObject(),
-                                    host.BlockSize
-                                );
-                                Thread.Sleep(50);
-                            }
-                        });
+                            });
+                        }
                     }
-
-                    Close();
+                    finally
+                    {
+                        Close();
+                    }
                 }
 
                 private void Open(Host host)
@@ -257,7 +261,7 @@ namespace Momiji
                             IntPtr.Zero,
                             0
                         );
-                    Trace.WriteLine("effOpen:" + openResult);
+                    Trace.WriteLine($"effOpen:{openResult}");
 
                     var setSampleRateResult =
                         dispatcher(
@@ -268,7 +272,7 @@ namespace Momiji
                             IntPtr.Zero,
                             host.SamplingRate
                         );
-                    Trace.WriteLine("effSetSampleRate:" + setSampleRateResult);
+                    Trace.WriteLine($"effSetSampleRate:{setSampleRateResult}");
                     var setBlockSizeResult =
                         dispatcher(
                             aeffectPtr,
@@ -278,7 +282,7 @@ namespace Momiji
                             IntPtr.Zero,
                             0
                         );
-                    Trace.WriteLine("effSetBlockSize:" + setBlockSizeResult);
+                    Trace.WriteLine($"effSetBlockSize:{setBlockSizeResult}");
                     //resume
                     var resumeResult =
                         dispatcher(
@@ -289,7 +293,7 @@ namespace Momiji
                             IntPtr.Zero,
                             0
                         );
-                    Trace.WriteLine("effMainsChanged:" + resumeResult);
+                    Trace.WriteLine($"effMainsChanged:{resumeResult}");
                     //start
                     var startProcessResult =
                         dispatcher(
@@ -300,7 +304,7 @@ namespace Momiji
                             IntPtr.Zero,
                             0
                         );
-                    Trace.WriteLine("effStartProcess:" + startProcessResult);
+                    Trace.WriteLine($"effStartProcess:{startProcessResult}");
                 }
 
                 private void Close()
@@ -315,7 +319,7 @@ namespace Momiji
                             IntPtr.Zero,
                             0
                         );
-                    Trace.WriteLine("effStopProcess:" + stopProcessResult);
+                    Trace.WriteLine($"effStopProcess:{stopProcessResult}");
                     //suspend
                     var suspendResult =
                         dispatcher(
@@ -326,7 +330,7 @@ namespace Momiji
                             IntPtr.Zero,
                             0
                         );
-                    Trace.WriteLine("effMainsChanged:" + suspendResult);
+                    Trace.WriteLine($"effMainsChanged:{suspendResult}");
                     //close
                     var closeResult =
                         dispatcher(
@@ -337,7 +341,7 @@ namespace Momiji
                             IntPtr.Zero,
                             0
                         );
-                    Trace.WriteLine("effClose:" + closeResult);
+                    Trace.WriteLine($"effClose:{closeResult}");
 
                     aeffectPtr = IntPtr.Zero;
                 }
@@ -364,7 +368,7 @@ namespace Momiji
                         {
                             foreach (var v in e.InnerExceptions)
                             {
-                                Trace.WriteLine("FtlIngest Process Exception:" + e.Message + " " + v.Message);
+                                Trace.WriteLine($"FtlIngest Process Exception:{e.Message} {v.Message}");
                             }
                         }
                         finally

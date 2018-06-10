@@ -7,6 +7,7 @@ using System.Runtime.InteropServices;
 using System.Threading;
 using System.Threading.Tasks;
 using WebApplication1.Models;
+using Microsoft.Extensions.Configuration;
 
 namespace WebApplication1.Controllers
 {
@@ -14,72 +15,84 @@ namespace WebApplication1.Controllers
     {
         private static CancellationTokenSource processCancel;
         private static Task processTask;
+        private static IConfiguration Configuration { get; set; }
+
+        public HomeController(IConfiguration configuration)
+        {
+            Configuration = configuration;
+        }
 
         private async Task Loop()
         {
             var ct = processCancel.Token;
 
-            Trace.WriteLine("start");
+            Trace.WriteLine("main loop start");
 
-            await Task.Run(() =>
+            try
             {
-                ct.ThrowIfCancellationRequested();
-
-                var error = Momiji.Interop.Opus.OpusStatusCode.Unimplemented;
-
-                Momiji.Interop.Ftl.IngestParams param;
-                param.stream_key = "33469545-sljt8rlmk7jmf69c5qlo192te4srsgci";
-                param.video_codec = Momiji.Interop.Ftl.VideoCodec.FTL_VIDEO_H264;
-                param.audio_codec = Momiji.Interop.Ftl.AudioCodec.FTL_AUDIO_OPUS;
-                param.ingest_hostname = "auto";
-                param.fps_num = 24;
-                param.fps_den = 1;
-                param.peak_kbps = 0;
-                param.vendor_name = "momiji";
-                param.vendor_version = "0.0.1";
-
-                int frameSize = 960;
-                int maxDataByte = 3 * 1276;
-
-                using (var pcm = new Momiji.Interop.PinnedBuffer<short[]>(new short[frameSize * 1]))
-                using (var data = new Momiji.Interop.PinnedBuffer<byte[]>(new byte[maxDataByte]))
-                using (var vst = new Momiji.Core.Vst.Host())
-                using (var encoder =
-                    Momiji.Interop.Opus.opus_encoder_create(
-                        Momiji.Interop.Opus.SamplingRate.Sampling08000,
-                        Momiji.Interop.Opus.Channels.Mono,
-                        Momiji.Interop.Opus.OpusApplicationType.Audio,
-                        out error
-                    ))
-                using (var ftl = new Momiji.Core.Ftl.FtlIngest(ref param))
+                await Task.Run(() =>
                 {
-                    if (error == Momiji.Interop.Opus.OpusStatusCode.OK)
+                    ct.ThrowIfCancellationRequested();
+
+                    var error = Momiji.Interop.Opus.OpusStatusCode.Unimplemented;
+
+                    Momiji.Interop.Ftl.IngestParams param;
+                    param.stream_key = $"{Configuration["MIXER_STREAM_KEY"]}";
+                    param.video_codec = Momiji.Interop.Ftl.VideoCodec.FTL_VIDEO_H264;
+                    param.audio_codec = Momiji.Interop.Ftl.AudioCodec.FTL_AUDIO_OPUS;
+                    param.ingest_hostname = "auto";
+                    param.fps_num = 24;
+                    param.fps_den = 1;
+                    param.peak_kbps = 0;
+                    param.vendor_name = "momiji";
+                    param.vendor_version = "0.0.1";
+
+                    int frameSize = 960;
+                    int maxDataByte = 3 * 1276;
+
+                    using (var pcm = new Momiji.Interop.PinnedBuffer<short[]>(new short[frameSize * 1]))
+                    using (var data = new Momiji.Interop.PinnedBuffer<byte[]>(new byte[maxDataByte]))
+                    using (var vst = new Momiji.Core.Vst.Host())
+                    using (var encoder =
+                        Momiji.Interop.Opus.opus_encoder_create(
+                            Momiji.Interop.Opus.SamplingRate.Sampling08000,
+                            Momiji.Interop.Opus.Channels.Mono,
+                            Momiji.Interop.Opus.OpusApplicationType.Audio,
+                            out error
+                        ))
+                    using (var ftl = new Momiji.Core.Ftl.FtlIngest(ref param))
                     {
-                        vst.AddEffect(Path.Combine(Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location), "Synth1 VST.dll"));
-
-                        int a = 0;
-                        while (true)
+                        if (error == Momiji.Interop.Opus.OpusStatusCode.OK)
                         {
-                            if (ct.IsCancellationRequested)
+                            vst.AddEffect(Path.Combine(Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location), "Synth1 VST.dll"));
+
+                            int a = 0;
+                            while (true)
                             {
-                                ct.ThrowIfCancellationRequested();
+                                if (ct.IsCancellationRequested)
+                                {
+                                    ct.ThrowIfCancellationRequested();
+                                }
+
+                                int wrote = Momiji.Interop.Opus.opus_encode(
+                                    encoder,
+                                    pcm.AddrOfPinnedObject(),
+                                    frameSize,
+                                    data.AddrOfPinnedObject(),
+                                    maxDataByte
+                                    );
+
+                                Trace.WriteLine("wait:" + a++);
+                                Thread.Sleep(1000);
                             }
-
-                            int wrote = Momiji.Interop.Opus.opus_encode(
-                                encoder,
-                                pcm.AddrOfPinnedObject(),
-                                frameSize,
-                                data.AddrOfPinnedObject(),
-                                maxDataByte
-                                );
-
-                            Trace.WriteLine("wait:" + a++);
-                            Thread.Sleep(1000);
                         }
                     }
-                }
-            });
-            Trace.WriteLine("end");
+                });
+            }
+            finally
+            {
+                Trace.WriteLine("main loop end");
+            }
         }
 
 
