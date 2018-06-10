@@ -3,11 +3,13 @@ using System;
 using System.Diagnostics;
 using System.IO;
 using System.Reflection;
-using System.Runtime.InteropServices;
 using System.Threading;
 using System.Threading.Tasks;
 using WebApplication1.Models;
 using Microsoft.Extensions.Configuration;
+using System.Threading.Tasks.Dataflow;
+using static Momiji.Core.Opus;
+using Momiji.Interop;
 
 namespace WebApplication1.Controllers
 {
@@ -15,7 +17,7 @@ namespace WebApplication1.Controllers
     {
         private static CancellationTokenSource processCancel;
         private static Task processTask;
-        private static IConfiguration Configuration { get; set; }
+        private IConfiguration Configuration { get; }
 
         public HomeController(IConfiguration configuration)
         {
@@ -34,54 +36,55 @@ namespace WebApplication1.Controllers
                 {
                     ct.ThrowIfCancellationRequested();
 
-                    var error = Momiji.Interop.Opus.OpusStatusCode.Unimplemented;
+                    int samplingRate = 48000;
+                    int blockSize = 1024;
 
-                    Momiji.Interop.Ftl.IngestParams param;
-                    param.stream_key = $"{Configuration["MIXER_STREAM_KEY"]}";
-                    param.video_codec = Momiji.Interop.Ftl.VideoCodec.FTL_VIDEO_H264;
-                    param.audio_codec = Momiji.Interop.Ftl.AudioCodec.FTL_AUDIO_OPUS;
-                    param.ingest_hostname = "auto";
-                    param.fps_num = 24;
-                    param.fps_den = 1;
-                    param.peak_kbps = 0;
-                    param.vendor_name = "momiji";
-                    param.vendor_version = "0.0.1";
-
-                    int frameSize = 960;
-                    int maxDataByte = 3 * 1276;
-
-                    using (var pcm = new Momiji.Interop.PinnedBuffer<short[]>(new short[frameSize * 1]))
-                    using (var data = new Momiji.Interop.PinnedBuffer<byte[]>(new byte[maxDataByte]))
-                    using (var vst = new Momiji.Core.Vst.Host())
-                    using (var encoder =
-                        Momiji.Interop.Opus.opus_encoder_create(
-                            Momiji.Interop.Opus.SamplingRate.Sampling08000,
-                            Momiji.Interop.Opus.Channels.Mono,
-                            Momiji.Interop.Opus.OpusApplicationType.Audio,
-                            out error
-                        ))
-                    using (var ftl = new Momiji.Core.Ftl.FtlIngest(ref param))
+                    using (var pcm1 = new PinnedBuffer<float[]>(new float[blockSize * 2]))
+                    using (var pcm2 = new PinnedBuffer<float[]>(new float[blockSize * 2]))
+                    using (var out1 = new OpusOutputBuffer(5000))
+                    using (var out2 = new OpusOutputBuffer(5000))
                     {
-                        if (error == Momiji.Interop.Opus.OpusStatusCode.OK)
+                        var vstToOpusInput = new BufferBlock<PinnedBuffer<float[]>>();
+                        var vstToOpusOutput = new BufferBlock<PinnedBuffer<float[]>>();
+                        var opusToFtlInput = new BufferBlock<OpusOutputBuffer>();
+                        var opusToFtlOutput = new BufferBlock<OpusOutputBuffer>();
+
+                        vstToOpusOutput.Post(pcm1);
+                        vstToOpusOutput.Post(pcm2);
+                        opusToFtlInput.Post(out1);
+                        opusToFtlInput.Post(out2);
+
+                        using (var vst = new Momiji.Core.Vst.AudioMaster(samplingRate, blockSize))
+                        using (var encoder = new OpusEncoder(Opus.SamplingRate.Sampling48000, Opus.Channels.Stereo))
+                        using (var ftl = new Momiji.Core.Ftl.FtlIngest($"{Configuration["MIXER_STREAM_KEY"]}"))
                         {
-                            vst.AddEffect(Path.Combine(Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location), "Synth1 VST.dll"));
+                            var effect = vst.AddEffect(
+                                Path.Combine(Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location), "Synth1 VST.dll")
+                            );
+
+                            effect.Run(
+                                vstToOpusOutput,
+                                vstToOpusInput
+                            );
+
+                            encoder.Run(
+                                vstToOpusInput,
+                                vstToOpusOutput,
+                                opusToFtlInput,
+                                opusToFtlOutput
+                            );
+                            ftl.Run(
+                                opusToFtlOutput,
+                                opusToFtlInput
+                            );
 
                             int a = 0;
                             while (true)
                             {
                                 if (ct.IsCancellationRequested)
                                 {
-                                    ct.ThrowIfCancellationRequested();
+                                    break;
                                 }
-
-                                int wrote = Momiji.Interop.Opus.opus_encode(
-                                    encoder,
-                                    pcm.AddrOfPinnedObject(),
-                                    frameSize,
-                                    data.AddrOfPinnedObject(),
-                                    maxDataByte
-                                    );
-
                                 Trace.WriteLine("wait:" + a++);
                                 Thread.Sleep(1000);
                             }

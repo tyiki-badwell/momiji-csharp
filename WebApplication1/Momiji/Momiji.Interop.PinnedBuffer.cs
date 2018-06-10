@@ -7,6 +7,7 @@ namespace Momiji
     {
         public class PinnedBuffer<T> : IDisposable
         {
+            private bool disposed = false;
             private GCHandle handle;
 
             public PinnedBuffer(T buffer)
@@ -16,10 +17,23 @@ namespace Momiji
 
             public void Dispose()
             {
-                if (handle.IsAllocated)
+                Dispose(true);
+                GC.SuppressFinalize(this);
+            }
+
+            protected virtual void Dispose(bool disposing)
+            {
+                if (disposed) return;
+
+                if (disposing)
                 {
-                    handle.Free();
+                    if (handle != null && handle.IsAllocated)
+                    {
+                        handle.Free();
+                    }
                 }
+
+                disposed = true;
             }
 
             public IntPtr AddrOfPinnedObject()

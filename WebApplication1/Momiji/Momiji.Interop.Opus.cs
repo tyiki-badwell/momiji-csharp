@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Diagnostics;
 using System.Runtime.InteropServices;
 
 namespace Momiji
@@ -196,7 +197,8 @@ namespace Momiji
                 [System.Runtime.ConstrainedExecution.ReliabilityContract(System.Runtime.ConstrainedExecution.Consistency.WillNotCorruptState, System.Runtime.ConstrainedExecution.Cer.MayFail)]
                 override protected bool ReleaseHandle()
                 {
-                    opus_encoder_destroy(this.handle);
+                    Trace.WriteLine("opus_encoder_destroy");
+                    opus_encoder_destroy(handle);
                     return true;
                 }
             }
@@ -241,9 +243,9 @@ namespace Momiji
             [DllImport("opus.dll", CallingConvention = CallingConvention.Cdecl)]
             internal static extern int opus_encode_float(
                 [In] OpusEncoder st,
-                [In] float[] pcm,
+                [In] IntPtr pcm,
                 [In] int frame_size,
-                [In] byte[] data,
+                [In] IntPtr data,
                 [In] int max_data_bytes
             );
 
@@ -263,12 +265,12 @@ namespace Momiji
 
             [DllImport("opus.dll", CallingConvention = CallingConvention.Cdecl)]
             internal static extern int opus_packet_get_bandwidth(
-                [In] byte[] data
+                [In] IntPtr data
             );
 
             [DllImport("opus.dll", CallingConvention = CallingConvention.Cdecl)]
             internal static extern int opus_packet_get_nb_channels(
-                [In] byte[] data
+                [In] IntPtr data
             );
         }
     }

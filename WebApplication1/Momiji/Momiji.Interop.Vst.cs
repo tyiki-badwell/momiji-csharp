@@ -624,38 +624,17 @@ namespace Momiji
                                                             //-------------------------------------------------------------------------------------------------------
             };
 
-            internal class AudioMasterCallBack
-            {
-		        internal class AudioMasterEventArgs : EventArgs
-                {
-			        public IntPtr/*AEffect^*/		effect;
-                    public AudioMasterOpcodes opcode;
-                    public Int32 index;
-                    public IntPtr value;
-                    public IntPtr ptr;
-                    public Single opt;
-                    public IntPtr returnValue;
+            [UnmanagedFunctionPointer(CallingConvention.Cdecl, CharSet = CharSet.Ansi, SetLastError = false)]
+            internal delegate IntPtr AudioMasterCallBack(
+                [In]IntPtr/*AEffect^*/		effect,
+                [In]AudioMasterOpcodes opcode,
+                [In]Int32 index,
+                [In]IntPtr value,
+                [In]IntPtr ptr,
+                [In]Single opt
+            );
 
-                    override public string ToString()
-			        {
-				        return "opcode["+opcode.ToString("F")+"] index["+index+"] value["+value+"] ptr["+ptr+"] opt["+opt+"] returnValue["+returnValue+"]";
-			        }
-
-                };
-
-                [UnmanagedFunctionPointerAttribute(CallingConvention.Cdecl, CharSet = CharSet.Ansi, SetLastError = false)]
-                internal delegate IntPtr Delegate(
-                    [In]IntPtr/*AEffect^*/		effect,
-                    [In]AudioMasterOpcodes opcode,
-                    [In]Int32 index,
-                    [In]IntPtr value,
-                    [In]IntPtr ptr,
-                    [In]Single opt
-                );
-	        };
-
-
-            [UnmanagedFunctionPointerAttribute(CallingConvention.Cdecl, CharSet = CharSet.Ansi, SetLastError = false)]
+            [UnmanagedFunctionPointer(CallingConvention.Cdecl, CharSet = CharSet.Ansi, SetLastError = false)]
             internal delegate IntPtr AEffectDispatcherProc(
                 [In]IntPtr/*AEffect^*/		effect,
                 [In]AEffectOpcodes opcode,
@@ -665,7 +644,7 @@ namespace Momiji
                 [In]Single opt
             );
 
-            [UnmanagedFunctionPointerAttribute(CallingConvention.Cdecl, CharSet = CharSet.Ansi, SetLastError = false)]
+            [UnmanagedFunctionPointer(CallingConvention.Cdecl, CharSet = CharSet.Ansi, SetLastError = false)]
             internal delegate void AEffectProcessProc(
                 [In]IntPtr/*AEffect^*/		effect,
                 [In]IntPtr inputs,
@@ -673,7 +652,7 @@ namespace Momiji
                 [In]Int32 sampleFrames
             );
 
-            [UnmanagedFunctionPointerAttribute(CallingConvention.Cdecl, CharSet = CharSet.Ansi, SetLastError = false)]
+            [UnmanagedFunctionPointer(CallingConvention.Cdecl, CharSet = CharSet.Ansi, SetLastError = false)]
             internal delegate void AEffectProcessDoubleProc(
                 [In]IntPtr/*AEffect^*/		effect,
                 [In]IntPtr inputs,
@@ -681,24 +660,23 @@ namespace Momiji
                 [In]Int32 sampleFrames
             );
 
-            [UnmanagedFunctionPointerAttribute(CallingConvention.Cdecl, CharSet = CharSet.Ansi, SetLastError = false)]
+            [UnmanagedFunctionPointer(CallingConvention.Cdecl, CharSet = CharSet.Ansi, SetLastError = false)]
             internal delegate void AEffectSetParameterProc(
                 [In]IntPtr/*AEffect^*/		effect,
                 [In]Int32 index,
                 [In]Single parameter
             );
 
-            [UnmanagedFunctionPointerAttribute(CallingConvention.Cdecl, CharSet = CharSet.Ansi, SetLastError = false)]
+            [UnmanagedFunctionPointer(CallingConvention.Cdecl, CharSet = CharSet.Ansi, SetLastError = false)]
             internal delegate Single AEffectGetParameterProc(
                 [In]IntPtr/*AEffect^*/		effect,
                 [In]Int32 index
             );
 
-            [UnmanagedFunctionPointerAttribute(CallingConvention.Cdecl, CharSet = CharSet.Ansi, SetLastError = false)]
+            [UnmanagedFunctionPointer(CallingConvention.Cdecl, CharSet = CharSet.Ansi, SetLastError = false)]
             internal delegate IntPtr VSTPluginMain(
                 [In][MarshalAs(UnmanagedType.FunctionPtr)]
-                        AudioMasterCallBack.Delegate	audioMaster
-
+                        AudioMasterCallBack	audioMaster
             );
         }
     }
