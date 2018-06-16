@@ -115,16 +115,16 @@ namespace Momiji
                             {
                                 if (pcm == null)
                                 {
-                                    pcm = inputQueue.Receive(new TimeSpan(1000), ct);
+                                    pcm = inputQueue.Receive(new TimeSpan(2000), ct);
                                     Trace.WriteLine("[opus] receive pcm");
                                 }
-                                var data = bufferQueue.Receive(new TimeSpan(1000), ct);
+                                var data = bufferQueue.Receive(new TimeSpan(2000), ct);
                                 Trace.WriteLine("[opus] get data");
 
-                                data.Wrote = Interop.Opus.opus_encode(
+                                data.Wrote = Interop.Opus.opus_encode_float(
                                     encoder,
                                     pcm.AddrOfPinnedObject(),
-                                    pcm.Target().Length,
+                                    pcm.Target().Length / 2,
                                     data.AddrOfPinnedObject(),
                                     data.Target().Length
                                     );
@@ -133,7 +133,7 @@ namespace Momiji
                                 pcm = null;
                                 Trace.WriteLine("[opus] release pcm");
                                 outputQueue.Post(data);
-                                Trace.WriteLine("[opus] post data");
+                                Trace.WriteLine($"[opus] post data: wrote {data.Wrote}");
                             }
                             catch (TimeoutException te)
                             {

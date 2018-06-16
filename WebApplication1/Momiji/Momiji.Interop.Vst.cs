@@ -522,7 +522,7 @@ namespace Momiji
             {
                 //-------------------------------------------------------------------------------------------------------
                 public Int32 numEvents;        //< number of Events in array
-                public IntPtr reserved;        //< zero (Reserved for future use)
+                public Int32 reserved;        //< zero (Reserved for future use)
                                         //IntPtr	events;			//VstEvent* events[2];	///< event pointer array, variable size
                                         //-------------------------------------------------------------------------------------------------------
             };
@@ -541,7 +541,7 @@ namespace Momiji
             */
             //-------------------------------------------------------------------------------------------------------
             [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Ansi)]
-            public struct VstTimeInfo
+            public class VstTimeInfo
             {
 		        //-------------------------------------------------------------------------------------------------------
 		        /** Flags used in #VstTimeInfo. */
@@ -574,18 +574,18 @@ namespace Momiji
                 {
                     //-------------------------------------------------------------------------------------------------------
                     kVstSmpte24fps    = 0,		///< 24 fps
-			            kVstSmpte25fps    = 1,		///< 25 fps
-			            kVstSmpte2997fps  = 2,		///< 29.97 fps
-			            kVstSmpte30fps    = 3,		///< 30 fps
-			            kVstSmpte2997dfps = 4,		///< 29.97 drop
-			            kVstSmpte30dfps   = 5,		///< 30 drop
+			        kVstSmpte25fps    = 1,		///< 25 fps
+			        kVstSmpte2997fps  = 2,		///< 29.97 fps
+			        kVstSmpte30fps    = 3,		///< 30 fps
+			        kVstSmpte2997dfps = 4,		///< 29.97 drop
+			        kVstSmpte30dfps   = 5,		///< 30 drop
 
-			            kVstSmpteFilm16mm = 6, 		///< Film 16mm
-			            kVstSmpteFilm35mm = 7, 		///< Film 35mm
-			            kVstSmpte239fps   = 10,		///< HDTV: 23.976 fps
-			            kVstSmpte249fps   = 11,		///< HDTV: 24.976 fps
-			            kVstSmpte599fps   = 12,		///< HDTV: 59.94 fps
-			            kVstSmpte60fps    = 13		///< HDTV: 60 fps
+			        kVstSmpteFilm16mm = 6, 		///< Film 16mm
+			        kVstSmpteFilm35mm = 7, 		///< Film 35mm
+			        kVstSmpte239fps   = 10,		///< HDTV: 23.976 fps
+			        kVstSmpte249fps   = 11,		///< HDTV: 24.976 fps
+			        kVstSmpte599fps   = 12,		///< HDTV: 59.94 fps
+			        kVstSmpte60fps    = 13		///< HDTV: 60 fps
 		            //-------------------------------------------------------------------------------------------------------
 		            };
 
@@ -601,7 +601,7 @@ namespace Momiji
                 public Int32 timeSigNumerator;     ///< Time Signature Numerator (e.g. 3 for 3/4)
                 public Int32 timeSigDenominator;   ///< Time Signature Denominator (e.g. 4 for 3/4)
                 public Int32 smpteOffset;          ///< SMPTE offset (in SMPTE subframes (bits; 1/80 of a frame)). The current SMPTE position can be calculated using #samplePos, #sampleRate, and #smpteFrameRate.
-                public Int32 smpteFrameRate;       ///< @see VstSmpteFrameRate
+                public VstSmpteFrameRate smpteFrameRate;       ///< @see VstSmpteFrameRate
                 public Int32 samplesToNextClock;   ///< MIDI Clock Resolution (24 Per Quarter Note), can be negative (nearest clock)
                 public VstTimeInfoFlags flags;                 ///< @see VstTimeInfoFlags
                 //-------------------------------------------------------------------------------------------------------

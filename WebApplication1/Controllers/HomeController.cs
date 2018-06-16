@@ -37,7 +37,7 @@ namespace WebApplication1.Controllers
                     ct.ThrowIfCancellationRequested();
 
                     int samplingRate = 48000;
-                    int blockSize = 1024;
+                    int blockSize = 2880;
 
                     using (var pcm1 = new PinnedBuffer<float[]>(new float[blockSize * 2]))
                     using (var pcm2 = new PinnedBuffer<float[]>(new float[blockSize * 2]))
