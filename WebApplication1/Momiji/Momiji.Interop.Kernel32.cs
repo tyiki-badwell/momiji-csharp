@@ -1,9 +1,8 @@
 ﻿using System;
-using System.Runtime.InteropServices;
 using System.Diagnostics;
-using System.Threading.Tasks;
-using System.Security.Permissions;
 using System.Runtime.ConstrainedExecution;
+using System.Runtime.InteropServices;
+using System.Security.Permissions;
 
 namespace Momiji
 {
@@ -136,7 +135,7 @@ namespace Momiji
 			    }
             };
 
-            [DllImport("kernel32.dll", CallingConvention = CallingConvention.Cdecl, SetLastError = true)]
+            [DllImport("kernel32.dll", CallingConvention = CallingConvention.Cdecl, CharSet = CharSet.Unicode, SetLastError = true)]
             internal static extern DynamicLinkLibrary LoadLibrary(
                 [In]   string lpFileName
             );
@@ -151,6 +150,11 @@ namespace Momiji
             internal static extern IntPtr GetProcAddress(
                     [In]   DynamicLinkLibrary hModule,
                     [In]   string lpProcName
+            );
+
+            [DllImport("kernel32.dll", CallingConvention = CallingConvention.Cdecl, CharSet = CharSet.Unicode, SetLastError = true)]
+            internal static extern Boolean SetDllDirectory(
+                [In]   string lpPathName
             );
 
         }

@@ -58,26 +58,25 @@ namespace WebApplication1.Controllers
                         using (var encoder = new OpusEncoder(Opus.SamplingRate.Sampling48000, Opus.Channels.Stereo))
                         using (var ftl = new Momiji.Core.Ftl.FtlIngest($"{Configuration["MIXER_STREAM_KEY"]}"))
                         {
-                            var effect = vst.AddEffect(
-                                Path.Combine(Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location), "Synth1 VST.dll")
-                            );
+                            var effect = vst.AddEffect("Synth1 VST.dll");
 
                             effect.Run(
                                 vstToOpusOutput,
                                 vstToOpusInput
                             );
-
+                            
                             encoder.Run(
                                 vstToOpusInput,
                                 vstToOpusOutput,
                                 opusToFtlInput,
                                 opusToFtlOutput
                             );
+                            
                             ftl.Run(
                                 opusToFtlOutput,
                                 opusToFtlInput
                             );
-
+                            
                             int a = 0;
                             while (true)
                             {

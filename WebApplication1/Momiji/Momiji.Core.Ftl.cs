@@ -1,10 +1,9 @@
-﻿using System;
-using System.Runtime.InteropServices;
+﻿using Momiji.Interop;
+using System;
 using System.Diagnostics;
-using System.Threading.Tasks;
-using Momiji.Interop;
+using System.Runtime.InteropServices;
 using System.Threading;
-using System.Security.Permissions;
+using System.Threading.Tasks;
 using System.Threading.Tasks.Dataflow;
 using static Momiji.Core.Opus;
 
@@ -44,6 +43,12 @@ namespace Momiji
 
                     status = Interop.Ftl.ftl_ingest_create(handle.AddrOfPinnedObject(), ref param);
                     Trace.WriteLine($"ftl_ingest_create:{status}");
+                    if (status != Interop.Ftl.Status.FTL_SUCCESS)
+                    {
+                        handle.Dispose();
+                        handle = null;
+                        throw new Exception($"ftl_ingest_create error:{status}");
+                    }
 
                     logCancel = new CancellationTokenSource();
                     logTask = PrintTrace(logCancel, handle);
@@ -88,28 +93,34 @@ namespace Momiji
                             processCancel.Dispose();
                         }
 
-                        Interop.Ftl.Status status;
-                        status = Interop.Ftl.ftl_ingest_disconnect(handle.AddrOfPinnedObject());
-                        Trace.WriteLine($"ftl_ingest_disconnect:{status}");
-
-                        status = Interop.Ftl.ftl_ingest_destroy(handle.AddrOfPinnedObject());
-                        Trace.WriteLine($"ftl_ingest_destroy:{status}");
-
-                        logCancel.Cancel();
-                        try
+                        if (handle != null)
                         {
-                            logTask.Wait();
-                        }
-                        catch (AggregateException e)
-                        {
-                            foreach (var v in e.InnerExceptions)
+                            Interop.Ftl.Status status;
+                            status = Interop.Ftl.ftl_ingest_disconnect(handle.AddrOfPinnedObject());
+                            Trace.WriteLine($"ftl_ingest_disconnect:{status}");
+
+                            status = Interop.Ftl.ftl_ingest_destroy(handle.AddrOfPinnedObject());
+                            Trace.WriteLine($"ftl_ingest_destroy:{status}");
+
+                            logCancel.Cancel();
+                            try
                             {
-                                Trace.WriteLine($"FtlIngest Log Exception:{e.Message} {v.Message}");
+                                logTask.Wait();
                             }
-                        }
-                        finally
-                        {
-                            logCancel.Dispose();
+                            catch (AggregateException e)
+                            {
+                                foreach (var v in e.InnerExceptions)
+                                {
+                                    Trace.WriteLine($"FtlIngest Log Exception:{e.Message} {v.Message}");
+                                }
+                            }
+                            finally
+                            {
+                                logCancel.Dispose();
+                            }
+
+                            handle.Dispose();
+                            handle = null;
                         }
                     }
 

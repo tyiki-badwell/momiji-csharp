@@ -1,11 +1,10 @@
-﻿using System;
-using System.Runtime.InteropServices;
-using System.Diagnostics;
-using System.Threading.Tasks;
-using Momiji.Interop;
-using System.Threading;
+﻿using Momiji.Interop;
+using System;
 using System.Collections.Generic;
-using System.Security.Permissions;
+using System.Diagnostics;
+using System.Runtime.InteropServices;
+using System.Threading;
+using System.Threading.Tasks;
 using System.Threading.Tasks.Dataflow;
 
 namespace Momiji
@@ -159,7 +158,6 @@ namespace Momiji
                 public Effect(string library, AudioMaster audioMaster)
                 {
                     this.audioMaster = audioMaster;
-
                     dll = Kernel32.LoadLibrary(library);
                     if (dll.IsInvalid)
                     {
