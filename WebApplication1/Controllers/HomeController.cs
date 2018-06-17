@@ -1,15 +1,15 @@
 ﻿using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.Configuration;
+using Momiji.Core.Ftl;
+using Momiji.Core.Opus;
+using Momiji.Core.Vst;
+using Momiji.Interop;
 using System;
 using System.Diagnostics;
-using System.IO;
-using System.Reflection;
 using System.Threading;
 using System.Threading.Tasks;
-using WebApplication1.Models;
-using Microsoft.Extensions.Configuration;
 using System.Threading.Tasks.Dataflow;
-using static Momiji.Core.Opus;
-using Momiji.Interop;
+using WebApplication1.Models;
 
 namespace WebApplication1.Controllers
 {
@@ -54,9 +54,9 @@ namespace WebApplication1.Controllers
                         opusToFtlInput.Post(out1);
                         opusToFtlInput.Post(out2);
 
-                        using (var vst = new Momiji.Core.Vst.AudioMaster(samplingRate, blockSize))
+                        using (var vst = new AudioMaster(samplingRate, blockSize))
                         using (var encoder = new OpusEncoder(Opus.SamplingRate.Sampling48000, Opus.Channels.Stereo))
-                        using (var ftl = new Momiji.Core.Ftl.FtlIngest($"{Configuration["MIXER_STREAM_KEY"]}"))
+                        using (var ftl = new FtlIngest($"{Configuration["MIXER_STREAM_KEY"]}"))
                         {
                             var effect = vst.AddEffect("Synth1 VST.dll");
 
@@ -135,23 +135,20 @@ namespace WebApplication1.Controllers
             }
             return View();
         }
-
-
+        
         public IActionResult Index()
         {
             return View();
         }
 
-        public IActionResult About()
+        public IActionResult WaveCaps()
         {
-            ViewData["Message"] = "Your application description page.";
-
-            return View();
-        }
-
-        public IActionResult Contact()
-        {
-            ViewData["Message"] = "Your contact page.";
+            var n = Momiji.Core.Wave.Out.GetNumDevices();
+            for (uint i = 0; i < n; i++)
+            {
+                var c = Momiji.Core.Wave.Out.GetCapabilities(i);
+                Trace.WriteLine($"{c}");
+            }
 
             return View();
         }

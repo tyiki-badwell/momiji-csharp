@@ -13,7 +13,7 @@ namespace Momiji
 {
     namespace Core
     {
-        public class Vst
+        namespace Vst
         {
             public class VstBuffer<T> : PinnedBuffer<IntPtr[]>
             {

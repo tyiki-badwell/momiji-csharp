@@ -1,17 +1,17 @@
-﻿using Momiji.Interop;
+﻿using Momiji.Core.Opus;
+using Momiji.Interop;
 using System;
 using System.Diagnostics;
 using System.Runtime.InteropServices;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Threading.Tasks.Dataflow;
-using static Momiji.Core.Opus;
 
 namespace Momiji
 {
     namespace Core
     {
-        public class Ftl
+        namespace Ftl
         {
             public class FtlIngest : IDisposable
             {

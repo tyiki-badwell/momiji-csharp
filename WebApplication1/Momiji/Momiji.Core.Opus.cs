@@ -9,7 +9,7 @@ namespace Momiji
 {
     namespace Core
     {
-        public class Opus
+        namespace Opus
         {
             public class OpusOutputBuffer : PinnedBuffer<byte[]>
             {
