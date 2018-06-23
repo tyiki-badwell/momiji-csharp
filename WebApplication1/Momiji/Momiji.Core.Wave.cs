@@ -4,6 +4,8 @@ using System.Runtime.InteropServices;
 using System.Threading.Tasks.Dataflow;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.Threading.Tasks;
+using System.Threading;
 
 namespace Momiji
 {
@@ -11,7 +13,21 @@ namespace Momiji
     {
         namespace Wave
         {
-            public class Out
+            public class WaveException: Exception
+            {
+                public WaveException(Interop.Wave.MMRESULT mmResult): base(makeMessage(mmResult))
+                {   
+                }
+
+                static private string makeMessage(Interop.Wave.MMRESULT mmResult)
+                {
+                    var text = new System.Text.StringBuilder(256);
+                    Interop.Wave.waveOutGetErrorText(mmResult, text, (uint)text.Capacity);
+                    return text.ToString();
+                }
+            }
+
+            public class WaveOut : IDisposable
             {
                 private bool disposed = false;
 
@@ -20,7 +36,9 @@ namespace Momiji
 
                 private Interop.Wave.WaveOut handle;
 
-                private void DriverCallBackProc(
+                private Task processTask;
+
+                private async void DriverCallBackProc(
                     IntPtr hdrvr,
                     Interop.Wave.DriverCallBack.MM_EXT_WINDOW_MESSAGE uMsg,
                     IntPtr dwUser,
@@ -28,16 +46,16 @@ namespace Momiji
                     IntPtr dw2
                 )
                 {
-                    try
+                    if (uMsg == Interop.Wave.DriverCallBack.MM_EXT_WINDOW_MESSAGE.WOM_DONE)
                     {
-                        Unprepare(dw1);
-                    }
-                    catch (Exception e)
-                    {
+                        await Task.Run(() =>
+                        {
+                            Unprepare(dw1);
+                        });
                     }
                 }
 
-                public Out(
+                public WaveOut(
                     UInt32 deviceID,
                     UInt16 channels,
                     UInt32 samplesPerSecond,
@@ -56,7 +74,7 @@ namespace Momiji
                     format.wfe.averageBytesPerSecond = format.wfe.samplesPerSecond * format.wfe.blockAlign;
                     format.wfe.size = (ushort)(Marshal.SizeOf<Interop.Wave.WaveFormatExtensiblePart>());
 
-                    format.exp.validBitsPerSample = format.wfe.bitsPerSample;   //TODO: 実際にハードウェアでサポートしている限界に揃える
+                    format.exp.validBitsPerSample = format.wfe.bitsPerSample;
                     format.exp.channelMask = channelMask;
                     format.exp.subFormat = formatSubType;
 
@@ -80,7 +98,7 @@ namespace Momiji
                         );
                     if (mmResult != Interop.Wave.MMRESULT.NOERROR)
                     {
-                        throw new Exception($"{mmResult}");
+                        throw new WaveException(mmResult);
                     }
                 }
 
@@ -96,6 +114,19 @@ namespace Momiji
 
                     if (disposing)
                     {
+                        Trace.WriteLine("[wave] stop");
+                        try
+                        {
+                            processTask.Wait();
+                        }
+                        catch (AggregateException e)
+                        {
+                            foreach (var v in e.InnerExceptions)
+                            {
+                                Trace.WriteLine($"[wave] Process Exception:{e.Message} {v.Message}");
+                            }
+                        }
+
                         if (handle != null)
                         {
                             if (
@@ -136,31 +167,33 @@ namespace Momiji
 
                     var mmResult =
                         Interop.Wave.waveOutPrepareHeader(
-                            ref handle,
+                            handle,
                             header.AddrOfPinnedObject(),
                             (uint)Marshal.SizeOf<Interop.Wave.WaveHeader>()
                         );
                     if (mmResult != Interop.Wave.MMRESULT.NOERROR)
                     {
                         headerPool.Post(header);
-                        throw new Exception($"{mmResult}");
+                        throw new WaveException(mmResult);
                     }
+                    headerBusyPool.Add(header.AddrOfPinnedObject(), header);
                     return header.AddrOfPinnedObject();
                 }
 
                 private void Unprepare(IntPtr headerPtr)
                 {
-                    var header = headerBusyPool[headerPtr];
+                    PinnedBuffer<Interop.Wave.WaveHeader> header;
+                    headerBusyPool.Remove(headerPtr, out header);
 
                     var mmResult =
                         Interop.Wave.waveOutUnprepareHeader(
-                            ref handle,
+                            handle,
                             headerPtr,
                             (uint)Marshal.SizeOf<Interop.Wave.WaveHeader>()
                         );
                     if (mmResult != Interop.Wave.MMRESULT.NOERROR)
                     {
-                        throw new Exception($"{mmResult}");
+                        throw new WaveException(mmResult);
                     }
 
                     headerPool.Post(header);
@@ -189,7 +222,7 @@ namespace Momiji
                         );
                     if (mmResult != Interop.Wave.MMRESULT.NOERROR)
                     {
-                        throw new Exception($"{mmResult}");
+                        throw new WaveException(mmResult);
                     }
                     return caps;
                 }
@@ -208,14 +241,14 @@ namespace Momiji
 
                     var mmResult =
                         Interop.Wave.waveOutWrite(
-                            ref handle,
+                            handle,
                             headerPtr,
                             (uint)Marshal.SizeOf<Interop.Wave.WaveHeader>()
                         );
                     if (mmResult != Interop.Wave.MMRESULT.NOERROR)
                     {
                         Unprepare(headerPtr);
-                        throw new Exception($"{mmResult}");
+                        throw new WaveException(mmResult);
                     }
                 }
 
@@ -229,11 +262,55 @@ namespace Momiji
                         return;
                     }
 
-                    var mmResult = Interop.Wave.waveOutReset(ref handle);
+                    var mmResult = Interop.Wave.waveOutReset(handle);
                     if (mmResult != Interop.Wave.MMRESULT.NOERROR)
                     {
-                        throw new Exception($"{mmResult}");
+                        throw new WaveException(mmResult);
                     }
+                }
+
+                public void Run(
+                    ISourceBlock<PinnedBuffer<float[]>> inputQueue,
+                    ITargetBlock<PinnedBuffer<float[]>> inputReleaseQueue,
+                    CancellationToken ct)
+                {
+                    processTask = Process(inputQueue, inputReleaseQueue, ct);
+                }
+
+                private async Task Process(
+                    ISourceBlock<PinnedBuffer<float[]>> inputQueue,
+                    ITargetBlock<PinnedBuffer<float[]>> inputReleaseQueue,
+                    CancellationToken ct)
+                {
+                    await Task.Run(() =>
+                    {
+                        ct.ThrowIfCancellationRequested();
+
+                        while (true)
+                        {
+                            if (ct.IsCancellationRequested)
+                            {
+                                break;
+                            }
+
+                            try
+                            {
+                                var data = inputQueue.Receive(new TimeSpan(2000), ct);
+                                Trace.WriteLine("[wave] get data");
+
+                                Send(data.AddrOfPinnedObject(), (uint)data.Target().Length);
+
+                                inputReleaseQueue.Post(data);
+                                Trace.WriteLine("[wave] post data");
+                            }
+                            catch (TimeoutException te)
+                            {
+                                //Trace.WriteLine("[wave] timeout");
+                                continue;
+                            }
+                        }
+                        Trace.WriteLine("[wave] loop end");
+                    });
                 }
             }
         }

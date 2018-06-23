@@ -6,6 +6,7 @@ using Momiji.Core.Vst;
 using Momiji.Interop;
 using System;
 using System.Diagnostics;
+using System.Runtime.InteropServices;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Threading.Tasks.Dataflow;
@@ -36,8 +37,8 @@ namespace WebApplication1.Controllers
                 {
                     ct.ThrowIfCancellationRequested();
 
-                    int samplingRate = 48000;
-                    int blockSize = 2880;
+                    Int32 samplingRate = 48000;
+                    Int32 blockSize = 2880;
 
                     using (var pcm1 = new PinnedBuffer<float[]>(new float[blockSize * 2]))
                     using (var pcm2 = new PinnedBuffer<float[]>(new float[blockSize * 2]))
@@ -62,19 +63,22 @@ namespace WebApplication1.Controllers
 
                             effect.Run(
                                 vstToOpusOutput,
-                                vstToOpusInput
+                                vstToOpusInput,
+                                ct
                             );
                             
                             encoder.Run(
                                 vstToOpusInput,
                                 vstToOpusOutput,
                                 opusToFtlInput,
-                                opusToFtlOutput
+                                opusToFtlOutput,
+                                ct
                             );
                             
                             ftl.Run(
                                 opusToFtlOutput,
-                                opusToFtlInput
+                                opusToFtlInput,
+                                ct
                             );
                             
                             int a = 0;
@@ -98,6 +102,233 @@ namespace WebApplication1.Controllers
         }
 
 
+        private async Task Loop2()
+        {
+            var ct = processCancel.Token;
+
+            Trace.WriteLine("main loop start");
+
+            try
+            {
+                await Task.Run(() =>
+                {
+                    ct.ThrowIfCancellationRequested();
+
+                    Int32 samplingRate = 48000;
+                    Int32 blockSize = 2880;
+
+                    using (var pcm1 = new PinnedBuffer<float[]>(new float[blockSize * 2]))
+                    using (var pcm2 = new PinnedBuffer<float[]>(new float[blockSize * 2]))
+                    using (var out1 = new OpusOutputBuffer(5000))
+                    using (var out2 = new OpusOutputBuffer(5000))
+                    {
+                        var vstToOpusInput = new BufferBlock<PinnedBuffer<float[]>>();
+                        var vstToOpusOutput = new BufferBlock<PinnedBuffer<float[]>>();
+                        var opusToFtlInput = new BufferBlock<OpusOutputBuffer>();
+                        var opusToFtlOutput = new BufferBlock<OpusOutputBuffer>();
+
+                        vstToOpusOutput.Post(pcm1);
+                        vstToOpusOutput.Post(pcm2);
+                        opusToFtlInput.Post(out1);
+                        opusToFtlInput.Post(out2);
+
+                        using (var vst = new AudioMaster(samplingRate, blockSize))
+                        using (var wave = new Momiji.Core.Wave.WaveOut(
+                            0,
+                            2,
+                            (uint)samplingRate,
+                            (ushort)(Marshal.SizeOf<float>() * 8),
+                            Wave.WaveFormatExtensiblePart.SPEAKER.FRONT_LEFT | Wave.WaveFormatExtensiblePart.SPEAKER.FRONT_RIGHT,
+                            new Guid("00000003-0000-0010-8000-00aa00389b71"),
+                            (uint)blockSize))
+                        {
+                            var effect = vst.AddEffect("Synth1 VST.dll");
+
+                            effect.Run(
+                                vstToOpusOutput,
+                                vstToOpusInput,
+                                ct
+                            );
+
+                            wave.Run(
+                                vstToOpusInput,
+                                vstToOpusOutput,
+                                ct
+                            );
+
+                            int a = 0;
+                            while (true)
+                            {
+                                if (ct.IsCancellationRequested)
+                                {
+                                    break;
+                                }
+                                Trace.WriteLine("wait:" + a++);
+                                Thread.Sleep(1000);
+                            }
+                        }
+                    }
+                });
+            }
+            finally
+            {
+                Trace.WriteLine("main loop end");
+            }
+        }
+
+        private async Task Loop3()
+        {
+            var ct = processCancel.Token;
+
+            Trace.WriteLine("main loop start");
+
+            try
+            {
+                await Task.Run(() =>
+                {
+                    ct.ThrowIfCancellationRequested();
+
+                    Int32 samplingRate = 48000;
+                    Int32 blockSize = 2880;
+
+                    double a = Math.Sin(0);
+                    double b = Math.Sin(2 * 3.14159 * 440 / samplingRate);
+                    double c = 2 * Math.Cos(2 * 3.14159 * 440 / samplingRate);
+
+                    using (var pcm1 = new PinnedBuffer<float[]>(new float[blockSize * 2]))
+                    {
+                        var vstToOpusInput = new BufferBlock<PinnedBuffer<float[]>>();
+
+                        var count = blockSize;
+                        var idx = 0;
+                        for (int i = 0; i < count; i++)
+                        {
+                            var d = a;
+                            a = b;
+                            b = c * a - d;
+                            
+                            pcm1.Target()[idx++] = (float)d;
+                            pcm1.Target()[idx++] = (float)(d/2);
+                        }
+
+                        vstToOpusInput.Post(pcm1);
+
+                        using (var wave = new Momiji.Core.Wave.WaveOut(
+                            0,
+                            2,
+                            (uint)samplingRate,
+                            (ushort)(Marshal.SizeOf<float>() * 8),
+                            Wave.WaveFormatExtensiblePart.SPEAKER.FRONT_LEFT | Wave.WaveFormatExtensiblePart.SPEAKER.FRONT_RIGHT,
+                            new Guid("00000003-0000-0010-8000-00aa00389b71"),
+                            (uint)blockSize))
+                        {
+
+                            wave.Run(
+                                vstToOpusInput,
+                                vstToOpusInput,
+                                ct
+                            );
+
+                            while (true)
+                            {
+                                if (ct.IsCancellationRequested)
+                                {
+                                    break;
+                                }
+                                Trace.WriteLine("wait");
+                                Thread.Sleep(1000);
+                            }
+                        }
+                    }
+                });
+            }
+            finally
+            {
+                Trace.WriteLine("main loop end");
+            }
+        }
+
+        private async Task Loop4()
+        {
+            var ct = processCancel.Token;
+
+            Trace.WriteLine("main loop start");
+
+            try
+            {
+                await Task.Run(() =>
+                {
+                    ct.ThrowIfCancellationRequested();
+
+                    Int32 samplingRate = 48000;
+                    Int32 blockSize = 2880;
+
+                    double a = Math.Sin(0);
+                    double b = Math.Sin(2 * 3.14159 * 440 / samplingRate);
+                    double c = 2 * Math.Cos(2 * 3.14159 * 440 / samplingRate);
+
+                    using (var pcm1 = new PinnedBuffer<float[]>(new float[blockSize * 2]))
+                    using (var out1 = new OpusOutputBuffer(5000))
+                    using (var out2 = new OpusOutputBuffer(5000))
+                    {
+                        var vstToOpusInput = new BufferBlock<PinnedBuffer<float[]>>();
+                        var opusToFtlInput = new BufferBlock<OpusOutputBuffer>();
+                        var opusToFtlOutput = new BufferBlock<OpusOutputBuffer>();
+
+                        vstToOpusInput.Post(pcm1);
+                        opusToFtlInput.Post(out1);
+                        opusToFtlInput.Post(out2);
+
+                        var count = blockSize;
+                        var idx = 0;
+                        for (int i = 0; i < count; i++)
+                        {
+                            var d = a;
+                            a = b;
+                            b = c * a - d;
+
+                            pcm1.Target()[idx++] = (float)d;
+                            pcm1.Target()[idx++] = (float)(d / 2);
+                        }
+
+                        vstToOpusInput.Post(pcm1);
+
+                        using (var encoder = new OpusEncoder(Opus.SamplingRate.Sampling48000, Opus.Channels.Stereo))
+                        using (var ftl = new FtlIngest($"{Configuration["MIXER_STREAM_KEY"]}"))
+                        {
+                            encoder.Run(
+                                vstToOpusInput,
+                                vstToOpusInput,
+                                opusToFtlInput,
+                                opusToFtlOutput,
+                                ct
+                            );
+                            
+                            ftl.Run(
+                                opusToFtlOutput,
+                                opusToFtlInput,
+                                ct
+                            );
+                            
+                            while (true)
+                            {
+                                if (ct.IsCancellationRequested)
+                                {
+                                    break;
+                                }
+                                Trace.WriteLine("wait");
+                                Thread.Sleep(1000);
+                            }
+                        }
+                    }
+                });
+            }
+            finally
+            {
+                Trace.WriteLine("main loop end");
+            }
+        }
+
         public IActionResult Start()
         {
             ViewData["Message"] = "Start.";
@@ -109,6 +340,43 @@ namespace WebApplication1.Controllers
 
             return View();
         }
+
+        public IActionResult Start2()
+        {
+            ViewData["Message"] = "Start.";
+            if (processCancel == null)
+            {
+                processCancel = new CancellationTokenSource();
+                processTask = Loop2();
+            }
+
+            return View();
+        }
+
+        public IActionResult Start3()
+        {
+            ViewData["Message"] = "Start.";
+            if (processCancel == null)
+            {
+                processCancel = new CancellationTokenSource();
+                processTask = Loop3();
+            }
+
+            return View();
+        }
+
+        public IActionResult Start4()
+        {
+            ViewData["Message"] = "Start.";
+            if (processCancel == null)
+            {
+                processCancel = new CancellationTokenSource();
+                processTask = Loop4();
+            }
+
+            return View();
+        }
+
 
         public IActionResult Stop()
         {
@@ -143,10 +411,10 @@ namespace WebApplication1.Controllers
 
         public IActionResult WaveCaps()
         {
-            var n = Momiji.Core.Wave.Out.GetNumDevices();
+            var n = Momiji.Core.Wave.WaveOut.GetNumDevices();
             for (uint i = 0; i < n; i++)
             {
-                var c = Momiji.Core.Wave.Out.GetCapabilities(i);
+                var c = Momiji.Core.Wave.WaveOut.GetCapabilities(i);
                 Trace.WriteLine($"{c}");
             }
 

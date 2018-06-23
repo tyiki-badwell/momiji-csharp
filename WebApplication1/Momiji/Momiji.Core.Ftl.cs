@@ -17,7 +17,6 @@ namespace Momiji
             {
                 private bool disposed = false;
                 private PinnedBuffer<Interop.Ftl.Handle> handle;
-                private CancellationTokenSource processCancel = new CancellationTokenSource();
                 private Task processTask;
                 private CancellationTokenSource logCancel = new CancellationTokenSource();
                 private Task logTask;
@@ -59,9 +58,10 @@ namespace Momiji
 
                 public void Run(
                     ISourceBlock<OpusOutputBuffer> inputQueue,
-                    ITargetBlock<OpusOutputBuffer> inputReleaseQueue)
+                    ITargetBlock<OpusOutputBuffer> inputReleaseQueue,
+                    CancellationToken ct)
                 {
-                    processTask = Process(inputQueue, inputReleaseQueue);
+                    processTask = Process(inputQueue, inputReleaseQueue, ct);
                 }
 
                 public void Dispose()
@@ -76,7 +76,6 @@ namespace Momiji
 
                     if (disposing)
                     {
-                        processCancel.Cancel();
                         try
                         {
                             processTask.Wait();
@@ -87,10 +86,6 @@ namespace Momiji
                             {
                                 Trace.WriteLine($"FtlIngest Process Exception:{e.Message} {v.Message}");
                             }
-                        }
-                        finally
-                        {
-                            processCancel.Dispose();
                         }
 
                         if (handle != null)
@@ -160,17 +155,15 @@ namespace Momiji
                         buffer.Wrote,
                         0
                     );
-                    Trace.WriteLine($"ftl_ingest_send_media_dts(FTL_AUDIO_DATA, {buffer.Wrote}):{status}");
+                    Trace.WriteLine($"ftl_ingest_send_media_dts(FTL_AUDIO_DATA, {usec}:{buffer.Wrote}):{status}");
                     return status;
                 }
 
                 private async Task Process(
                     ISourceBlock<OpusOutputBuffer> inputQueue,
-                    ITargetBlock<OpusOutputBuffer> inputReleaseQueue)
+                    ITargetBlock<OpusOutputBuffer> inputReleaseQueue,
+                    CancellationToken ct)
                 {
-
-                    var ct = processCancel.Token;
-
                     await Task.Run(() =>
                     {
                         ct.ThrowIfCancellationRequested();

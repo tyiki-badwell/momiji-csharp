@@ -76,7 +76,7 @@ namespace Momiji
             };
 
             // wave data block header
-            [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Ansi)]
+            [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Ansi, Pack = 1)]
             public class WaveHeader
             {
                 // flags for dwFlags field of WAVEHDR
@@ -136,7 +136,7 @@ namespace Momiji
                 FORMAT_96S16 = 0x00080000,  // 96     kHz, Stereo, 16-bit
             };
 
-            [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Ansi)]
+            [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Ansi, Pack = 1)]
             public struct WaveOutCapabilities
             {
                 //flags for dwSupport field of WAVEOUTCAPS
@@ -185,7 +185,7 @@ namespace Momiji
             // general extended waveform format structure
             // Use this for all NON PCM formats
             // (information common to all formats)
-            [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Ansi)]
+            [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Ansi, Pack = 1)]
             public struct WaveFormatEx
             {
                 // flags for wFormatTag field of WAVEFORMAT
@@ -212,7 +212,7 @@ namespace Momiji
 		        }
             }
 
-            [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Ansi)]
+            [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Ansi, Pack = 1)]
             public struct WaveFormat
             {
                 public WaveFormatEx.FORMAT formatType;                // format type
@@ -228,7 +228,7 @@ namespace Momiji
 		        }
             }
 
-            [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Ansi)]
+            [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Ansi, Pack = 1)]
             public struct PcmWaveFormat
             {
                 public WaveFormat wf;
@@ -249,7 +249,7 @@ namespace Momiji
             //  and use WAVE_FORMAT_EXTENSIBLE in the
             //  WAVEFORMATEXTENSIBLE.Format.wFormatTag field.
             //
-            [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Ansi)]
+            [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Ansi, Pack = 1)]
             public struct WaveFormatExtensiblePart
             {
                 [Flags]
@@ -293,7 +293,7 @@ namespace Momiji
             //  extended waveform format structure used for all non-PCM formats. this
             //  structure is common to all non-PCM formats.
             //
-            [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Ansi)]
+            [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Ansi, Pack = 1)]
             public struct WaveFormatExtensible
             {
                 public WaveFormatEx wfe;
@@ -319,7 +319,7 @@ namespace Momiji
                 [ReliabilityContract(Consistency.WillNotCorruptState, Cer.MayFail)]
                 protected override Boolean ReleaseHandle()
                 {
-                    Trace.WriteLine("FreeLibrary");
+                    Trace.WriteLine("waveOutClose");
                     MMRESULT mmResult = waveOutClose(handle);
                     return (mmResult == MMRESULT.NOERROR);
                 }
@@ -339,21 +339,21 @@ namespace Momiji
 
             [DllImport("winmm.dll", CallingConvention = CallingConvention.Cdecl, CharSet = CharSet.Unicode, SetLastError = true)]
             internal static extern MMRESULT waveOutGetVolume(
-                [In]   ref WaveOut		hwo,
+                [In]   WaveOut		hwo,
                 [Out]  out System.UInt32	pdwVolume
 
             );
 
             [DllImport("winmm.dll", CallingConvention = CallingConvention.Cdecl, CharSet = CharSet.Unicode, SetLastError = true)]
             internal static extern MMRESULT waveOutSetVolume(
-                [In]   ref WaveOut hwo,
+                [In]   WaveOut hwo,
                 [In]   System.UInt32 pdwVolume
             );
 
             [DllImport("winmm.dll", CallingConvention = CallingConvention.Cdecl, CharSet = CharSet.Unicode, SetLastError = true)]
             internal static extern MMRESULT waveOutGetErrorText(
                 [In]   MMRESULT mmrError,
-                [Out]  out System.Text.StringBuilder	pszText,
+                [Out]  System.Text.StringBuilder	pszText,
                 [In]   System.UInt32 cchText
             );
 
@@ -375,43 +375,43 @@ namespace Momiji
 
             [DllImport("winmm.dll", CallingConvention = CallingConvention.Cdecl, CharSet = CharSet.Unicode, SetLastError = true)]
             internal static extern MMRESULT waveOutPrepareHeader(
-                [In]   ref WaveOut		hwo,
+                [In]   WaveOut		hwo,
                 [In]   IntPtr pwh,
                 [In]   UInt32 cbwh
             );
 
             [DllImport("winmm.dll", CallingConvention = CallingConvention.Cdecl, CharSet = CharSet.Unicode, SetLastError = true)]
             internal static extern MMRESULT waveOutUnprepareHeader(
-                [In]   ref WaveOut		hwo,
+                [In]   WaveOut		hwo,
                 [In]   IntPtr pwh,
                 [In]   UInt32 cbwh
             );
 
             [DllImport("winmm.dll", CallingConvention = CallingConvention.Cdecl, CharSet = CharSet.Unicode, SetLastError = true)]
             internal static extern MMRESULT waveOutWrite(
-                [In]   ref WaveOut		hwo,
+                [In]   WaveOut		hwo,
                 [In]   IntPtr pwh,
                 [In]   UInt32 cbwh
             );
 
             [DllImport("winmm.dll", CallingConvention = CallingConvention.Cdecl, CharSet = CharSet.Unicode, SetLastError = true)]
             internal static extern MMRESULT waveOutPause(
-                [In]   ref WaveOut		hwo
+                [In]   WaveOut		hwo
             );
 
             [DllImport("winmm.dll", CallingConvention = CallingConvention.Cdecl, CharSet = CharSet.Unicode, SetLastError = true)]
             internal static extern MMRESULT waveOutRestart(
-                [In]   ref WaveOut		hwo
+                [In]   WaveOut		hwo
             );
 
             [DllImport("winmm.dll", CallingConvention = CallingConvention.Cdecl, CharSet = CharSet.Unicode, SetLastError = true)]
             internal static extern MMRESULT waveOutReset(
-                [In]   ref WaveOut		hwo
+                [In]   WaveOut		hwo
             );
 
             [DllImport("winmm.dll", CallingConvention = CallingConvention.Cdecl, CharSet = CharSet.Unicode, SetLastError = true)]
             internal static extern MMRESULT waveOutBreakLoop(
-                [In]   ref WaveOut		hwo
+                [In]   WaveOut		hwo
 
             );
 

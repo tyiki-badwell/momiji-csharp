@@ -24,7 +24,6 @@ namespace Momiji
             {
                 private bool disposed = false;
                 private Interop.Opus.OpusEncoder encoder;
-                private CancellationTokenSource processCancel = new CancellationTokenSource();
                 private Task processTask;
 
                 public OpusEncoder(
@@ -49,9 +48,10 @@ namespace Momiji
                     ISourceBlock<PinnedBuffer<float[]>> inputQueue,
                     ITargetBlock<PinnedBuffer<float[]>> inputReleaseQueue,
                     ISourceBlock<OpusOutputBuffer> bufferQueue,
-                    ITargetBlock<OpusOutputBuffer> outputQueue)
+                    ITargetBlock<OpusOutputBuffer> outputQueue,
+                    CancellationToken ct)
                 {
-                    processTask = Process(inputQueue, inputReleaseQueue, bufferQueue, outputQueue);
+                    processTask = Process(inputQueue, inputReleaseQueue, bufferQueue, outputQueue, ct);
                 }
 
                 public void Dispose()
@@ -66,7 +66,6 @@ namespace Momiji
 
                     if (disposing)
                     {
-                        processCancel.Cancel();
                         try
                         {
                             processTask.Wait();
@@ -77,10 +76,6 @@ namespace Momiji
                             {
                                 Trace.WriteLine($"OpusEncode Process Exception:{e.Message} {v.Message}");
                             }
-                        }
-                        finally
-                        {
-                            processCancel.Dispose();
                         }
 
                         encoder.Close();
@@ -93,11 +88,9 @@ namespace Momiji
                     ISourceBlock<PinnedBuffer<float[]>> inputQueue,
                     ITargetBlock<PinnedBuffer<float[]>> inputReleaseQueue,
                     ISourceBlock<OpusOutputBuffer> bufferQueue,
-                    ITargetBlock<OpusOutputBuffer> outputQueue
-                    )
+                    ITargetBlock<OpusOutputBuffer> outputQueue,
+                    CancellationToken ct)
                 {
-
-                    var ct = processCancel.Token;
                     await Task.Run(() =>
                     {
                         ct.ThrowIfCancellationRequested();

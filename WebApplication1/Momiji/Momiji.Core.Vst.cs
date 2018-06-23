@@ -20,7 +20,7 @@ namespace Momiji
                 private bool disposed = false;
                 private List<PinnedBuffer<T[]>> list = new List<PinnedBuffer<T[]>>();
 
-                public VstBuffer(int blockSize, int channels): base(new IntPtr[channels])
+                public VstBuffer(Int32 blockSize, int channels): base(new IntPtr[channels])
                 {
                     for (var i = 0; i < channels; i++)
                     {
@@ -57,10 +57,10 @@ namespace Momiji
 
                 private PinnedBuffer<VstTimeInfo> vstTimeInfo;
 
-                public int SamplingRate { get; }
-                public int BlockSize { get; }
+                public Int32 SamplingRate { get; }
+                public Int32 BlockSize { get; }
 
-                public AudioMaster(int samplingRate, int blockSize)
+                public AudioMaster(Int32 samplingRate, Int32 blockSize)
                 {
                     SamplingRate = samplingRate;
                     BlockSize = blockSize;
@@ -103,7 +103,11 @@ namespace Momiji
 
                     if (disposing)
                     {
-                        list.ForEach(effect => { effect.Dispose(); });
+                        Trace.WriteLine("[vst host] stop");
+                        list.ForEach(effect => {
+                            Trace.WriteLine("[vst] try stop");
+                            effect.Dispose();
+                        });
                         list.Clear();
                         vstTimeInfo.Dispose();
                     }
@@ -154,22 +158,22 @@ namespace Momiji
                 private bool disposed = false;
                 private Kernel32.DynamicLinkLibrary dll;
                 private IntPtr aeffectPtr;
-
-                private CancellationTokenSource processCancel = new CancellationTokenSource();
+                
                 private Task processTask;
 
-                private Interop.Vst.AEffectDispatcherProc dispatcher;
-                private Interop.Vst.AEffectSetParameterProc setParameter;
-                private Interop.Vst.AEffectGetParameterProc getParameter;
-                private Interop.Vst.AEffectProcessProc processReplacing;
-                private Interop.Vst.AEffectProcessDoubleProc processDoubleReplacing;
+                private AEffectDispatcherProc dispatcher;
+                private AEffectSetParameterProc setParameter;
+                private AEffectGetParameterProc getParameter;
+                private AEffectProcessProc processReplacing;
+                private AEffectProcessDoubleProc processDoubleReplacing;
 
-                private AudioMaster audioMaster;
                 int numOutputs;
+                private AudioMaster audioMaster;
 
                 public Effect(string library, AudioMaster audioMaster)
                 {
                     this.audioMaster = audioMaster;
+
                     dll = Kernel32.LoadLibrary(library);
                     if (dll.IsInvalid)
                     {
@@ -192,11 +196,11 @@ namespace Momiji
                     }
 
                     var vstPluginMain =
-                        Marshal.GetDelegateForFunctionPointer<Interop.Vst.VSTPluginMain>(proc);
+                        Marshal.GetDelegateForFunctionPointer<VSTPluginMain>(proc);
 
                     aeffectPtr = vstPluginMain(audioMaster.AudioMasterCallBackProc);
                     var aeffect =
-                        Marshal.PtrToStructure<Interop.Vst.AEffect>(aeffectPtr);
+                        Marshal.PtrToStructure<AEffect>(aeffectPtr);
                     numOutputs = aeffect.numOutputs;
 
                     Trace.WriteLine($"magic:{aeffect.magic}");
@@ -231,31 +235,31 @@ namespace Momiji
                     if (aeffect.dispatcher != IntPtr.Zero)
                     {
                         dispatcher =
-                            Marshal.GetDelegateForFunctionPointer<Interop.Vst.AEffectDispatcherProc>(aeffect.dispatcher);
+                            Marshal.GetDelegateForFunctionPointer<AEffectDispatcherProc>(aeffect.dispatcher);
                     }
 
                     if (aeffect.setParameter != IntPtr.Zero)
                     {
                         setParameter =
-                            Marshal.GetDelegateForFunctionPointer<Interop.Vst.AEffectSetParameterProc>(aeffect.setParameter);
+                            Marshal.GetDelegateForFunctionPointer<AEffectSetParameterProc>(aeffect.setParameter);
                     }
 
                     if (aeffect.getParameter != IntPtr.Zero)
                     {
                         getParameter =
-                            Marshal.GetDelegateForFunctionPointer<Interop.Vst.AEffectGetParameterProc>(aeffect.getParameter);
+                            Marshal.GetDelegateForFunctionPointer<AEffectGetParameterProc>(aeffect.getParameter);
                     }
 
                     if (aeffect.processReplacing != IntPtr.Zero)
                     {
                         processReplacing =
-                            Marshal.GetDelegateForFunctionPointer<Interop.Vst.AEffectProcessProc>(aeffect.processReplacing);
+                            Marshal.GetDelegateForFunctionPointer<AEffectProcessProc>(aeffect.processReplacing);
                     }
 
                     if (aeffect.processDoubleReplacing != IntPtr.Zero)
                     {
                         processDoubleReplacing =
-                            Marshal.GetDelegateForFunctionPointer<Interop.Vst.AEffectProcessDoubleProc>(aeffect.processDoubleReplacing);
+                            Marshal.GetDelegateForFunctionPointer<AEffectProcessDoubleProc>(aeffect.processDoubleReplacing);
                     }
 
                     Open(audioMaster);
@@ -263,18 +267,18 @@ namespace Momiji
 
                 public void Run(
                     ISourceBlock<PinnedBuffer<float[]>> bufferQueue,
-                    ITargetBlock<PinnedBuffer<float[]>> outputQueue)
+                    ITargetBlock<PinnedBuffer<float[]>> outputQueue,
+                    CancellationToken ct)
                 {
-                    processTask = Process(bufferQueue, outputQueue);
+                    processTask = Process(bufferQueue, outputQueue, ct);
                 }
 
                 private async Task Process(
                     ISourceBlock<PinnedBuffer<float[]>> bufferQueue,
-                    ITargetBlock<PinnedBuffer<float[]>> outputQueue)
+                    ITargetBlock<PinnedBuffer<float[]>> outputQueue,
+                    CancellationToken ct)
                 {
-                    var ct = processCancel.Token;
-                    var blockSize = audioMaster.BlockSize;
-
+                    int blockSize = audioMaster.BlockSize;
                     using (var events = new PinnedBuffer<byte[]>(new byte[4000]))
                     using (var buffer = new VstBuffer<float>(blockSize, numOutputs))
                     {
@@ -329,7 +333,7 @@ namespace Momiji
                                         aeffectPtr,
                                         IntPtr.Zero,
                                         buffer.AddrOfPinnedObject(),
-                                        audioMaster.BlockSize
+                                        blockSize
                                     );
 
                                     var target = data.Target();
@@ -348,10 +352,11 @@ namespace Momiji
                                 }
                                 catch (TimeoutException te)
                                 {
-                                    Trace.WriteLine("[vst] timeout");
+                                    //Trace.WriteLine("[vst] timeout");
                                     continue;
                                 }
                             }
+                            Trace.WriteLine("[vst] loop end");
                         });
                     }
                 }
@@ -464,7 +469,7 @@ namespace Momiji
 
                     if (disposing)
                     {
-                        processCancel.Cancel();
+                        Trace.WriteLine("[vst] stop");
                         try
                         {
                             processTask.Wait();
@@ -473,12 +478,8 @@ namespace Momiji
                         {
                             foreach (var v in e.InnerExceptions)
                             {
-                                Trace.WriteLine($"FtlIngest Process Exception:{e.Message} {v.Message}");
+                                Trace.WriteLine($"[vst] Process Exception:{e.Message} {v.Message}");
                             }
-                        }
-                        finally
-                        {
-                            processCancel.Dispose();
                         }
                         Close();
 
