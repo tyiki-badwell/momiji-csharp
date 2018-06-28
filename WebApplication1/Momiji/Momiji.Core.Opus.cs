@@ -108,10 +108,10 @@ namespace Momiji
                             {
                                 if (pcm == null)
                                 {
-                                    pcm = inputQueue.Receive(new TimeSpan(2000), ct);
+                                    pcm = inputQueue.Receive(new TimeSpan(20_000_000), ct);
                                     Trace.WriteLine("[opus] receive pcm");
                                 }
-                                var data = bufferQueue.Receive(new TimeSpan(2000), ct);
+                                var data = bufferQueue.Receive(new TimeSpan(20_000_000), ct);
                                 Trace.WriteLine("[opus] get data");
 
                                 data.Wrote = Interop.Opus.opus_encode_float(

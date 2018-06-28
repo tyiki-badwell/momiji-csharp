@@ -49,6 +49,7 @@ namespace WebApplication1.Controllers
                         var vstToOpusOutput = new BufferBlock<PinnedBuffer<float[]>>();
                         var opusToFtlInput = new BufferBlock<OpusOutputBuffer>();
                         var opusToFtlOutput = new BufferBlock<OpusOutputBuffer>();
+                        var midiEventInput = new BufferBlock<Vst.VstMidiEvent>();
 
                         vstToOpusOutput.Post(pcm1);
                         vstToOpusOutput.Post(pcm2);
@@ -64,6 +65,7 @@ namespace WebApplication1.Controllers
                             effect.Run(
                                 vstToOpusOutput,
                                 vstToOpusInput,
+                                midiEventInput,
                                 ct
                             );
                             
@@ -115,22 +117,19 @@ namespace WebApplication1.Controllers
                     ct.ThrowIfCancellationRequested();
 
                     Int32 samplingRate = 48000;
-                    Int32 blockSize = 2880;
+                    Int32 blockSize = 2880;// 2880;
 
                     using (var pcm1 = new PinnedBuffer<float[]>(new float[blockSize * 2]))
                     using (var pcm2 = new PinnedBuffer<float[]>(new float[blockSize * 2]))
-                    using (var out1 = new OpusOutputBuffer(5000))
-                    using (var out2 = new OpusOutputBuffer(5000))
+                    using (var pcm3 = new PinnedBuffer<float[]>(new float[blockSize * 2]))
                     {
                         var vstToOpusInput = new BufferBlock<PinnedBuffer<float[]>>();
                         var vstToOpusOutput = new BufferBlock<PinnedBuffer<float[]>>();
-                        var opusToFtlInput = new BufferBlock<OpusOutputBuffer>();
-                        var opusToFtlOutput = new BufferBlock<OpusOutputBuffer>();
+                        var midiEventInput = new BufferBlock<Vst.VstMidiEvent>();
 
                         vstToOpusOutput.Post(pcm1);
                         vstToOpusOutput.Post(pcm2);
-                        opusToFtlInput.Post(out1);
-                        opusToFtlInput.Post(out2);
+                        //vstToOpusOutput.Post(pcm3);
 
                         using (var vst = new AudioMaster(samplingRate, blockSize))
                         using (var wave = new Momiji.Core.Wave.WaveOut(
@@ -147,6 +146,7 @@ namespace WebApplication1.Controllers
                             effect.Run(
                                 vstToOpusOutput,
                                 vstToOpusInput,
+                                midiEventInput,
                                 ct
                             );
 
@@ -157,6 +157,7 @@ namespace WebApplication1.Controllers
                             );
 
                             int a = 0;
+                            bool on = true;
                             while (true)
                             {
                                 if (ct.IsCancellationRequested)
@@ -164,6 +165,26 @@ namespace WebApplication1.Controllers
                                     break;
                                 }
                                 Trace.WriteLine("wait:" + a++);
+                                
+                                var vstEvent = new Vst.VstMidiEvent();
+                                vstEvent.type = Vst.VstEvent.VstEventTypes.kVstMidiType;
+                                vstEvent.byteSize = Marshal.SizeOf<Vst.VstMidiEvent>();
+                                vstEvent.flags = Vst.VstMidiEvent.VstMidiEventFlags.kVstMidiEventIsRealtime;
+                                vstEvent.midiData0 = 0x90;
+                                vstEvent.midiData1 = 0x40;
+                                if (on)
+                                {
+                                    vstEvent.midiData2 = 0x40;
+                                }
+                                else
+                                {
+                                    vstEvent.midiData2 = 0x00;
+                                }
+                                vstEvent.midiData3 = 0x00;
+                                on = !on;
+
+                                midiEventInput.Post(vstEvent);
+
                                 Thread.Sleep(1000);
                             }
                         }

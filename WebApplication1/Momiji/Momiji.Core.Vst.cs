@@ -53,7 +53,7 @@ namespace Momiji
             public class AudioMaster : IDisposable
             {
                 private bool disposed = false;
-                private List<Effect> list = new List<Effect>();
+                private Dictionary<IntPtr, Effect> effectMap = new Dictionary<IntPtr, Effect>();
 
                 private PinnedBuffer<VstTimeInfo> vstTimeInfo;
 
@@ -87,7 +87,7 @@ namespace Momiji
                 public Effect AddEffect(string library)
                 {
                     var effect = new Effect(library, this);
-                    list.Add(effect);
+                    effectMap.Add(effect.AeffectPtr, effect);
                     return effect;
                 }
 
@@ -104,11 +104,12 @@ namespace Momiji
                     if (disposing)
                     {
                         Trace.WriteLine("[vst host] stop");
-                        list.ForEach(effect => {
+                        foreach (var (ptr, effect) in effectMap)
+                        {
                             Trace.WriteLine("[vst] try stop");
                             effect.Dispose();
-                        });
-                        list.Clear();
+                        }
+                        effectMap.Clear();
                         vstTimeInfo.Dispose();
                     }
 
@@ -126,7 +127,7 @@ namespace Momiji
                     Single opt
                 )
                 {
-                    Trace.WriteLine($"AudioMasterCallBackProc opcode:{opcode}");
+                    //Trace.WriteLine($"AudioMasterCallBackProc opcode:{opcode:F}");
                     switch (opcode)
                     {
                         case AudioMasterOpcodes.audioMasterVersion:
@@ -157,7 +158,7 @@ namespace Momiji
             {
                 private bool disposed = false;
                 private Kernel32.DynamicLinkLibrary dll;
-                private IntPtr aeffectPtr;
+                public IntPtr AeffectPtr { get; private set; }
                 
                 private Task processTask;
 
@@ -198,9 +199,8 @@ namespace Momiji
                     var vstPluginMain =
                         Marshal.GetDelegateForFunctionPointer<VSTPluginMain>(proc);
 
-                    aeffectPtr = vstPluginMain(audioMaster.AudioMasterCallBackProc);
-                    var aeffect =
-                        Marshal.PtrToStructure<AEffect>(aeffectPtr);
+                    AeffectPtr = vstPluginMain(audioMaster.AudioMasterCallBackProc);
+                    var aeffect = Marshal.PtrToStructure<AEffect>(AeffectPtr);
                     numOutputs = aeffect.numOutputs;
 
                     Trace.WriteLine($"magic:{aeffect.magic}");
@@ -268,23 +268,30 @@ namespace Momiji
                 public void Run(
                     ISourceBlock<PinnedBuffer<float[]>> bufferQueue,
                     ITargetBlock<PinnedBuffer<float[]>> outputQueue,
+                    IReceivableSourceBlock<VstMidiEvent> midiEventQueue,
                     CancellationToken ct)
                 {
-                    processTask = Process(bufferQueue, outputQueue, ct);
+                    processTask = Process(bufferQueue, outputQueue, midiEventQueue, ct);
                 }
 
                 private async Task Process(
                     ISourceBlock<PinnedBuffer<float[]>> bufferQueue,
                     ITargetBlock<PinnedBuffer<float[]>> outputQueue,
+                    IReceivableSourceBlock<VstMidiEvent> midiEventQueue,
                     CancellationToken ct)
                 {
                     int blockSize = audioMaster.BlockSize;
                     using (var events = new PinnedBuffer<byte[]>(new byte[4000]))
+                    using (var eventList = new PinnedBuffer<byte[]>(new byte[4000]))
                     using (var buffer = new VstBuffer<float>(blockSize, numOutputs))
                     {
                         await Task.Run(() =>
                         {
                             ct.ThrowIfCancellationRequested();
+
+                            var sizeVstEvents = Marshal.SizeOf<VstEvents>();
+                            var sizeVstMidiEvent = Marshal.SizeOf<VstMidiEvent>();
+                            var sizeIntPtr = Marshal.SizeOf<IntPtr>();
 
                             while (true)
                             {
@@ -293,44 +300,52 @@ namespace Momiji
                                     break;
                                 }
 
+                                var eventsPtr = events.AddrOfPinnedObject();
+                                var eventListPtr = eventList.AddrOfPinnedObject();
+
                                 try
                                 { 
-                                    var data = bufferQueue.Receive(new TimeSpan(2000), ct);
-                                    Trace.WriteLine("[vst] get data");
+                                    var data = bufferQueue.Receive(new TimeSpan(20_000_000), ct);
+                                    //Trace.WriteLine("[vst] get data");
 
-                                    var vstEvents = new VstEvents();
-                                    vstEvents.numEvents = 0;
+                                    var list = new List<VstMidiEvent>();
+                                    {
+                                        VstMidiEvent midiEvent;
+                                        while (midiEventQueue.TryReceive(out midiEvent))
+                                        {
+                                            list.Add(midiEvent);
+                                        }
+                                    }
 
-                                    Marshal.StructureToPtr(vstEvents, events.AddrOfPinnedObject(), false);
+                                    if (list.Count > 0)
+                                    {
+                                        var vstEvents = new VstEvents();
+                                        vstEvents.numEvents = list.Count;
 
-                                    var vstEvent = new VstEvent();
-                                    vstEvent.type = VstEvent.VstEventTypes.kVstMidiType;
-                                    vstEvent.byteSize = Marshal.SizeOf<VstEvent>()
-                                        - (
-                                            4 //Marshal::SizeOf(this->type)
-                                            + 4 //Marshal::SizeOf(this->byteSize)
-                                        );
-                                    vstEvent.flags = VstEvent.VstMidiEventFlags.kVstMidiEventIsRealtime;
-                                    vstEvent.midiData0 = 0x90;
-                                    vstEvent.midiData1 = 0x40;
-                                    vstEvent.midiData2 = 0x40;
-                                    vstEvent.midiData3 = 0x00;
+                                        Marshal.StructureToPtr(vstEvents, eventsPtr, false);
+                                        eventsPtr += sizeVstEvents;
 
-                                    Marshal.StructureToPtr(vstEvent, events.AddrOfPinnedObject() + Marshal.SizeOf<VstEvents>(), false);
+                                        list.ForEach(midiEvent => {
+                                            Marshal.StructureToPtr(midiEvent, eventListPtr, false);
+                                            Marshal.WriteIntPtr(eventsPtr, eventListPtr);
+                                            eventListPtr += sizeVstMidiEvent;
+                                            eventsPtr += sizeIntPtr;
+                                        });
 
-                                    var processEventsResult =
-                                        dispatcher(
-                                            aeffectPtr,
-                                            AEffectOpcodes.effProcessEvents,
-                                            0,
-                                            IntPtr.Zero,
-                                            events.AddrOfPinnedObject(),
-                                            0
-                                        );
-                                    Trace.WriteLine($"effProcessEvents:{processEventsResult}");
+                                        var processEventsResult =
+                                            dispatcher(
+                                                AeffectPtr,
+                                                AEffectOpcodes.effProcessEvents,
+                                                0,
+                                                IntPtr.Zero,
+                                                events.AddrOfPinnedObject(),
+                                                0
+                                            );
+                                        Trace.WriteLine($"effProcessEvents:{processEventsResult}");
+                                    }
 
                                     processReplacing(
-                                        aeffectPtr,
+                                        AeffectPtr,
                                         IntPtr.Zero,
                                         buffer.AddrOfPinnedObject(),
                                         blockSize
@@ -348,11 +363,11 @@ namespace Momiji
                                     }
 
                                     outputQueue.Post(data);
-                                    Trace.WriteLine("[vst] post data");
+                                    //Trace.WriteLine("[vst] post data");
                                 }
                                 catch (TimeoutException te)
                                 {
-                                    //Trace.WriteLine("[vst] timeout");
+                                    Trace.WriteLine("[vst] timeout");
                                     continue;
                                 }
                             }
@@ -365,8 +380,8 @@ namespace Momiji
                 {
                     var openResult =
                         dispatcher(
-                            aeffectPtr,
-                            Interop.Vst.AEffectOpcodes.effOpen,
+                            AeffectPtr,
+                            AEffectOpcodes.effOpen,
                             0,
                             IntPtr.Zero,
                             IntPtr.Zero,
@@ -376,8 +391,8 @@ namespace Momiji
 
                     var setSampleRateResult =
                         dispatcher(
-                            aeffectPtr,
-                            Interop.Vst.AEffectOpcodes.effSetSampleRate,
+                            AeffectPtr,
+                            AEffectOpcodes.effSetSampleRate,
                             0,
                             IntPtr.Zero,
                             IntPtr.Zero,
@@ -386,8 +401,8 @@ namespace Momiji
                     Trace.WriteLine($"effSetSampleRate:{setSampleRateResult}");
                     var setBlockSizeResult =
                         dispatcher(
-                            aeffectPtr,
-                            Interop.Vst.AEffectOpcodes.effSetBlockSize,
+                            AeffectPtr,
+                            AEffectOpcodes.effSetBlockSize,
                             0,
                             new IntPtr(audioMaster.BlockSize),
                             IntPtr.Zero,
@@ -397,8 +412,8 @@ namespace Momiji
                     //resume
                     var resumeResult =
                         dispatcher(
-                            aeffectPtr,
-                            Interop.Vst.AEffectOpcodes.effMainsChanged,
+                            AeffectPtr,
+                            AEffectOpcodes.effMainsChanged,
                             0,
                             new IntPtr(1),
                             IntPtr.Zero,
@@ -408,8 +423,8 @@ namespace Momiji
                     //start
                     var startProcessResult =
                         dispatcher(
-                            aeffectPtr,
-                            Interop.Vst.AEffectOpcodes.effStartProcess,
+                            AeffectPtr,
+                            AEffectOpcodes.effStartProcess,
                             0,
                             IntPtr.Zero,
                             IntPtr.Zero,
@@ -423,8 +438,8 @@ namespace Momiji
                     //stop
                     var stopProcessResult =
                         dispatcher(
-                            aeffectPtr,
-                            Interop.Vst.AEffectOpcodes.effStopProcess,
+                            AeffectPtr,
+                            AEffectOpcodes.effStopProcess,
                             0,
                             IntPtr.Zero,
                             IntPtr.Zero,
@@ -434,8 +449,8 @@ namespace Momiji
                     //suspend
                     var suspendResult =
                         dispatcher(
-                            aeffectPtr,
-                            Interop.Vst.AEffectOpcodes.effMainsChanged,
+                            AeffectPtr,
+                            AEffectOpcodes.effMainsChanged,
                             0,
                             IntPtr.Zero,
                             IntPtr.Zero,
@@ -445,8 +460,8 @@ namespace Momiji
                     //close
                     var closeResult =
                         dispatcher(
-                            aeffectPtr,
-                            Interop.Vst.AEffectOpcodes.effClose,
+                            AeffectPtr,
+                            AEffectOpcodes.effClose,
                             0,
                             IntPtr.Zero,
                             IntPtr.Zero,
@@ -454,7 +469,7 @@ namespace Momiji
                         );
                     Trace.WriteLine($"effClose:{closeResult}");
 
-                    aeffectPtr = IntPtr.Zero;
+                    AeffectPtr = IntPtr.Zero;
                 }
 
                 public void Dispose()

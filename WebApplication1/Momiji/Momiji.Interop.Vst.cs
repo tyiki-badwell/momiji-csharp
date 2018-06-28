@@ -433,7 +433,7 @@ namespace Momiji
             //-------------------------------------------------------------------------------------------------------
             /** A generic timestamped event. */
             //-------------------------------------------------------------------------------------------------------
-            [StructLayout(LayoutKind.Explicit, Pack = 1, CharSet = CharSet.Ansi)]
+            [StructLayout(LayoutKind.Explicit, CharSet = CharSet.Ansi)]
             public struct VstEvent
             {
                 //-------------------------------------------------------------------------------------------------------
@@ -450,69 +450,45 @@ namespace Momiji
 			        kVstSysExType                       //< MIDI system exclusive  @see VstMidiSysexEvent
                                                         //-------------------------------------------------------------------------------------------------------
                 };
+	        };
 
+            //-------------------------------------------------------------------------------------------------------
+            /** MIDI Event (to be casted from VstEvent). */
+            //-------------------------------------------------------------------------------------------------------
+            [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Ansi)]
+            public struct VstMidiEvent
+            {
                 //-------------------------------------------------------------------------------------------------------
                 /** Flags used in #VstMidiEvent. */
                 //-------------------------------------------------------------------------------------------------------
                 public enum VstMidiEventFlags : Int32
                 {
                     //-------------------------------------------------------------------------------------------------------
-                    kVstMidiEventIsRealtime = 1 << 0	//< means that this event is played life (not in playback from a sequencer track).\n This allows the Plug-In to handle these flagged events with higher priority, especially when the Plug-In has a big latency (AEffect::initialDelay)
-		        //-------------------------------------------------------------------------------------------------------
-		        };
+                    kVstMidiEventIsRealtime = 1 << 0    //< means that this event is played life (not in playback from a sequencer track).\n This allows the Plug-In to handle these flagged events with higher priority, especially when the Plug-In has a big latency (AEffect::initialDelay)
+                                                        //-------------------------------------------------------------------------------------------------------
+                };
 
                 //-------------------------------------------------------------------------------------------------------
-                /*		VstEvent()
-		                {
-			                this->byteSize = 
-				                Marshal::SizeOf(this)
-				                - (
-					                4 //Marshal::SizeOf(this->type)
-					                + 4 //Marshal::SizeOf(this->byteSize)
-				                );
-		                }
-                */
-        		[FieldOffset(0)] public VstEventTypes type;           //< @see VstEventTypes
-                [FieldOffset(4)] public Int32 byteSize;       //< size of this event, excl. type and byteSize
-                [FieldOffset(8)] public Int32 deltaFrames;    //< sample frames related to the current block start sample position
-                [FieldOffset(12)] public Int32 _flags;        //< generic flags, none defined yet
-
-                //** VstMidiEvent **
-                [FieldOffset(12)] public VstMidiEventFlags flags;     //< @see VstMidiEventFlags
-                [FieldOffset(16)] public Int32 noteLength;        //< (in sample frames) of entire note, if available, else 0
-                [FieldOffset(20)] public Int32 noteOffset;        //< offset (in sample frames) into note from note start if available, else 0
-                [FieldOffset(24)] public Int32 midiData;      //< 1 to 3 MIDI bytes; midiData[3] is reserved (zero)
-                [FieldOffset(24)] public Byte midiData0;      //< 1 to 3 MIDI bytes; midiData[3] is reserved (zero)
-                [FieldOffset(25)] public Byte midiData1;
-                [FieldOffset(26)] public Byte midiData2;
-                [FieldOffset(27)] public Byte midiData3;
-                [FieldOffset(28)] public Byte detune;         //< -64 to +63 cents; for scales other than 'well-tempered' ('microtuning')
-                [FieldOffset(29)] public Byte noteOffVelocity;//< Note Off Velocity [0, 127]
-                [FieldOffset(30)] public Byte reserved1;      //< zero (Reserved for future use)
-                [FieldOffset(31)] public Byte reserved2;      //< zero (Reserved for future use)
-
-                //** VstMidiSysexEvent ** //TODO: 64bitに対応してない
-                [FieldOffset(16)] public Int32 dumpBytes; //< byte size of sysexDump
-                [FieldOffset(20)] public IntPtr resvd1;       //< zero (Reserved for future use)
-                [FieldOffset(24)] public IntPtr sysexDump;    //< sysex dump
-                [FieldOffset(28)] public IntPtr resvd2;       //< zero (Reserved for future use)
-                                                               //-------------------------------------------------------------------------------------------------------
-
-                override public string ToString() 
-		        {
-			        if (type == VstEventTypes.kVstMidiType) {
-				        return 
-					        "type["+type.ToString("F")+"] byteSize["+byteSize+"] deltaFrames["+deltaFrames+"] flags["+flags.ToString("F")+"] noteLength["+noteLength+" noteOffset["+noteOffset+"] midiData["+midiData.ToString("X8")+":"+midiData0.ToString("X2")+":"+midiData1.ToString("X2")+":"+midiData2.ToString("X2")+":"+midiData3.ToString("X2")+"] detune["+detune+"] noteOffVelocity["+noteOffVelocity+"]";
-			        } else if (type == VstEventTypes.kVstSysExType) {
-				        return 
-					        "type["+type.ToString("F")+"] byteSize["+byteSize+"] deltaFrames["+deltaFrames+"] _flags["+_flags+"] dumpBytes["+dumpBytes+" sysexDump["+sysexDump+"]";
-			        } else {
-				        return 
-					        "type["+type.ToString("F")+"] byteSize["+byteSize+"] deltaFrames["+deltaFrames+"] _flags["+_flags+"]";
-			        }
+                public VstEvent.VstEventTypes type;          ///< #kVstMidiType
+                public Int32 byteSize;      ///< sizeof (VstMidiEvent)
+                public Int32 deltaFrames;   ///< sample frames related to the current block start sample position
+                public VstMidiEventFlags flags;         ///< @see VstMidiEventFlags
+                public Int32 noteLength;    ///< (in sample frames) of entire note, if available, else 0
+                public Int32 noteOffset;    ///< offset (in sample frames) into note from note start if available, else 0
+                public Byte midiData0;      //< 1 to 3 MIDI bytes; midiData[3] is reserved (zero)
+                public Byte midiData1;
+                public Byte midiData2;
+                public Byte midiData3;
+                public Byte detune;            ///< -64 to +63 cents; for scales other than 'well-tempered' ('microtuning')
+                public Byte noteOffVelocity;   ///< Note Off Velocity [0, 127]
+                public Byte reserved1;         ///< zero (Reserved for future use)
+                public Byte reserved2;         ///< zero (Reserved for future use)
+                //-------------------------------------------------------------------------------------------------------
+                override public string ToString()
+                {
+                    return $"type[{type:F}] byteSize[{byteSize}] deltaFrames[{deltaFrames}] flags[{flags:F}] noteLength[{noteLength}] noteOffset[{noteOffset}] midiData[{midiData0:X2}{midiData1:X2}{midiData2:X2}{midiData3:X2}] detune[{detune}] noteOffVelocity[{noteOffVelocity}]";
                 }
-	        };
-
+            };
 
             //-------------------------------------------------------------------------------------------------------
             /** A block of events for the current processed audio block. */
@@ -522,7 +498,7 @@ namespace Momiji
             {
                 //-------------------------------------------------------------------------------------------------------
                 public Int32 numEvents;        //< number of Events in array
-                public Int32 reserved;        //< zero (Reserved for future use)
+                public IntPtr reserved;        //< zero (Reserved for future use)
                                         //IntPtr	events;			//VstEvent* events[2];	///< event pointer array, variable size
                                         //-------------------------------------------------------------------------------------------------------
             };

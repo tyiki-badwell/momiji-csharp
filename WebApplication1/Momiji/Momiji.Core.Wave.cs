@@ -31,12 +31,15 @@ namespace Momiji
             {
                 private bool disposed = false;
 
-                private BufferBlock<PinnedBuffer<Interop.Wave.WaveHeader>> headerPool;
-                private Dictionary<IntPtr, PinnedBuffer<Interop.Wave.WaveHeader>> headerBusyPool;
+                private BufferBlock<PinnedBuffer<Interop.Wave.WaveHeader>> headerPool = new BufferBlock<PinnedBuffer<Interop.Wave.WaveHeader>>();
+                private Dictionary<IntPtr, PinnedBuffer<Interop.Wave.WaveHeader>> headerBusyPool = new Dictionary<IntPtr, PinnedBuffer<Interop.Wave.WaveHeader>>();
+                private Dictionary<IntPtr, PinnedBuffer<float[]>> dataBusyPool = new Dictionary<IntPtr, PinnedBuffer<float[]>>();
 
                 private Interop.Wave.WaveOut handle;
 
                 private Task processTask;
+                //TODO デリゲート経由で使えるよう直す
+                ITargetBlock<PinnedBuffer<float[]>> _inputReleaseQueue;
 
                 private async void DriverCallBackProc(
                     IntPtr hdrvr,
@@ -78,10 +81,9 @@ namespace Momiji
                     format.exp.channelMask = channelMask;
                     format.exp.subFormat = formatSubType;
 
-                    headerPool = new BufferBlock<PinnedBuffer<Interop.Wave.WaveHeader>>();
                     headerPool.Post(new PinnedBuffer<Interop.Wave.WaveHeader>(new Interop.Wave.WaveHeader()));
-
-                    headerBusyPool = new Dictionary<IntPtr, PinnedBuffer<Interop.Wave.WaveHeader>>();
+                    headerPool.Post(new PinnedBuffer<Interop.Wave.WaveHeader>(new Interop.Wave.WaveHeader()));
+                    headerPool.Post(new PinnedBuffer<Interop.Wave.WaveHeader>(new Interop.Wave.WaveHeader()));
 
                     var mmResult =
                         Interop.Wave.waveOutOpen(
@@ -149,13 +151,13 @@ namespace Momiji
                 }
 
 
-                private IntPtr Prepare(IntPtr data, System.UInt32 useSize)
+                private IntPtr Prepare(PinnedBuffer<float[]> data)
                 {
                     var header = headerPool.Receive();
                     {
                         var waveHeader = header.Target();
-                        waveHeader.data = data;
-                        waveHeader.bufferLength = useSize;
+                        waveHeader.data = data.AddrOfPinnedObject();
+                        waveHeader.bufferLength = (uint)data.Target().Length;
                         waveHeader.flags = (Interop.Wave.WaveHeader.FLAG.BEGINLOOP | Interop.Wave.WaveHeader.FLAG.ENDLOOP);
                         waveHeader.loops = 1;
 
@@ -177,6 +179,7 @@ namespace Momiji
                         throw new WaveException(mmResult);
                     }
                     headerBusyPool.Add(header.AddrOfPinnedObject(), header);
+                    dataBusyPool.Add(data.AddrOfPinnedObject(), data);
                     return header.AddrOfPinnedObject();
                 }
 
@@ -195,6 +198,10 @@ namespace Momiji
                     {
                         throw new WaveException(mmResult);
                     }
+
+                    PinnedBuffer<float[]> data;
+                    dataBusyPool.Remove(header.Target().data, out data);
+                    _inputReleaseQueue.Post(data);
 
                     headerPool.Post(header);
                 }
@@ -227,7 +234,7 @@ namespace Momiji
                     return caps;
                 }
 
-                public void Send(IntPtr data, System.UInt32 useSize)
+                public void Send(PinnedBuffer<float[]> data)
                 {
                     if (
                         handle.IsInvalid
@@ -237,7 +244,7 @@ namespace Momiji
                         return;
                     }
 
-                    IntPtr headerPtr = Prepare(data, useSize);
+                    IntPtr headerPtr = Prepare(data);
 
                     var mmResult =
                         Interop.Wave.waveOutWrite(
@@ -274,6 +281,7 @@ namespace Momiji
                     ITargetBlock<PinnedBuffer<float[]>> inputReleaseQueue,
                     CancellationToken ct)
                 {
+                    _inputReleaseQueue = inputReleaseQueue;
                     processTask = Process(inputQueue, inputReleaseQueue, ct);
                 }
 
@@ -295,17 +303,17 @@ namespace Momiji
 
                             try
                             {
-                                var data = inputQueue.Receive(new TimeSpan(2000), ct);
-                                Trace.WriteLine("[wave] get data");
+                                var data = inputQueue.Receive(new TimeSpan(20_000_000), ct);
+                                //Trace.WriteLine("[wave] get data");
 
-                                Send(data.AddrOfPinnedObject(), (uint)data.Target().Length);
+                                Send(data);
 
-                                inputReleaseQueue.Post(data);
-                                Trace.WriteLine("[wave] post data");
+                                //inputReleaseQueue.Post(data);
+                                //Trace.WriteLine("[wave] post data");
                             }
                             catch (TimeoutException te)
                             {
-                                //Trace.WriteLine("[wave] timeout");
+                                Trace.WriteLine("[wave] timeout");
                                 continue;
                             }
                         }

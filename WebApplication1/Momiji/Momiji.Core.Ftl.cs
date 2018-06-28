@@ -177,7 +177,7 @@ namespace Momiji
                             }
                             try
                             {
-                                var buffer = inputQueue.Receive(new TimeSpan(2000), ct);
+                                var buffer = inputQueue.Receive(new TimeSpan(20_000_000), ct);
                                 Trace.WriteLine("[ftl] receive buffer");
 
                                 var audioStatus = SendAudio(handle, buffer);
