@@ -302,8 +302,9 @@ namespace Momiji.Core.Vst
 
                         try
                         {
+                            Trace.WriteLine("[vst] get data TRY");
                             var data = bufferQueue.Receive(new TimeSpan(20_000_000), ct);
-                            //Trace.WriteLine("[vst] get data");
+                            Trace.WriteLine("[vst] get data OK");
 
                             var list = new List<VstMidiEvent>();
                             {

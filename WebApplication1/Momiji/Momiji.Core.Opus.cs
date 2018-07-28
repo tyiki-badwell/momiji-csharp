@@ -36,7 +36,7 @@ namespace Momiji.Core.Opus
 
             if (error != Interop.Opus.OpusStatusCode.OK)
             {
-                throw new Exception($"opus_encoder_create error:{error}");
+                throw new Exception($"[opus] opus_encoder_create error:{error}");
             }
         }
 
@@ -70,7 +70,7 @@ namespace Momiji.Core.Opus
                 {
                     foreach (var v in e.InnerExceptions)
                     {
-                        Trace.WriteLine($"OpusEncode Process Exception:{e.Message} {v.Message}");
+                        Trace.WriteLine($"[opus] OpusEncode Process Exception:{e.Message} {v.Message}");
                     }
                 }
 
@@ -121,8 +121,17 @@ namespace Momiji.Core.Opus
                         inputReleaseQueue.Post(pcm);
                         pcm = null;
                         Trace.WriteLine("[opus] release pcm");
+                        /*
+                        if (data.Wrote < 0)
+                        {
+                            throw new Exception($"[opus] opus_encode_float error:{data.Wrote}");
+                        }
+                        else
+                        {*/
+                            Trace.WriteLine($"[opus] post data: wrote {data.Wrote}");
+                        //}
+
                         outputQueue.Post(data);
-                        Trace.WriteLine($"[opus] post data: wrote {data.Wrote}");
                     }
                     catch (TimeoutException te)
                     {

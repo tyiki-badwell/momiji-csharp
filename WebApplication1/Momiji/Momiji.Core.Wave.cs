@@ -157,7 +157,9 @@ namespace Momiji.Core.Wave
 
         private IntPtr Prepare(PinnedBuffer<T[]> data)
         {
+            Trace.WriteLine("[wave] header receive TRY");
             var header = headerPool.Receive();
+            Trace.WriteLine("[wave] header receive OK");
             {
                 var waveHeader = header.Target;
                 waveHeader.data = data.AddrOfPinnedObject();
@@ -182,6 +184,7 @@ namespace Momiji.Core.Wave
                 headerPool.Post(header);
                 throw new WaveException(mmResult);
             }
+            Trace.WriteLine("[wave] prepare OK");
             headerBusyPool.Add(header.AddrOfPinnedObject(), header);
             dataBusyPool.Add(data.AddrOfPinnedObject(), data);
             return header.AddrOfPinnedObject();
@@ -262,6 +265,7 @@ namespace Momiji.Core.Wave
                 Unprepare(headerPtr);
                 throw new WaveException(mmResult);
             }
+            Trace.WriteLine("[wave] write OK");
         }
 
         public void Reset()
@@ -308,14 +312,15 @@ namespace Momiji.Core.Wave
 
                     try
                     {
+                        Trace.WriteLine("[wave] get data TRY");
                         var data = inputQueue.Receive(new TimeSpan(20_000_000), ct);
-                                //Trace.WriteLine("[wave] get data");
+                        Trace.WriteLine("[wave] get data OK");
 
-                                Send(data);
+                        Send(data);
 
-                                //inputReleaseQueue.Post(data);
-                                //Trace.WriteLine("[wave] post data");
-                            }
+                        //inputReleaseQueue.Post(data);
+                        //Trace.WriteLine("[wave] post data");
+                    }
                     catch (TimeoutException te)
                     {
                         Trace.WriteLine("[wave] timeout");

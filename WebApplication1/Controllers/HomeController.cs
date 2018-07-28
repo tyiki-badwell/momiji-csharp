@@ -1,5 +1,6 @@
 ﻿using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.Logging;
 using Momiji.Core.Ftl;
 using Momiji.Core.Opus;
 using Momiji.Core.Vst;
@@ -19,10 +20,12 @@ namespace WebApplication1.Controllers
         private static CancellationTokenSource processCancel;
         private static Task processTask;
         private IConfiguration Configuration { get; }
+        private ILogger Logger { get; }
 
-        public HomeController(IConfiguration configuration)
+        public HomeController(IConfiguration configuration, ILogger<HomeController> logger)
         {
             Configuration = configuration;
+            Logger = logger;
         }
 
         private async Task Loop()
@@ -38,7 +41,26 @@ namespace WebApplication1.Controllers
                     ct.ThrowIfCancellationRequested();
 
                     Int32 samplingRate = 48000;
-                    Int32 blockSize = (Int32)(samplingRate * 0.05/*0.05*/);
+                    Int32 blockSize = (Int32)(samplingRate * 0.1);
+                    /*
+                     この式を満たさないとダメ
+                     new_size = blockSize
+                     Fs = samplingRate
+
+                      if (400*new_size!=Fs   && 200*new_size!=Fs   && 100*new_size!=Fs   &&
+                        50*new_size!=Fs   &&  25*new_size!=Fs   &&  50*new_size!=3*Fs &&
+                        50*new_size!=4*Fs &&  50*new_size!=5*Fs &&  50*new_size!=6*Fs)
+                    
+                    0.0025
+                    0.005
+                    0.01
+                    0.02
+                    0.04
+                    0.06
+                    0.08
+                    0.1
+                    0.12
+                     */
 
                     using (var pcm1 = new PinnedBuffer<float[]>(new float[blockSize * 2]))
                     using (var pcm2 = new PinnedBuffer<float[]>(new float[blockSize * 2]))
@@ -140,6 +162,7 @@ namespace WebApplication1.Controllers
         {
             var ct = processCancel.Token;
 
+            Logger.LogInformation("main loop start");
             Trace.WriteLine("main loop start");
 
             try
@@ -210,6 +233,7 @@ namespace WebApplication1.Controllers
                                     break;
                                 }
                                 Trace.WriteLine("wait:" + a++);
+                                Logger.LogInformation("wait:{a}", a);
 
                                 var vstEvent = new Vst.VstMidiEvent();
                                 vstEvent.type = Vst.VstEvent.VstEventTypes.kVstMidiType;
@@ -247,6 +271,7 @@ namespace WebApplication1.Controllers
             finally
             {
                 Trace.WriteLine("main loop end");
+                Logger.LogInformation("main loop end");
             }
         }
 

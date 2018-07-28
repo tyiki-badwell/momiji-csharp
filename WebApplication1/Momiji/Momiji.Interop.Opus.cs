@@ -202,7 +202,7 @@ namespace Momiji.Interop
         }
 
 
-        [DllImport("opus.dll", CallingConvention = CallingConvention.Cdecl)]
+        [DllImport("opus.dll", CallingConvention = CallingConvention.StdCall)]
         internal static extern OpusEncoder
             opus_encoder_create(
                 [In] SamplingRate Fs,
@@ -211,17 +211,17 @@ namespace Momiji.Interop
                 [Out] out OpusStatusCode error
             );
 
-        [DllImport("opus.dll", CallingConvention = CallingConvention.Cdecl)]
+        [DllImport("opus.dll", CallingConvention = CallingConvention.StdCall)]
         internal static extern void opus_encoder_destroy(
             [In] IntPtr st
         );
 
-        [DllImport("opus.dll", CallingConvention = CallingConvention.Cdecl)]
+        [DllImport("opus.dll", CallingConvention = CallingConvention.StdCall)]
         internal static extern int opus_encoder_get_size(
             [In] Channels channels
         );
 
-        [DllImport("opus.dll", CallingConvention = CallingConvention.Cdecl)]
+        [DllImport("opus.dll", CallingConvention = CallingConvention.StdCall)]
         internal static extern OpusStatusCode opus_encoder_init(
             [In] OpusEncoder st,
             [In] SamplingRate Fs,
@@ -229,7 +229,7 @@ namespace Momiji.Interop
             [In] OpusApplicationType application
         );
 
-        [DllImport("opus.dll", CallingConvention = CallingConvention.Cdecl)]
+        [DllImport("opus.dll", CallingConvention = CallingConvention.StdCall)]
         internal static extern int opus_encode(
             [In] OpusEncoder st,
             [In] IntPtr pcm,
@@ -238,7 +238,7 @@ namespace Momiji.Interop
             [In] int max_data_bytes
         );
 
-        [DllImport("opus.dll", CallingConvention = CallingConvention.Cdecl)]
+        [DllImport("opus.dll", CallingConvention = CallingConvention.StdCall)]
         internal static extern int opus_encode_float(
             [In] OpusEncoder st,
             [In] IntPtr pcm,
@@ -247,26 +247,26 @@ namespace Momiji.Interop
             [In] int max_data_bytes
         );
 
-        [DllImport("opus.dll", CallingConvention = CallingConvention.Cdecl)]
+        [DllImport("opus.dll", CallingConvention = CallingConvention.StdCall)]
         internal static extern int opus_encoder_ctl(
             [In] OpusEncoder st,
             [In] OpusCtlSetRequest request,
             [In] int value
         );
 
-        [DllImport("opus.dll", CallingConvention = CallingConvention.Cdecl)]
+        [DllImport("opus.dll", CallingConvention = CallingConvention.StdCall)]
         internal static extern int opus_encoder_ctl(
             [In] OpusEncoder st,
             [In] OpusCtlGetRequest request,
             [In, Out] ref int value
         );
 
-        [DllImport("opus.dll", CallingConvention = CallingConvention.Cdecl)]
+        [DllImport("opus.dll", CallingConvention = CallingConvention.StdCall)]
         internal static extern int opus_packet_get_bandwidth(
             [In] IntPtr data
         );
 
-        [DllImport("opus.dll", CallingConvention = CallingConvention.Cdecl)]
+        [DllImport("opus.dll", CallingConvention = CallingConvention.StdCall)]
         internal static extern int opus_packet_get_nb_channels(
             [In] IntPtr data
         );
