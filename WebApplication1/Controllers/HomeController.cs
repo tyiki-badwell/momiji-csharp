@@ -47,9 +47,12 @@ namespace WebApplication1.Controllers
                      new_size = blockSize
                      Fs = samplingRate
 
+                      if (frame_size<Fs/400)
+                        return -1;
                       if (400*new_size!=Fs   && 200*new_size!=Fs   && 100*new_size!=Fs   &&
-                        50*new_size!=Fs   &&  25*new_size!=Fs   &&  50*new_size!=3*Fs &&
-                        50*new_size!=4*Fs &&  50*new_size!=5*Fs &&  50*new_size!=6*Fs)
+                          50*new_size!=Fs   &&  25*new_size!=Fs   &&  50*new_size!=3*Fs &&
+                          50*new_size!=4*Fs &&  50*new_size!=5*Fs &&  50*new_size!=6*Fs)
+                        return -1;
                     
                     0.0025
                     0.005
@@ -66,17 +69,23 @@ namespace WebApplication1.Controllers
                     using (var pcm2 = new PinnedBuffer<float[]>(new float[blockSize * 2]))
                     using (var out1 = new OpusOutputBuffer(5000))
                     using (var out2 = new OpusOutputBuffer(5000))
+                    using (var video1 = new PinnedBuffer<byte[]>(new byte[blockSize * 2]))
+                    using (var video2 = new PinnedBuffer<byte[]>(new byte[blockSize * 2]))
                     {
                         var vstToOpusInput = new BufferBlock<PinnedBuffer<float[]>>();
                         var vstToOpusOutput = new BufferBlock<PinnedBuffer<float[]>>();
                         var opusToFtlInput = new BufferBlock<OpusOutputBuffer>();
                         var opusToFtlOutput = new BufferBlock<OpusOutputBuffer>();
+                        var videoToFtlInput = new BufferBlock<PinnedBuffer<byte[]>>();
+                        var videoToFtlOutput = new BufferBlock<PinnedBuffer<byte[]>>();
                         var midiEventInput = new BufferBlock<Vst.VstMidiEvent>();
 
                         vstToOpusOutput.Post(pcm1);
                         vstToOpusOutput.Post(pcm2);
                         opusToFtlInput.Post(out1);
                         opusToFtlInput.Post(out2);
+                        videoToFtlInput.Post(video1);
+                        videoToFtlInput.Post(video2);
 
                         using (var vst = new AudioMaster<float>(samplingRate, blockSize))
                         using (var encoder = new OpusEncoder(Opus.SamplingRate.Sampling48000, Opus.Channels.Stereo))
@@ -102,6 +111,8 @@ namespace WebApplication1.Controllers
                             ftl.Run(
                                 opusToFtlOutput,
                                 opusToFtlInput,
+                                videoToFtlInput,
+                                videoToFtlInput,
                                 ct
                             );
 
@@ -139,6 +150,11 @@ namespace WebApplication1.Controllers
                                     vstEvent.midiData3 = 0x00;
 
                                     note++;
+                                    if (note < 0x40)
+                                    {
+                                        note = 0x40;
+                                    }
+
                                     v++;
                                 }
                                 on = !on;
@@ -347,88 +363,6 @@ namespace WebApplication1.Controllers
             }
         }
 
-        private async Task Loop4()
-        {
-            var ct = processCancel.Token;
-
-            Trace.WriteLine("main loop start");
-
-            try
-            {
-                await Task.Run(() =>
-                {
-                    ct.ThrowIfCancellationRequested();
-
-                    Int32 samplingRate = 48000;
-                    Int32 blockSize = 2880;
-
-                    double a = Math.Sin(0);
-                    double b = Math.Sin(2 * 3.14159 * 440 / samplingRate);
-                    double c = 2 * Math.Cos(2 * 3.14159 * 440 / samplingRate);
-
-                    using (var pcm1 = new PinnedBuffer<float[]>(new float[blockSize * 2]))
-                    using (var out1 = new OpusOutputBuffer(5000))
-                    using (var out2 = new OpusOutputBuffer(5000))
-                    {
-                        var vstToOpusInput = new BufferBlock<PinnedBuffer<float[]>>();
-                        var opusToFtlInput = new BufferBlock<OpusOutputBuffer>();
-                        var opusToFtlOutput = new BufferBlock<OpusOutputBuffer>();
-
-                        vstToOpusInput.Post(pcm1);
-                        opusToFtlInput.Post(out1);
-                        opusToFtlInput.Post(out2);
-
-                        var count = blockSize;
-                        var idx = 0;
-                        for (int i = 0; i < count; i++)
-                        {
-                            var d = a;
-                            a = b;
-                            b = c * a - d;
-
-                            pcm1.Target[idx++] = (float)d;
-                            pcm1.Target[idx++] = (float)(d / 2);
-                        }
-
-                        vstToOpusInput.Post(pcm1);
-
-                        using (var encoder = new OpusEncoder(Opus.SamplingRate.Sampling48000, Opus.Channels.Stereo))
-                        using (var ftl = new FtlIngest($"{Configuration["MIXER_STREAM_KEY"]}"))
-                        {
-                            encoder.Run(
-                                vstToOpusInput,
-                                vstToOpusInput,
-                                opusToFtlInput,
-                                opusToFtlOutput,
-                                ct
-                            );
-                            
-                            ftl.Run(
-                                opusToFtlOutput,
-                                opusToFtlInput,
-                                ct
-                            );
-                            
-                            while (true)
-                            {
-                                if (ct.IsCancellationRequested)
-                                {
-                                    break;
-                                }
-                                Trace.WriteLine("wait");
-                                Thread.Sleep(1000);
-                            }
-                        }
-                    }
-                });
-            }
-            finally
-            {
-                Trace.WriteLine("main loop end");
-            }
-        }
-
-
         private async Task Loop5()
         {
             var ct = processCancel.Token;
@@ -563,18 +497,6 @@ namespace WebApplication1.Controllers
             {
                 processCancel = new CancellationTokenSource();
                 processTask = Loop3();
-            }
-
-            return View();
-        }
-
-        public IActionResult Start4()
-        {
-            ViewData["Message"] = "Start.";
-            if (processCancel == null)
-            {
-                processCancel = new CancellationTokenSource();
-                processTask = Loop4();
             }
 
             return View();

@@ -245,7 +245,7 @@ float queue_fullness;
 
         //FTL_API int ftl_ingest_send_media_dts(ftl_handle_t* ftl_handle, ftl_media_type_t media_type, int64_t dts_usec, uint8_t* data, int32_t len, int end_of_frame);
         [DllImport("ftl.dll", CallingConvention = CallingConvention.Cdecl)]
-        internal static extern Status ftl_ingest_send_media_dts(
+        internal static extern int ftl_ingest_send_media_dts(
             [In] IntPtr ftl_handle,
             [In] MediaType media_type,
             [In] long dts_usec,

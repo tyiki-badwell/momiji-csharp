@@ -13,19 +13,24 @@ namespace Momiji.Core.Ftl
     {
         private bool disposed = false;
         private PinnedBuffer<Interop.Ftl.Handle> handle;
-        private Task processTask;
+        private Task processAudioTask;
+        private Task processVideoTask;
         private CancellationTokenSource logCancel = new CancellationTokenSource();
         private Task logTask;
+
+        private long audioUsec;
+        private long videoUsec;
 
         public FtlIngest(string streamKey)
         {
             Interop.Ftl.IngestParams param;
             param.stream_key = streamKey;
             param.video_codec = Interop.Ftl.VideoCodec.FTL_VIDEO_H264;
+            //param.video_codec = Interop.Ftl.VideoCodec.FTL_VIDEO_NULL;
             param.audio_codec = Interop.Ftl.AudioCodec.FTL_AUDIO_OPUS;
             param.ingest_hostname = "auto";
-            param.fps_num = 24;
-            param.fps_den = 1;
+            param.fps_num = 0;
+            param.fps_den = 0;
             param.peak_kbps = 0;
             param.vendor_name = "momiji";
             param.vendor_version = "0.0.1";
@@ -53,11 +58,14 @@ namespace Momiji.Core.Ftl
         }
 
         public void Run(
-            ISourceBlock<OpusOutputBuffer> inputQueue,
-            ITargetBlock<OpusOutputBuffer> inputReleaseQueue,
+            ISourceBlock<OpusOutputBuffer> inputAudioQueue,
+            ITargetBlock<OpusOutputBuffer> inputAudioReleaseQueue,
+            ISourceBlock<PinnedBuffer<byte[]>> inputVideoQueue,
+            ITargetBlock<PinnedBuffer<byte[]>> inputVideoReleaseQueue,
             CancellationToken ct)
         {
-            processTask = Process(inputQueue, inputReleaseQueue, ct);
+            processAudioTask = Process(inputAudioQueue, inputAudioReleaseQueue, ct);
+         //   processVideoTask = Process(inputVideoQueue, inputVideoReleaseQueue, ct);
         }
 
         public void Dispose()
@@ -72,16 +80,36 @@ namespace Momiji.Core.Ftl
 
             if (disposing)
             {
-                try
+                if (processAudioTask != null)
                 {
-                    processTask.Wait();
-                }
-                catch (AggregateException e)
-                {
-                    foreach (var v in e.InnerExceptions)
+                    try
                     {
-                        Trace.WriteLine($"FtlIngest Process Exception:{e.Message} {v.Message}");
+                        processAudioTask.Wait();
                     }
+                    catch (AggregateException e)
+                    {
+                        foreach (var v in e.InnerExceptions)
+                        {
+                            Trace.WriteLine($"FtlIngest Process Exception:{e.Message} {v.Message}");
+                        }
+                    }
+                    processAudioTask = null;
+                }
+
+                if (processVideoTask != null)
+                {
+                    try
+                    {
+                        processVideoTask.Wait();
+                    }
+                    catch (AggregateException e)
+                    {
+                        foreach (var v in e.InnerExceptions)
+                        {
+                            Trace.WriteLine($"FtlIngest Process Exception:{e.Message} {v.Message}");
+                        }
+                    }
+                    processVideoTask = null;
                 }
 
                 if (handle != null)
@@ -120,30 +148,31 @@ namespace Momiji.Core.Ftl
 
         private static DateTime UNIX_EPOCH = new DateTime(1970, 1, 1, 0, 0, 0, 0);
 
-        public Interop.Ftl.Status SendVideo(PinnedBuffer<Interop.Ftl.Handle> handle, PinnedBuffer<byte[]> buffer)
+        public int SendVideo(PinnedBuffer<Interop.Ftl.Handle> handle, PinnedBuffer<byte[]> buffer)
         {
             var now = DateTime.UtcNow;
             var usec = ((long)(now - UNIX_EPOCH).TotalSeconds * 1000000) + (now.Millisecond * 1000);
 
-            var status = Interop.Ftl.ftl_ingest_send_media_dts(
+            var sent = Interop.Ftl.ftl_ingest_send_media_dts(
                 handle.AddrOfPinnedObject(),
                 Interop.Ftl.MediaType.FTL_VIDEO_DATA,
                 usec,
                 buffer.AddrOfPinnedObject(),
-                2048,
-                0
+                buffer.Target.Length,
+                1
             );
-            Trace.WriteLine($"ftl_ingest_send_media_dts(FTL_VIDEO_DATA):{status}");
-            return status;
+            Trace.WriteLine($"ftl_ingest_send_media_dts(FTL_VIDEO_DATA):{sent} / {(usec- videoUsec) / 1000}");
+            videoUsec = usec;
+            return sent;
         }
 
 
-        public Interop.Ftl.Status SendAudio(PinnedBuffer<Interop.Ftl.Handle> handle, OpusOutputBuffer buffer)
+        public int SendAudio(PinnedBuffer<Interop.Ftl.Handle> handle, OpusOutputBuffer buffer)
         {
             var now = DateTime.UtcNow;
             var usec = ((long)(now - UNIX_EPOCH).TotalSeconds * 1000000) + (now.Millisecond * 1000);
 
-            var status = Interop.Ftl.ftl_ingest_send_media_dts(
+            var sent = Interop.Ftl.ftl_ingest_send_media_dts(
                 handle.AddrOfPinnedObject(),
                 Interop.Ftl.MediaType.FTL_AUDIO_DATA,
                 usec,
@@ -151,8 +180,9 @@ namespace Momiji.Core.Ftl
                 buffer.Wrote,
                 0
             );
-            Trace.WriteLine($"ftl_ingest_send_media_dts(FTL_AUDIO_DATA, {usec}:{buffer.Wrote}):{status}");
-            return status;
+            Trace.WriteLine($"ftl_ingest_send_media_dts(FTL_AUDIO_DATA, {usec}:{buffer.Wrote}):{sent} / {(usec - audioUsec) /1000}");
+            audioUsec = usec;
+            return sent;
         }
 
         private async Task Process(
@@ -174,14 +204,45 @@ namespace Momiji.Core.Ftl
                     try
                     {
                         var buffer = inputQueue.Receive(new TimeSpan(20_000_000), ct);
-                        Trace.WriteLine("[ftl] receive buffer");
+                        //Trace.WriteLine("[ftl] receive buffer");
+                        var sent = SendAudio(handle, buffer);
+                        inputReleaseQueue.Post(buffer);
+                        //Trace.WriteLine("[ftl] release buffer");
+                    }
+                    catch (TimeoutException te)
+                    {
+                        Trace.WriteLine("[ftl] timeout");
+                        continue;
+                    }
+                }
+            }, ct);
+        }
 
-                        var audioStatus = SendAudio(handle, buffer);
+        private async Task Process(
+            ISourceBlock<PinnedBuffer<byte[]>> inputQueue,
+            ITargetBlock<PinnedBuffer<byte[]>> inputReleaseQueue,
+            CancellationToken ct)
+        {
+            await Task.Run(() =>
+            {
+                ct.ThrowIfCancellationRequested();
 
-                                //var videoStatus = SendVideo(handle, buffer);
+                int a = 0;
+                while (true)
+                {
+                    if (ct.IsCancellationRequested)
+                    {
+                        break;
+                    }
+                    try
+                    {
+                        var buffer = inputQueue.Receive(new TimeSpan(20_000_000), ct);
+                        //Trace.WriteLine("[ftl] receive buffer");
+                        var sent = SendVideo(handle, buffer);
+                        inputReleaseQueue.Post(buffer);
+                        //Trace.WriteLine("[ftl] release buffer");
 
-                                inputReleaseQueue.Post(buffer);
-                        Trace.WriteLine("[ftl] release buffer");
+                        Thread.Sleep(1000);
                     }
                     catch (TimeoutException te)
                     {
@@ -224,13 +285,42 @@ namespace Momiji.Core.Ftl
                             var type = (Interop.Ftl.StatusTypes)Marshal.ReadInt32(msg, 0);
                             switch (type)
                             {
+                                case Interop.Ftl.StatusTypes.FTL_STATUS_NONE:
+                                    Trace.WriteLine("[ftl] NONE");
+                                    break;
                                 case Interop.Ftl.StatusTypes.FTL_STATUS_LOG:
                                     Interop.Ftl.FtlStatusLogMsg log = Marshal.PtrToStructure<Interop.Ftl.FtlStatusLogMsg>(msg + 8);
-                                    Trace.WriteLine($"{log.log_level}:{log.msg}");
+                                    Trace.WriteLine($"[ftl] LOG {log.log_level}:{log.msg}");
                                     break;
-
+                                case Interop.Ftl.StatusTypes.FTL_STATUS_EVENT:
+                                    Trace.WriteLine("[ftl] EVENT");
+                                    break;
+                                case Interop.Ftl.StatusTypes.FTL_STATUS_VIDEO_PACKETS:
+                                    Trace.WriteLine("[ftl] VIDEO_PACKETS");
+                                    break;
+                                case Interop.Ftl.StatusTypes.FTL_STATUS_VIDEO_PACKETS_INSTANT:
+                                    Trace.WriteLine("[ftl] VIDEO_PACKETS_INSTANT");
+                                    break;
+                                case Interop.Ftl.StatusTypes.FTL_STATUS_AUDIO_PACKETS:
+                                    Trace.WriteLine("[ftl] AUDIO_PACKETS");
+                                    break;
+                                case Interop.Ftl.StatusTypes.FTL_STATUS_VIDEO:
+                                    Trace.WriteLine("[ftl] VIDEO");
+                                    break;
+                                case Interop.Ftl.StatusTypes.FTL_STATUS_AUDIO:
+                                    Trace.WriteLine("[ftl] AUDIO");
+                                    break;
+                                case Interop.Ftl.StatusTypes.FTL_STATUS_FRAMES_DROPPED:
+                                    Trace.WriteLine("[ftl] FRAMES_DROPPED");
+                                    break;
+                                case Interop.Ftl.StatusTypes.FTL_STATUS_NETWORK:
+                                    Trace.WriteLine("[ftl] NETWORK");
+                                    break;
+                                case Interop.Ftl.StatusTypes.FTL_BITRATE_CHANGED:
+                                    Trace.WriteLine("[ftl] BITRATE_CHANGED");
+                                    break;
                                 default:
-                                    Trace.WriteLine(type);
+                                    Trace.WriteLine($"[ftl] {type}");
                                     break;
                             }
                         }
