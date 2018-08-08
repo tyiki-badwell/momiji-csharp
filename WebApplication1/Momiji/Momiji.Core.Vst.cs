@@ -263,8 +263,8 @@ namespace Momiji.Core.Vst
         }
 
         public void Run(
-            ISourceBlock<PinnedBuffer<T[]>> bufferQueue,
-            ITargetBlock<PinnedBuffer<T[]>> outputQueue,
+            ISourceBlock<Wave.PcmBuffer<T>> bufferQueue,
+            ITargetBlock<Wave.PcmBuffer<T>> outputQueue,
             IReceivableSourceBlock<VstMidiEvent> midiEventQueue,
             CancellationToken ct)
         {
@@ -272,15 +272,15 @@ namespace Momiji.Core.Vst
         }
 
         private async Task Process(
-            ISourceBlock<PinnedBuffer<T[]>> bufferQueue,
-            ITargetBlock<PinnedBuffer<T[]>> outputQueue,
+            ISourceBlock<Wave.PcmBuffer<T>> bufferQueue,
+            ITargetBlock<Wave.PcmBuffer<T>> outputQueue,
             IReceivableSourceBlock<VstMidiEvent> midiEventQueue,
             CancellationToken ct)
         {
             int blockSize = audioMaster.BlockSize;
             using (var events = new PinnedBuffer<byte[]>(new byte[4000]))
             using (var eventList = new PinnedBuffer<byte[]>(new byte[4000]))
-            using (var buffer = new VstBuffer<float>(blockSize, numOutputs))
+            using (var buffer = new VstBuffer<T>(blockSize, numOutputs))
             {
                 await Task.Run(() =>
                 {

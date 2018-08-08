@@ -4,6 +4,7 @@ using Microsoft.Extensions.Logging;
 using Momiji.Core.Ftl;
 using Momiji.Core.Opus;
 using Momiji.Core.Vst;
+using Momiji.Core.Wave;
 using Momiji.Interop;
 using System;
 using System.Diagnostics;
@@ -65,10 +66,10 @@ namespace WebApplication1.Controllers
                     0.12
                      */
 
-                    using (var pcm1 = new PinnedBuffer<float[]>(new float[blockSize * 2]))
-                    using (var pcm2 = new PinnedBuffer<float[]>(new float[blockSize * 2]))
-                    using (var pcm3 = new PinnedBuffer<float[]>(new float[blockSize * 2]))
-                    using (var pcm4 = new PinnedBuffer<float[]>(new float[blockSize * 2]))
+                    using (var pcm1 = new PcmBuffer<float>(blockSize, 2))
+                    using (var pcm2 = new PcmBuffer<float>(blockSize, 2))
+                    using (var pcm3 = new PcmBuffer<float>(blockSize, 2))
+                    using (var pcm4 = new PcmBuffer<float>(blockSize, 2))
                     using (var out1 = new OpusOutputBuffer(5000))
                     using (var out2 = new OpusOutputBuffer(5000))
                     using (var out3 = new OpusOutputBuffer(5000))
@@ -76,8 +77,8 @@ namespace WebApplication1.Controllers
                     using (var video1 = new PinnedBuffer<byte[]>(new byte[blockSize * 2]))
                     using (var video2 = new PinnedBuffer<byte[]>(new byte[blockSize * 2]))
                     {
-                        var vstToOpusInput = new BufferBlock<PinnedBuffer<float[]>>();
-                        var vstToOpusOutput = new BufferBlock<PinnedBuffer<float[]>>();
+                        var vstToOpusInput = new BufferBlock<PcmBuffer<float>>();
+                        var vstToOpusOutput = new BufferBlock<PcmBuffer<float>>();
                         var opusToFtlInput = new BufferBlock<OpusOutputBuffer>();
                         var opusToFtlOutput = new BufferBlock<OpusOutputBuffer>();
                         var videoToFtlInput = new BufferBlock<PinnedBuffer<byte[]>>();
@@ -197,15 +198,15 @@ namespace WebApplication1.Controllers
                     Int32 samplingRate = 48000;
                     Int32 blockSize = (Int32)(samplingRate * 0.05/*0.05*/);
 
-                    using (var pcm1 = new PinnedBuffer<float[]>(new float[blockSize * 2]))
-                    using (var pcm2 = new PinnedBuffer<float[]>(new float[blockSize * 2]))
-                    using (var pcm3 = new PinnedBuffer<float[]>(new float[blockSize * 2]))
-                    using (var pcm4 = new PinnedBuffer<float[]>(new float[blockSize * 2]))
-                    using (var pcm5 = new PinnedBuffer<float[]>(new float[blockSize * 2]))
-                    using (var pcm6 = new PinnedBuffer<float[]>(new float[blockSize * 2]))
+                    using (var pcm1 = new PcmBuffer<float>(blockSize, 2))
+                    using (var pcm2 = new PcmBuffer<float>(blockSize, 2))
+                    using (var pcm3 = new PcmBuffer<float>(blockSize, 2))
+                    using (var pcm4 = new PcmBuffer<float>(blockSize, 2))
+                    using (var pcm5 = new PcmBuffer<float>(blockSize, 2))
+                    using (var pcm6 = new PcmBuffer<float>(blockSize, 2))
                     {
-                        var vstToOpusInput = new BufferBlock<PinnedBuffer<float[]>>();
-                        var vstToOpusOutput = new BufferBlock<PinnedBuffer<float[]>>();
+                        var vstToOpusInput = new BufferBlock<PcmBuffer<float>>();
+                        var vstToOpusOutput = new BufferBlock<PcmBuffer<float>>();
                         var midiEventInput = new BufferBlock<Vst.VstMidiEvent>();
 
                         vstToOpusInput.Post(pcm1);
@@ -315,9 +316,9 @@ namespace WebApplication1.Controllers
                     double b = Math.Sin(2 * 3.14159 * 440 / samplingRate);
                     double c = 2 * Math.Cos(2 * 3.14159 * 440 / samplingRate);
 
-                    using (var pcm1 = new PinnedBuffer<float[]>(new float[blockSize * 2]))
+                    using (var pcm1 = new PcmBuffer<float>(blockSize, 2))
                     {
-                        var vstToOpusInput = new BufferBlock<PinnedBuffer<float[]>>();
+                        var vstToOpusInput = new BufferBlock<PcmBuffer<float>>();
 
                         var count = blockSize;
                         var idx = 0;
@@ -383,13 +384,13 @@ namespace WebApplication1.Controllers
                     Int32 samplingRate = 48000;
                     Int32 blockSize = (Int32)(samplingRate * 0.05/*0.05*/);
 
-                    using (var pcm1 = new PinnedBuffer<float[]>(new float[blockSize * 2]))
-                    using (var pcm2 = new PinnedBuffer<float[]>(new float[blockSize * 2]))
+                    using (var pcm1 = new PcmBuffer<float>(blockSize, 2))
+                    using (var pcm2 = new PcmBuffer<float>(blockSize, 2))
                     using (var out1 = new OpusOutputBuffer(5000))
                     using (var out2 = new OpusOutputBuffer(5000))
                     {
-                        var vstToOpusInput = new BufferBlock<PinnedBuffer<float[]>>();
-                        var vstToOpusOutput = new BufferBlock<PinnedBuffer<float[]>>();
+                        var vstToOpusInput = new BufferBlock<PcmBuffer<float>>();
+                        var vstToOpusOutput = new BufferBlock<PcmBuffer<float>>();
                         var opusToFtlInput = new BufferBlock<OpusOutputBuffer>();
                         var midiEventInput = new BufferBlock<Vst.VstMidiEvent>();
 

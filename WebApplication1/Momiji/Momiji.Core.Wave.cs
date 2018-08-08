@@ -25,19 +25,26 @@ namespace Momiji.Core.Wave
         }
     }
 
+    public class PcmBuffer<T> : PinnedBuffer<T[]>
+    {
+        public PcmBuffer(Int32 blockSize, int channels) : base(new T[blockSize * channels])
+        {
+        }
+    }
+
     public class WaveOut<T> : IDisposable
     {
         private bool disposed = false;
 
         private BufferBlock<PinnedBuffer<Interop.Wave.WaveHeader>> headerPool = new BufferBlock<PinnedBuffer<Interop.Wave.WaveHeader>>();
         private IDictionary<IntPtr, PinnedBuffer<Interop.Wave.WaveHeader>> headerBusyPool = new ConcurrentDictionary<IntPtr, PinnedBuffer<Interop.Wave.WaveHeader>>();
-        private IDictionary<IntPtr, PinnedBuffer<T[]>> dataBusyPool = new ConcurrentDictionary<IntPtr, PinnedBuffer<T[]>>();
+        private IDictionary<IntPtr, PcmBuffer<T>> dataBusyPool = new ConcurrentDictionary<IntPtr, PcmBuffer<T>>();
 
         private Interop.Wave.WaveOut handle;
 
         private Task processTask;
         //TODO デリゲート経由で使えるよう直す
-        ITargetBlock<PinnedBuffer<T[]>> _inputReleaseQueue;
+        ITargetBlock<PcmBuffer<T>> _inputReleaseQueue;
 
         private async void DriverCallBackProc(
             IntPtr hdrvr,
@@ -155,7 +162,7 @@ namespace Momiji.Core.Wave
         }
 
 
-        private IntPtr Prepare(PinnedBuffer<T[]> data)
+        private IntPtr Prepare(PcmBuffer<T> data)
         {
             Trace.WriteLine("[wave] header receive TRY");
             var header = headerPool.Receive();
@@ -206,7 +213,7 @@ namespace Momiji.Core.Wave
                 throw new WaveException(mmResult);
             }
 
-            PinnedBuffer<T[]> data;
+            PcmBuffer<T> data;
             dataBusyPool.Remove(header.Target.data, out data);
             _inputReleaseQueue.Post(data);
             Trace.WriteLine("[wave] release data:" + data.GetHashCode());
@@ -242,7 +249,7 @@ namespace Momiji.Core.Wave
             return caps;
         }
 
-        public void Send(PinnedBuffer<T[]> data)
+        public void Send(PcmBuffer<T> data)
         {
             if (
                 handle.IsInvalid
@@ -286,8 +293,8 @@ namespace Momiji.Core.Wave
         }
 
         public void Run(
-            ISourceBlock<PinnedBuffer<T[]>> inputQueue,
-            ITargetBlock<PinnedBuffer<T[]>> inputReleaseQueue,
+            ISourceBlock<PcmBuffer<T>> inputQueue,
+            ITargetBlock<PcmBuffer<T>> inputReleaseQueue,
             CancellationToken ct)
         {
             _inputReleaseQueue = inputReleaseQueue;
@@ -295,8 +302,8 @@ namespace Momiji.Core.Wave
         }
 
         private async Task Process(
-            ISourceBlock<PinnedBuffer<T[]>> inputQueue,
-            ITargetBlock<PinnedBuffer<T[]>> inputReleaseQueue,
+            ISourceBlock<PcmBuffer<T>> inputQueue,
+            ITargetBlock<PcmBuffer<T>> inputReleaseQueue,
             CancellationToken ct)
         {
             await Task.Run(() =>

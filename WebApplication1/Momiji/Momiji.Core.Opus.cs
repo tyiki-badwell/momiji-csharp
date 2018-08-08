@@ -41,8 +41,8 @@ namespace Momiji.Core.Opus
         }
 
         public void Run(
-            ISourceBlock<PinnedBuffer<float[]>> inputQueue,
-            ITargetBlock<PinnedBuffer<float[]>> inputReleaseQueue,
+            ISourceBlock<Wave.PcmBuffer<float>> inputQueue,
+            ITargetBlock<Wave.PcmBuffer<float>> inputReleaseQueue,
             ISourceBlock<OpusOutputBuffer> bufferQueue,
             ITargetBlock<OpusOutputBuffer> outputQueue,
             CancellationToken ct)
@@ -81,8 +81,8 @@ namespace Momiji.Core.Opus
         }
 
         private async Task Process(
-            ISourceBlock<PinnedBuffer<float[]>> inputQueue,
-            ITargetBlock<PinnedBuffer<float[]>> inputReleaseQueue,
+            ISourceBlock<Wave.PcmBuffer<float>> inputQueue,
+            ITargetBlock<Wave.PcmBuffer<float>> inputReleaseQueue,
             ISourceBlock<OpusOutputBuffer> bufferQueue,
             ITargetBlock<OpusOutputBuffer> outputQueue,
             CancellationToken ct)
@@ -91,7 +91,7 @@ namespace Momiji.Core.Opus
             {
                 ct.ThrowIfCancellationRequested();
 
-                PinnedBuffer<float[]> pcm = null;
+                Wave.PcmBuffer<float> pcm = null;
 
                 while (true)
                 {
@@ -121,15 +121,14 @@ namespace Momiji.Core.Opus
                         inputReleaseQueue.Post(pcm);
                         pcm = null;
                         Trace.WriteLine("[opus] release pcm");
-                        /*
                         if (data.Wrote < 0)
                         {
                             throw new Exception($"[opus] opus_encode_float error:{data.Wrote}");
                         }
                         else
-                        {*/
+                        {
                             Trace.WriteLine($"[opus] post data: wrote {data.Wrote}");
-                        //}
+                        }
 
                         outputQueue.Post(data);
                     }
