@@ -32,7 +32,7 @@ namespace WebApplication1.Controllers
         {
             var ct = processCancel.Token;
 
-            Trace.WriteLine("main loop start");
+            Logger.LogInformation("main loop start");
 
             try
             {
@@ -41,7 +41,7 @@ namespace WebApplication1.Controllers
                     ct.ThrowIfCancellationRequested();
 
                     Int32 samplingRate = 48000;
-                    Int32 blockSize = (Int32)(samplingRate * 0.1);
+                    Int32 blockSize = (Int32)(samplingRate * 0.06);
                     /*
                      この式を満たさないとダメ
                      new_size = blockSize
@@ -67,8 +67,12 @@ namespace WebApplication1.Controllers
 
                     using (var pcm1 = new PinnedBuffer<float[]>(new float[blockSize * 2]))
                     using (var pcm2 = new PinnedBuffer<float[]>(new float[blockSize * 2]))
+                    using (var pcm3 = new PinnedBuffer<float[]>(new float[blockSize * 2]))
+                    using (var pcm4 = new PinnedBuffer<float[]>(new float[blockSize * 2]))
                     using (var out1 = new OpusOutputBuffer(5000))
                     using (var out2 = new OpusOutputBuffer(5000))
+                    using (var out3 = new OpusOutputBuffer(5000))
+                    using (var out4 = new OpusOutputBuffer(5000))
                     using (var video1 = new PinnedBuffer<byte[]>(new byte[blockSize * 2]))
                     using (var video2 = new PinnedBuffer<byte[]>(new byte[blockSize * 2]))
                     {
@@ -82,8 +86,12 @@ namespace WebApplication1.Controllers
 
                         vstToOpusOutput.Post(pcm1);
                         vstToOpusOutput.Post(pcm2);
+                        vstToOpusOutput.Post(pcm3);
+                        vstToOpusOutput.Post(pcm4);
                         opusToFtlInput.Post(out1);
                         opusToFtlInput.Post(out2);
+                        opusToFtlInput.Post(out3);
+                        opusToFtlInput.Post(out4);
                         videoToFtlInput.Post(video1);
                         videoToFtlInput.Post(video2);
 
@@ -127,7 +135,7 @@ namespace WebApplication1.Controllers
                                 {
                                     break;
                                 }
-                                Trace.WriteLine("wait:" + a++);
+                                Logger.LogInformation("wait:" + a++);
 
                                 var vstEvent = new Vst.VstMidiEvent();
                                 vstEvent.type = Vst.VstEvent.VstEventTypes.kVstMidiType;
@@ -169,7 +177,7 @@ namespace WebApplication1.Controllers
             }
             finally
             {
-                Trace.WriteLine("main loop end");
+                Logger.LogInformation("main loop end");
             }
         }
 
@@ -179,7 +187,6 @@ namespace WebApplication1.Controllers
             var ct = processCancel.Token;
 
             Logger.LogInformation("main loop start");
-            Trace.WriteLine("main loop start");
 
             try
             {
@@ -248,7 +255,6 @@ namespace WebApplication1.Controllers
                                 {
                                     break;
                                 }
-                                Trace.WriteLine("wait:" + a++);
                                 Logger.LogInformation("wait:{a}", a);
 
                                 var vstEvent = new Vst.VstMidiEvent();
@@ -286,7 +292,6 @@ namespace WebApplication1.Controllers
             }
             finally
             {
-                Trace.WriteLine("main loop end");
                 Logger.LogInformation("main loop end");
             }
         }
@@ -295,7 +300,7 @@ namespace WebApplication1.Controllers
         {
             var ct = processCancel.Token;
 
-            Trace.WriteLine("main loop start");
+            Logger.LogInformation("main loop start");
 
             try
             {
@@ -350,7 +355,7 @@ namespace WebApplication1.Controllers
                                 {
                                     break;
                                 }
-                                Trace.WriteLine("wait");
+                                Logger.LogInformation("wait");
                                 Thread.Sleep(1000);
                             }
                         }
@@ -359,7 +364,7 @@ namespace WebApplication1.Controllers
             }
             finally
             {
-                Trace.WriteLine("main loop end");
+                Logger.LogInformation("main loop end");
             }
         }
 
@@ -367,7 +372,7 @@ namespace WebApplication1.Controllers
         {
             var ct = processCancel.Token;
 
-            Trace.WriteLine("main loop start");
+            Logger.LogInformation("main loop start");
 
             try
             {
@@ -425,7 +430,7 @@ namespace WebApplication1.Controllers
                                 {
                                     break;
                                 }
-                                Trace.WriteLine("wait:" + a++);
+                                Logger.LogInformation("wait:" + a++);
 
                                 var vstEvent = new Vst.VstMidiEvent();
                                 vstEvent.type = Vst.VstEvent.VstEventTypes.kVstMidiType;
@@ -462,7 +467,7 @@ namespace WebApplication1.Controllers
             }
             finally
             {
-                Trace.WriteLine("main loop end");
+                Logger.LogInformation("main loop end");
             }
         }
 
@@ -528,7 +533,7 @@ namespace WebApplication1.Controllers
                 {
                     foreach (var v in e.InnerExceptions)
                     {
-                        Trace.WriteLine("FtlIngest Process Exception:" + e.Message + " " + v.Message);
+                        Logger.LogInformation("FtlIngest Process Exception:" + e.Message + " " + v.Message);
                     }
                 }
                 finally
@@ -551,7 +556,7 @@ namespace WebApplication1.Controllers
             for (uint i = 0; i < n; i++)
             {
                 var c = Momiji.Core.Wave.WaveOut<float>.GetCapabilities(i);
-                Trace.WriteLine($"{c}");
+                Logger.LogInformation($"{c}");
             }
 
             return View();

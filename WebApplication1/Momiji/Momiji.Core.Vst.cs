@@ -124,7 +124,7 @@ namespace Momiji.Core.Vst
             Single opt
         )
         {
-            //Trace.WriteLine($"AudioMasterCallBackProc opcode:{opcode:F}");
+            Trace.WriteLine($"AudioMasterCallBackProc opcode:{opcode:F}");
             switch (opcode)
             {
                 case AudioMasterOpcodes.audioMasterVersion:
@@ -290,6 +290,12 @@ namespace Momiji.Core.Vst
                     var sizeVstMidiEvent = Marshal.SizeOf<VstMidiEvent>();
                     var sizeIntPtr = Marshal.SizeOf<IntPtr>();
 
+                    var stopwatch = Stopwatch.StartNew();
+                    var before = stopwatch.ElapsedMilliseconds;
+                    var s = new SemaphoreSlim(1);
+
+                    var interval = (long)(audioMaster.BlockSize / (float)audioMaster.SamplingRate * 1000.0);
+
                     while (true)
                     {
                         if (ct.IsCancellationRequested)
@@ -302,9 +308,21 @@ namespace Momiji.Core.Vst
 
                         try
                         {
-                            Trace.WriteLine("[vst] get data TRY");
+                            //Trace.WriteLine("[vst] get data TRY");
                             var data = bufferQueue.Receive(new TimeSpan(20_000_000), ct);
-                            Trace.WriteLine("[vst] get data OK");
+                            {
+                                var after = stopwatch.ElapsedMilliseconds;
+                                var diff = after - before;
+                                var left = interval - diff;
+                                if (left > 0)
+                                {
+                                    //セマフォで時間調整を行う
+                                    s.Wait((int)left);
+                                    after = stopwatch.ElapsedMilliseconds;
+                                }
+                                Trace.WriteLine($"[vst] get data OK [{diff}+{left}][{interval}]");
+                                before = after;
+                            }
 
                             var list = new List<VstMidiEvent>();
                             {
@@ -350,22 +368,24 @@ namespace Momiji.Core.Vst
                                 blockSize
                             );
 
-                            var target = data.Target;
-                            var targetIdx = 0;
-                            var left = buffer.Get(0);
-                            var right = buffer.Get(1);
-
-                            for (var idx = 0; idx < blockSize; idx++)
                             {
-                                target[targetIdx++] = (T)(object)left[idx];
-                                target[targetIdx++] = (T)(object)right[idx];
+                                var target = data.Target;
+                                var targetIdx = 0;
+                                var left = buffer.Get(0);
+                                var right = buffer.Get(1);
 
-                                //target[targetIdx++] = (T)(object)Convert.ToInt16(left[idx] * short.MaxValue);
-                                //target[targetIdx++] = (T)(object)Convert.ToInt16(right[idx] * short.MaxValue);
+                                for (var idx = 0; idx < blockSize; idx++)
+                                {
+                                    target[targetIdx++] = (T)(object)left[idx];
+                                    target[targetIdx++] = (T)(object)right[idx];
+
+                                    //target[targetIdx++] = (T)(object)Convert.ToInt16(left[idx] * short.MaxValue);
+                                    //target[targetIdx++] = (T)(object)Convert.ToInt16(right[idx] * short.MaxValue);
+                                }
                             }
 
                             outputQueue.Post(data);
-                            Trace.WriteLine("[vst] post data:" + data.GetHashCode());
+                            Trace.WriteLine($"[vst] post data:{data.GetHashCode()}");
                         }
                         catch (TimeoutException te)
                         {
