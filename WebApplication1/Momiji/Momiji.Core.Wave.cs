@@ -7,7 +7,6 @@ using System.Diagnostics;
 using System.Threading.Tasks;
 using System.Threading;
 using System.Collections.Concurrent;
-using System.IO;
 
 namespace Momiji.Core.Wave
 {
@@ -25,14 +24,52 @@ namespace Momiji.Core.Wave
         }
     }
 
-    public class PcmBuffer<T> : PinnedBuffer<T[]>
+    public class PcmBuffer<T> : PinnedBuffer<T[]> where T : struct
     {
         public PcmBuffer(Int32 blockSize, int channels) : base(new T[blockSize * channels])
         {
         }
     }
 
-    public class WaveOut<T> : IDisposable
+    public class WaveOutShort : WaveOut<short>
+    {
+        public WaveOutShort(
+            UInt32 deviceID,
+            UInt16 channels,
+            UInt32 samplesPerSecond,
+            Interop.Wave.WaveFormatExtensiblePart.SPEAKER channelMask,
+            UInt32 samplesPerBuffer
+        ) : base(
+            deviceID,
+            channels,
+            samplesPerSecond,
+            channelMask,
+            new Guid("00000001-0000-0010-8000-00aa00389b71"),
+            samplesPerBuffer
+            )
+        { }
+    }
+
+    public class WaveOutFloat : WaveOut<float>
+    {
+        public WaveOutFloat(
+            UInt32 deviceID,
+            UInt16 channels,
+            UInt32 samplesPerSecond,
+            Interop.Wave.WaveFormatExtensiblePart.SPEAKER channelMask,
+            UInt32 samplesPerBuffer
+        ) : base(
+            deviceID,
+            channels,
+            samplesPerSecond,
+            channelMask,
+            new Guid("00000003-0000-0010-8000-00aa00389b71"),
+            samplesPerBuffer
+            )
+        { }
+    }
+
+    public class WaveOut<T> : IDisposable where T : struct
     {
         private bool disposed = false;
 
@@ -67,7 +104,6 @@ namespace Momiji.Core.Wave
             UInt32 deviceID,
             UInt16 channels,
             UInt32 samplesPerSecond,
-            UInt16 bitsPerSample,
             Interop.Wave.WaveFormatExtensiblePart.SPEAKER channelMask,
             Guid formatSubType,
             UInt32 samplesPerBuffer
@@ -77,7 +113,7 @@ namespace Momiji.Core.Wave
             format.wfe.formatType = Interop.Wave.WaveFormatEx.FORMAT.EXTENSIBLE;
             format.wfe.channels = channels;
             format.wfe.samplesPerSecond = samplesPerSecond;
-            format.wfe.bitsPerSample = bitsPerSample;
+            format.wfe.bitsPerSample = (ushort)(Marshal.SizeOf<T>() * 8);
             format.wfe.blockAlign = (ushort)(format.wfe.channels * format.wfe.bitsPerSample / 8);
             format.wfe.averageBytesPerSecond = format.wfe.samplesPerSecond * format.wfe.blockAlign;
             format.wfe.size = (ushort)(Marshal.SizeOf<Interop.Wave.WaveFormatExtensiblePart>());
@@ -170,7 +206,7 @@ namespace Momiji.Core.Wave
             {
                 var waveHeader = header.Target;
                 waveHeader.data = data.AddrOfPinnedObject();
-                waveHeader.bufferLength = (uint)data.Target.Length;
+                waveHeader.bufferLength = (uint)(data.Target.Length * Marshal.SizeOf<T>());
                 waveHeader.flags = 0;// (Interop.Wave.WaveHeader.FLAG.BEGINLOOP | Interop.Wave.WaveHeader.FLAG.ENDLOOP);
                 waveHeader.loops = 1;
 

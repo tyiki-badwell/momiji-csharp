@@ -1,6 +1,7 @@
 ﻿using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
+using Momiji.Core;
 using Momiji.Core.Ftl;
 using Momiji.Core.Opus;
 using Momiji.Core.Vst;
@@ -66,35 +67,17 @@ namespace WebApplication1.Controllers
                     0.12
                      */
 
-                    using (var pcm1 = new PcmBuffer<float>(blockSize, 2))
-                    using (var pcm2 = new PcmBuffer<float>(blockSize, 2))
-                    using (var pcm3 = new PcmBuffer<float>(blockSize, 2))
-                    using (var pcm4 = new PcmBuffer<float>(blockSize, 2))
-                    using (var out1 = new OpusOutputBuffer(5000))
-                    using (var out2 = new OpusOutputBuffer(5000))
-                    using (var out3 = new OpusOutputBuffer(5000))
-                    using (var out4 = new OpusOutputBuffer(5000))
-                    using (var video1 = new PinnedBuffer<byte[]>(new byte[blockSize * 2]))
-                    using (var video2 = new PinnedBuffer<byte[]>(new byte[blockSize * 2]))
+                    using (var pcmPool = new BufferPool<PcmBuffer<float>>(4, () => { return new PcmBuffer<float>(blockSize, 2); }))
+                    using (var opusPool = new BufferPool<OpusOutputBuffer>(4, () => { return new OpusOutputBuffer(5000); }))
+                    using (var videoPool = new BufferPool<PinnedBuffer<byte[]>>(4, () => { return new PinnedBuffer<byte[]>(new byte[blockSize * 2]); }))
                     {
                         var vstToOpusInput = new BufferBlock<PcmBuffer<float>>();
-                        var vstToOpusOutput = new BufferBlock<PcmBuffer<float>>();
-                        var opusToFtlInput = new BufferBlock<OpusOutputBuffer>();
+                        var vstToOpusOutput = pcmPool.makeBufferBlock();
+                        var opusToFtlInput = opusPool.makeBufferBlock();
                         var opusToFtlOutput = new BufferBlock<OpusOutputBuffer>();
-                        var videoToFtlInput = new BufferBlock<PinnedBuffer<byte[]>>();
+                        var videoToFtlInput = videoPool.makeBufferBlock();
                         var videoToFtlOutput = new BufferBlock<PinnedBuffer<byte[]>>();
                         var midiEventInput = new BufferBlock<Vst.VstMidiEvent>();
-
-                        vstToOpusOutput.Post(pcm1);
-                        vstToOpusOutput.Post(pcm2);
-                        vstToOpusOutput.Post(pcm3);
-                        vstToOpusOutput.Post(pcm4);
-                        opusToFtlInput.Post(out1);
-                        opusToFtlInput.Post(out2);
-                        opusToFtlInput.Post(out3);
-                        opusToFtlInput.Post(out4);
-                        videoToFtlInput.Post(video1);
-                        videoToFtlInput.Post(video2);
 
                         using (var vst = new AudioMaster<float>(samplingRate, blockSize))
                         using (var encoder = new OpusEncoder(Opus.SamplingRate.Sampling48000, Opus.Channels.Stereo))
@@ -108,7 +91,7 @@ namespace WebApplication1.Controllers
                                 midiEventInput,
                                 ct
                             );
-                            
+
                             encoder.Run(
                                 vstToOpusInput,
                                 vstToOpusOutput,
@@ -116,7 +99,7 @@ namespace WebApplication1.Controllers
                                 opusToFtlOutput,
                                 ct
                             );
-                            
+
                             ftl.Run(
                                 opusToFtlOutput,
                                 opusToFtlInput,
@@ -198,36 +181,19 @@ namespace WebApplication1.Controllers
                     Int32 samplingRate = 48000;
                     Int32 blockSize = (Int32)(samplingRate * 0.05/*0.05*/);
 
-                    using (var pcm1 = new PcmBuffer<float>(blockSize, 2))
-                    using (var pcm2 = new PcmBuffer<float>(blockSize, 2))
-                    using (var pcm3 = new PcmBuffer<float>(blockSize, 2))
-                    using (var pcm4 = new PcmBuffer<float>(blockSize, 2))
-                    using (var pcm5 = new PcmBuffer<float>(blockSize, 2))
-                    using (var pcm6 = new PcmBuffer<float>(blockSize, 2))
+                    using (var pcmPool = new BufferPool<PcmBuffer<float>>(6, () => { return new PcmBuffer<float>(blockSize, 2); }))
                     {
-                        var vstToOpusInput = new BufferBlock<PcmBuffer<float>>();
+                        var vstToOpusInput = pcmPool.makeBufferBlock();
                         var vstToOpusOutput = new BufferBlock<PcmBuffer<float>>();
                         var midiEventInput = new BufferBlock<Vst.VstMidiEvent>();
 
-                        vstToOpusInput.Post(pcm1);
-                        vstToOpusInput.Post(pcm2);
-                        //vstToOpusInput.Post(pcm3);
-
-                        //vstToOpusOutput.Post(pcm4);
-                        //vstToOpusOutput.Post(pcm5);
-                        //vstToOpusOutput.Post(pcm6);
-
                         using (var vst = new AudioMaster<float>(samplingRate, blockSize))
-                        using (var wave = new Momiji.Core.Wave.WaveOut<float>(
+                        using (var wave = new WaveOutFloat(
                         //using (var wave = new Momiji.Test.WaveFile.WaveFile(
                             0,
                             2,
                             (uint)samplingRate,
-                            (ushort)(Marshal.SizeOf<float>() * 8),
-                            //(ushort)(Marshal.SizeOf<short>() * 8),
                             Wave.WaveFormatExtensiblePart.SPEAKER.FRONT_LEFT | Wave.WaveFormatExtensiblePart.SPEAKER.FRONT_RIGHT,
-                            new Guid("00000003-0000-0010-8000-00aa00389b71"),
-                            //new Guid("00000001-0000-0010-8000-00aa00389b71"),
                             (uint)blockSize))
                         {
                             var effect = vst.AddEffect("Synth1 VST.dll");
@@ -334,16 +300,13 @@ namespace WebApplication1.Controllers
 
                         vstToOpusInput.Post(pcm1);
 
-                        using (var wave = new Momiji.Core.Wave.WaveOut<float>(
+                        using (var wave = new WaveOutFloat(
                             0,
                             2,
                             (uint)samplingRate,
-                            (ushort)(Marshal.SizeOf<float>() * 8),
                             Wave.WaveFormatExtensiblePart.SPEAKER.FRONT_LEFT | Wave.WaveFormatExtensiblePart.SPEAKER.FRONT_RIGHT,
-                            new Guid("00000003-0000-0010-8000-00aa00389b71"),
                             (uint)blockSize))
                         {
-
                             wave.Run(
                                 vstToOpusInput,
                                 vstToOpusInput,
@@ -553,10 +516,10 @@ namespace WebApplication1.Controllers
 
         public IActionResult WaveCaps()
         {
-            var n = Momiji.Core.Wave.WaveOut<float>.GetNumDevices();
+            var n = WaveOut<float>.GetNumDevices();
             for (uint i = 0; i < n; i++)
             {
-                var c = Momiji.Core.Wave.WaveOut<float>.GetCapabilities(i);
+                var c = WaveOut<float>.GetCapabilities(i);
                 Logger.LogInformation($"{c}");
             }
 

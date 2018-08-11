@@ -12,7 +12,7 @@ using static Momiji.Interop.Vst.VstTimeInfo;
 
 namespace Momiji.Core.Vst
 {
-    public class VstBuffer<T> : PinnedBuffer<IntPtr[]>
+    public class VstBuffer<T> : PinnedBuffer<IntPtr[]> where T : struct
     {
         private bool disposed = false;
         private List<PinnedBuffer<T[]>> list = new List<PinnedBuffer<T[]>>();
@@ -47,7 +47,7 @@ namespace Momiji.Core.Vst
         }
     }
 
-    public class AudioMaster<T> : IDisposable
+    public class AudioMaster<T> : IDisposable where T : struct
     {
         private bool disposed = false;
         private IDictionary<IntPtr, Effect<T>> effectMap = new ConcurrentDictionary<IntPtr, Effect<T>>();
@@ -151,7 +151,7 @@ namespace Momiji.Core.Vst
     }
 
 
-    public class Effect<T> : IDisposable
+    public class Effect<T> : IDisposable where T : struct
     {
         private bool disposed = false;
         private Kernel32.DynamicLinkLibrary dll;
@@ -292,105 +292,109 @@ namespace Momiji.Core.Vst
 
                     var stopwatch = Stopwatch.StartNew();
                     var before = stopwatch.ElapsedMilliseconds;
-                    var s = new SemaphoreSlim(1);
-
                     var interval = (long)(audioMaster.BlockSize / (float)audioMaster.SamplingRate * 1000.0);
 
-                    while (true)
+                    using (var s = new SemaphoreSlim(1))
                     {
-                        if (ct.IsCancellationRequested)
+                        while (true)
                         {
-                            break;
-                        }
-
-                        var eventsPtr = events.AddrOfPinnedObject();
-                        var eventListPtr = eventList.AddrOfPinnedObject();
-
-                        try
-                        {
-                            //Trace.WriteLine("[vst] get data TRY");
-                            var data = bufferQueue.Receive(new TimeSpan(20_000_000), ct);
+                            if (ct.IsCancellationRequested)
                             {
-                                var after = stopwatch.ElapsedMilliseconds;
-                                var diff = after - before;
-                                var left = interval - diff;
-                                if (left > 0)
+                                break;
+                            }
+
+                            var eventsPtr = events.AddrOfPinnedObject();
+                            var eventListPtr = eventList.AddrOfPinnedObject();
+
+                            try
+                            {
+                                //Trace.WriteLine("[vst] get data TRY");
+                                var data = bufferQueue.Receive(new TimeSpan(20_000_000), ct);
                                 {
-                                    //セマフォで時間調整を行う
-                                    s.Wait((int)left);
-                                    after = stopwatch.ElapsedMilliseconds;
+                                    var after = stopwatch.ElapsedMilliseconds;
+                                    var diff = after - before;
+                                    var left = interval - diff;
+                                    if (left > 0)
+                                    {
+                                        //セマフォで時間調整を行う
+                                        s.Wait((int)left);
+                                        after = stopwatch.ElapsedMilliseconds;
+                                    }
+                                    Trace.WriteLine($"[vst] get data OK [{diff}+{left}]ms [{interval}]ms ");
+                                    before = after;
                                 }
-                                Trace.WriteLine($"[vst] get data OK [{diff}+{left}][{interval}]");
-                                before = after;
-                            }
 
-                            var list = new List<VstMidiEvent>();
-                            {
-                                VstMidiEvent midiEvent;
-                                while (midiEventQueue.TryReceive(out midiEvent))
+                                var list = new List<VstMidiEvent>();
                                 {
-                                    list.Add(midiEvent);
+                                    VstMidiEvent midiEvent;
+                                    while (midiEventQueue.TryReceive(out midiEvent))
+                                    {
+                                        list.Add(midiEvent);
+                                    }
                                 }
-                            }
 
-                            if (list.Count > 0)
-                            {
-                                var vstEvents = new VstEvents();
-                                vstEvents.numEvents = list.Count;
-
-                                Marshal.StructureToPtr(vstEvents, eventsPtr, false);
-                                eventsPtr += sizeVstEvents;
-
-                                list.ForEach(midiEvent =>
+                                if (list.Count > 0)
                                 {
-                                    Marshal.StructureToPtr(midiEvent, eventListPtr, false);
-                                    Marshal.WriteIntPtr(eventsPtr, eventListPtr);
-                                    eventListPtr += sizeVstMidiEvent;
-                                    eventsPtr += sizeIntPtr;
-                                });
+                                    var vstEvents = new VstEvents();
+                                    vstEvents.numEvents = list.Count;
 
-                                var processEventsResult =
-                                    dispatcher(
-                                        AeffectPtr,
-                                        AEffectOpcodes.effProcessEvents,
-                                        0,
-                                        IntPtr.Zero,
-                                        events.AddrOfPinnedObject(),
-                                        0
-                                    );
-                                Trace.WriteLine($"effProcessEvents:{processEventsResult}");
-                            }
+                                    Marshal.StructureToPtr(vstEvents, eventsPtr, false);
+                                    eventsPtr += sizeVstEvents;
 
-                            processReplacing(
-                                AeffectPtr,
-                                IntPtr.Zero,
-                                buffer.AddrOfPinnedObject(),
-                                blockSize
-                            );
+                                    list.ForEach(midiEvent =>
+                                    {
+                                        Marshal.StructureToPtr(midiEvent, eventListPtr, false);
+                                        Marshal.WriteIntPtr(eventsPtr, eventListPtr);
+                                        eventListPtr += sizeVstMidiEvent;
+                                        eventsPtr += sizeIntPtr;
+                                    });
 
-                            {
-                                var target = data.Target;
-                                var targetIdx = 0;
-                                var left = buffer.Get(0);
-                                var right = buffer.Get(1);
-
-                                for (var idx = 0; idx < blockSize; idx++)
-                                {
-                                    target[targetIdx++] = (T)(object)left[idx];
-                                    target[targetIdx++] = (T)(object)right[idx];
-
-                                    //target[targetIdx++] = (T)(object)Convert.ToInt16(left[idx] * short.MaxValue);
-                                    //target[targetIdx++] = (T)(object)Convert.ToInt16(right[idx] * short.MaxValue);
+                                    var processEventsResult =
+                                        dispatcher(
+                                            AeffectPtr,
+                                            AEffectOpcodes.effProcessEvents,
+                                            0,
+                                            IntPtr.Zero,
+                                            events.AddrOfPinnedObject(),
+                                            0
+                                        );
+                                    Trace.WriteLine($"effProcessEvents:{processEventsResult}");
                                 }
-                            }
 
-                            outputQueue.Post(data);
-                            Trace.WriteLine($"[vst] post data:{data.GetHashCode()}");
-                        }
-                        catch (TimeoutException te)
-                        {
-                            Trace.WriteLine("[vst] timeout");
-                            continue;
+                                processReplacing(
+                                    AeffectPtr,
+                                    IntPtr.Zero,
+                                    buffer.AddrOfPinnedObject(),
+                                    blockSize
+                                );
+
+                                {
+                                    var target = data.Target;
+                                    var targetIdx = 0;
+                                    var left = buffer.Get(0);
+                                    var right = buffer.Get(1);
+
+                                    for (var idx = 0; idx < blockSize; idx++)
+                                    {
+                                        target[targetIdx++] = left[idx];
+                                        target[targetIdx++] = right[idx];
+
+                                        //target[targetIdx++] = (T)(object)Convert.ToInt16(left[idx] * short.MaxValue);
+                                        //target[targetIdx++] = (T)(object)Convert.ToInt16(right[idx] * short.MaxValue);
+                                    }
+                                }
+
+                                outputQueue.Post(data);
+
+                                var finish = stopwatch.ElapsedMilliseconds;
+
+                                Trace.WriteLine($"[vst] post data:[{finish - before}]ms");
+                            }
+                            catch (TimeoutException te)
+                            {
+                                Trace.WriteLine("[vst] timeout");
+                                continue;
+                            }
                         }
                     }
                     Trace.WriteLine("[vst] loop end");

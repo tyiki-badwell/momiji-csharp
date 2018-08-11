@@ -2,11 +2,9 @@
 using System;
 using System.Runtime.InteropServices;
 using System.Threading.Tasks.Dataflow;
-using System.Collections.Generic;
 using System.Diagnostics;
 using System.Threading.Tasks;
 using System.Threading;
-using System.Collections.Concurrent;
 using System.IO;
 using System.Text;
 
@@ -30,7 +28,7 @@ namespace Momiji.Test.WaveFile
             UInt16 channels,
             UInt32 samplesPerSecond,
             UInt16 bitsPerSample,
-            Interop.Wave.WaveFormatExtensiblePart.SPEAKER channelMask,
+            Wave.WaveFormatExtensiblePart.SPEAKER channelMask,
             Guid formatSubType,
             UInt32 samplesPerBuffer
         )
@@ -118,7 +116,7 @@ namespace Momiji.Test.WaveFile
                     try
                     {
                         var data = inputQueue.Receive(new TimeSpan(20_000_000), ct);
-                        size += (uint)(data.Target.Length * sizeof(float));
+                        size += (uint)(data.Target.Length * Marshal.SizeOf<float>());
                         for (var idx = 0; idx < data.Target.Length; idx++)
                         {
                             writer.Write(data.Target[idx]);
