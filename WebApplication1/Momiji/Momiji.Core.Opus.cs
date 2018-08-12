@@ -62,16 +62,20 @@ namespace Momiji.Core.Opus
 
             if (disposing)
             {
-                try
+                if (processTask != null)
                 {
-                    processTask.Wait();
-                }
-                catch (AggregateException e)
-                {
-                    foreach (var v in e.InnerExceptions)
+                    try
                     {
-                        Trace.WriteLine($"[opus] OpusEncode Process Exception:{e.Message} {v.Message}");
+                        processTask.Wait();
                     }
+                    catch (AggregateException e)
+                    {
+                        foreach (var v in e.InnerExceptions)
+                        {
+                            Trace.WriteLine($"[opus] OpusEncode Process Exception:{e.Message} {v.Message}");
+                        }
+                    }
+                    processTask = null;
                 }
 
                 encoder.Close();

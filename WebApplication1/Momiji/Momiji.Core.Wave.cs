@@ -72,6 +72,7 @@ namespace Momiji.Core.Wave
         private BufferPool<PinnedBuffer<Interop.Wave.WaveHeader>> headerPool = 
             new BufferPool<PinnedBuffer<Interop.Wave.WaveHeader>>(2, () => { return new PinnedBuffer<Interop.Wave.WaveHeader>(new Interop.Wave.WaveHeader()); });
         private BufferBlock<PinnedBuffer<Interop.Wave.WaveHeader>> headerQueue = null;
+        private BufferBlock<IntPtr> releaseQueue = new BufferBlock<IntPtr>();
 
         private IDictionary<IntPtr, PinnedBuffer<Interop.Wave.WaveHeader>> headerBusyPool = new ConcurrentDictionary<IntPtr, PinnedBuffer<Interop.Wave.WaveHeader>>();
         private IDictionary<IntPtr, PcmBuffer<T>> dataBusyPool = new ConcurrentDictionary<IntPtr, PcmBuffer<T>>();
@@ -79,13 +80,12 @@ namespace Momiji.Core.Wave
         private Interop.Wave.WaveOut handle;
 
         private Task processTask;
-        //TODO デリゲート経由で使えるよう直す
-        private ITargetBlock<PcmBuffer<T>> _inputReleaseQueue;
+        private Task releaseTask;
 
         private int SIZE_OF_T { get; }
         private uint SIZE_OF_WAVEHEADER { get; }
 
-        private async void DriverCallBackProc(
+        private void DriverCallBackProc(
             IntPtr hdrvr,
             Interop.Wave.DriverCallBack.MM_EXT_WINDOW_MESSAGE uMsg,
             IntPtr dwUser,
@@ -95,10 +95,7 @@ namespace Momiji.Core.Wave
         {
             if (uMsg == Interop.Wave.DriverCallBack.MM_EXT_WINDOW_MESSAGE.WOM_DONE)
             {
-                await Task.Run(() =>
-                {
-                    Unprepare(dw1);
-                });
+                releaseQueue.Post(dw1);
             }
         }
 
@@ -160,16 +157,36 @@ namespace Momiji.Core.Wave
             if (disposing)
             {
                 Trace.WriteLine("[wave] stop");
-                try
+                if (processTask != null)
                 {
-                    processTask.Wait();
-                }
-                catch (AggregateException e)
-                {
-                    foreach (var v in e.InnerExceptions)
+                    try
                     {
-                        Trace.WriteLine($"[wave] Process Exception:{e.Message} {v.Message}");
+                        processTask.Wait();
                     }
+                    catch (AggregateException e)
+                    {
+                        foreach (var v in e.InnerExceptions)
+                        {
+                            Trace.WriteLine($"[wave] Process Exception:{e.Message} {v.Message}");
+                        }
+                    }
+                    processTask = null;
+                }
+
+                if (releaseTask != null)
+                {
+                    try
+                    {
+                        releaseTask.Wait();
+                    }
+                    catch (AggregateException e)
+                    {
+                        foreach (var v in e.InnerExceptions)
+                        {
+                            Trace.WriteLine($"[wave] Release Exception:{e.Message} {v.Message}");
+                        }
+                    }
+                    releaseTask = null;
                 }
 
                 if (handle != null)
@@ -185,6 +202,12 @@ namespace Momiji.Core.Wave
                         Trace.WriteLine($"[wave] wait busy buffers :{headerBusyPool.Count}");
                         while (headerBusyPool.Count > 0)
                         {
+                            IntPtr headerPtr = IntPtr.Zero;
+                            while(releaseQueue.TryReceive(out headerPtr))
+                            {
+                                Unprepare(headerPtr);
+                            }
+
                             Thread.Sleep(1000);
                         }
                         Trace.WriteLine($"[wave] wait end :{headerBusyPool.Count}");
@@ -201,11 +224,9 @@ namespace Momiji.Core.Wave
         }
 
 
-        private IntPtr Prepare(PcmBuffer<T> data)
+        private IntPtr Prepare(PcmBuffer<T> data, CancellationToken ct)
         {
-        //    Trace.WriteLine("[wave] header receive TRY");
-            var header = headerQueue.Receive();
-        //    Trace.WriteLine("[wave] header receive OK");
+            var header = headerQueue.Receive(ct);
             {
                 var waveHeader = header.Target;
                 waveHeader.data = data.AddrOfPinnedObject();
@@ -230,13 +251,12 @@ namespace Momiji.Core.Wave
                 headerQueue.Post(header);
                 throw new WaveException(mmResult);
             }
-        //    Trace.WriteLine("[wave] prepare OK");
             headerBusyPool.Add(header.AddrOfPinnedObject(), header);
             dataBusyPool.Add(data.AddrOfPinnedObject(), data);
             return header.AddrOfPinnedObject();
         }
 
-        private void Unprepare(IntPtr headerPtr)
+        private PcmBuffer<T> Unprepare(IntPtr headerPtr)
         {
             PinnedBuffer<Interop.Wave.WaveHeader> header;
             headerBusyPool.Remove(headerPtr, out header);
@@ -254,10 +274,9 @@ namespace Momiji.Core.Wave
 
             PcmBuffer<T> data;
             dataBusyPool.Remove(header.Target.data, out data);
-            _inputReleaseQueue.Post(data);
-        //    Trace.WriteLine("[wave] release data:" + data.GetHashCode());
-
             headerQueue.Post(header);
+
+            return data;
         }
 
         static public UInt32 GetNumDevices()
@@ -283,7 +302,7 @@ namespace Momiji.Core.Wave
             return caps;
         }
 
-        public void Send(PcmBuffer<T> data)
+        public void Send(IntPtr headerPtr)
         {
             if (
                 handle.IsInvalid
@@ -292,8 +311,6 @@ namespace Momiji.Core.Wave
             {
                 return;
             }
-
-            IntPtr headerPtr = Prepare(data);
 
             var mmResult =
                 Interop.Wave.waveOutWrite(
@@ -306,7 +323,6 @@ namespace Momiji.Core.Wave
                 Unprepare(headerPtr);
                 throw new WaveException(mmResult);
             }
-        //    Trace.WriteLine("[wave] write OK");
         }
 
         public void Reset()
@@ -331,12 +347,42 @@ namespace Momiji.Core.Wave
             ITargetBlock<PcmBuffer<T>> inputReleaseQueue,
             CancellationToken ct)
         {
-            _inputReleaseQueue = inputReleaseQueue;
-            processTask = Process(inputQueue, inputReleaseQueue, ct);
+            processTask = Process(inputQueue, ct);
+            releaseTask = Release(inputReleaseQueue, ct);
         }
 
         private async Task Process(
             ISourceBlock<PcmBuffer<T>> inputQueue,
+            CancellationToken ct)
+        {
+            await Task.Run(() =>
+            {
+                ct.ThrowIfCancellationRequested();
+
+                while (true)
+                {
+                    if (ct.IsCancellationRequested)
+                    {
+                        break;
+                    }
+
+                    try
+                    {
+                        var data = inputQueue.Receive(new TimeSpan(20_000_000), ct);
+                        var headerPtr = Prepare(data, ct);
+                        Send(headerPtr);
+                    }
+                    catch (TimeoutException te)
+                    {
+                        Trace.WriteLine("[wave] process loop timeout");
+                        continue;
+                    }
+                }
+                Trace.WriteLine("[wave] process loop end");
+            });
+        }
+
+        private async Task Release(
             ITargetBlock<PcmBuffer<T>> inputReleaseQueue,
             CancellationToken ct)
         {
@@ -353,19 +399,17 @@ namespace Momiji.Core.Wave
 
                     try
                     {
-                    //    Trace.WriteLine("[wave] get data TRY");
-                        var data = inputQueue.Receive(new TimeSpan(20_000_000), ct);
-                    //    Trace.WriteLine("[wave] get data OK");
-
-                        Send(data);
+                        var headerPtr = releaseQueue.Receive(new TimeSpan(20_000_000), ct);
+                        var data = Unprepare(headerPtr);
+                        inputReleaseQueue.Post(data);
                     }
                     catch (TimeoutException te)
                     {
-                        Trace.WriteLine("[wave] timeout");
+                        Trace.WriteLine("[wave] release loop timeout");
                         continue;
                     }
                 }
-                Trace.WriteLine("[wave] loop end");
+                Trace.WriteLine("[wave] release loop end");
             });
         }
     }

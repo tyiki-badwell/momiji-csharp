@@ -483,7 +483,7 @@ namespace WebApplication1.Controllers
                 {
                     foreach (var v in e.InnerExceptions)
                     {
-                        Logger.LogInformation("FtlIngest Process Exception:" + e.Message + " " + v.Message);
+                        Logger.LogInformation($"[home] Process Exception:{e.Message} {v.Message}");
                     }
                 }
                 finally

@@ -510,17 +510,22 @@ namespace Momiji.Core.Vst
             if (disposing)
             {
                 Trace.WriteLine("[vst] stop");
-                try
+                if (processTask != null)
                 {
-                    processTask.Wait();
-                }
-                catch (AggregateException e)
-                {
-                    foreach (var v in e.InnerExceptions)
+                    try
                     {
-                        Trace.WriteLine($"[vst] Process Exception:{e.Message} {v.Message}");
+                        processTask.Wait();
                     }
+                    catch (AggregateException e)
+                    {
+                        foreach (var v in e.InnerExceptions)
+                        {
+                            Trace.WriteLine($"[vst] Process Exception:{e.Message} {v.Message}");
+                        }
+                    }
+                    processTask = null;
                 }
+
                 Close();
 
                 if (dll != null && !dll.IsInvalid)
