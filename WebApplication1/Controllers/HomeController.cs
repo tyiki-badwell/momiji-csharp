@@ -6,8 +6,10 @@ using Momiji.Core.Ftl;
 using Momiji.Core.Opus;
 using Momiji.Core.Vst;
 using Momiji.Core.Wave;
+using Momiji.Core.WebMidi;
 using Momiji.Interop;
 using System;
+using System.Collections.Generic;
 using System.Diagnostics;
 using System.Runtime.InteropServices;
 using System.Threading;
@@ -23,6 +25,8 @@ namespace WebApplication1.Controllers
         private static Task processTask;
         private IConfiguration Configuration { get; }
         private ILogger Logger { get; }
+
+        private static BufferBlock<Vst.VstMidiEvent> midiEventInput = new BufferBlock<Vst.VstMidiEvent>();
 
         public HomeController(IConfiguration configuration, ILogger<HomeController> logger)
         {
@@ -185,16 +189,13 @@ namespace WebApplication1.Controllers
                     {
                         var vstToOpusInput = pcmPool.makeBufferBlock();
                         var vstToOpusOutput = new BufferBlock<PcmBuffer<float>>();
-                        var midiEventInput = new BufferBlock<Vst.VstMidiEvent>();
 
                         using (var vst = new AudioMaster<float>(samplingRate, blockSize))
                         using (var wave = new WaveOutFloat(
-                        //using (var wave = new Momiji.Test.WaveFile.WaveFile(
                             0,
                             2,
                             (uint)samplingRate,
-                            Wave.WaveFormatExtensiblePart.SPEAKER.FRONT_LEFT | Wave.WaveFormatExtensiblePart.SPEAKER.FRONT_RIGHT,
-                            (uint)blockSize))
+                            Wave.WaveFormatExtensiblePart.SPEAKER.FRONT_LEFT | Wave.WaveFormatExtensiblePart.SPEAKER.FRONT_RIGHT))
                         {
                             var effect = vst.AddEffect("Synth1 VST.dll");
 
@@ -211,45 +212,12 @@ namespace WebApplication1.Controllers
                                 ct
                             );
 
-                            int a = 0;
-                            bool on = true;
-                            byte note = 0x40;
-                            byte v = 0x40;
-
                             while (true)
                             {
                                 if (ct.IsCancellationRequested)
                                 {
                                     break;
                                 }
-                                Logger.LogInformation("wait:{a}", a);
-
-                                var vstEvent = new Vst.VstMidiEvent();
-                                vstEvent.type = Vst.VstEvent.VstEventTypes.kVstMidiType;
-                                vstEvent.byteSize = Marshal.SizeOf<Vst.VstMidiEvent>();
-                                vstEvent.deltaFrames = 0;
-                                vstEvent.flags = Vst.VstMidiEvent.VstMidiEventFlags.kVstMidiEventIsRealtime;
-
-                                if (on)
-                                {
-                                    vstEvent.midiData0 = 0x90;
-                                    vstEvent.midiData1 = note;
-                                    vstEvent.midiData2 = v;
-                                    vstEvent.midiData3 = 0x00;
-                                }
-                                else
-                                {
-                                    vstEvent.midiData0 = 0x80;
-                                    vstEvent.midiData1 = note;
-                                    vstEvent.midiData2 = 0x00;
-                                    vstEvent.midiData3 = 0x00;
-
-                                    note++;
-                                    v++;
-                                }
-                                on = !on;
-
-                                midiEventInput.Post(vstEvent);
 
                                 Thread.Sleep(1000);
                             }
@@ -304,8 +272,7 @@ namespace WebApplication1.Controllers
                             0,
                             2,
                             (uint)samplingRate,
-                            Wave.WaveFormatExtensiblePart.SPEAKER.FRONT_LEFT | Wave.WaveFormatExtensiblePart.SPEAKER.FRONT_RIGHT,
-                            (uint)blockSize))
+                            Wave.WaveFormatExtensiblePart.SPEAKER.FRONT_LEFT | Wave.WaveFormatExtensiblePart.SPEAKER.FRONT_RIGHT))
                         {
                             wave.Run(
                                 vstToOpusInput,
@@ -355,7 +322,7 @@ namespace WebApplication1.Controllers
                         var vstToOpusInput = new BufferBlock<PcmBuffer<float>>();
                         var vstToOpusOutput = new BufferBlock<PcmBuffer<float>>();
                         var opusToFtlInput = new BufferBlock<OpusOutputBuffer>();
-                        var midiEventInput = new BufferBlock<Vst.VstMidiEvent>();
+                        //var midiEventInput = new BufferBlock<Vst.VstMidiEvent>();
 
                         vstToOpusOutput.Post(pcm1);
                         vstToOpusOutput.Post(pcm2);
@@ -395,7 +362,7 @@ namespace WebApplication1.Controllers
                                     break;
                                 }
                                 Logger.LogInformation("wait:" + a++);
-
+                                /*
                                 var vstEvent = new Vst.VstMidiEvent();
                                 vstEvent.type = Vst.VstEvent.VstEventTypes.kVstMidiType;
                                 vstEvent.byteSize = Marshal.SizeOf<Vst.VstMidiEvent>();
@@ -422,7 +389,7 @@ namespace WebApplication1.Controllers
                                 on = !on;
 
                                 midiEventInput.Post(vstEvent);
-
+                                */
                                 Thread.Sleep(1000);
                             }
                         }
@@ -433,6 +400,25 @@ namespace WebApplication1.Controllers
             {
                 Logger.LogInformation("main loop end");
             }
+        }
+
+        [HttpPost]
+        public IActionResult Note([FromBody]MIDIMessageEvent midiMessage)
+        {
+            var vstEvent = new Vst.VstMidiEvent();
+            vstEvent.type = Vst.VstEvent.VstEventTypes.kVstMidiType;
+            vstEvent.byteSize = Marshal.SizeOf<Vst.VstMidiEvent>();
+            vstEvent.deltaFrames = 0;
+            vstEvent.flags = Vst.VstMidiEvent.VstMidiEventFlags.kVstMidiEventIsRealtime;
+
+            vstEvent.midiData0 = midiMessage.data[0];
+            vstEvent.midiData1 = midiMessage.data[1];
+            vstEvent.midiData2 = midiMessage.data[2];
+            vstEvent.midiData3 = 0x00;
+
+            midiEventInput.Post(vstEvent);
+
+            return Ok("{\"result\":\"OK\"}");
         }
 
         public IActionResult Start()

@@ -37,15 +37,13 @@ namespace Momiji.Core.Wave
             UInt32 deviceID,
             UInt16 channels,
             UInt32 samplesPerSecond,
-            Interop.Wave.WaveFormatExtensiblePart.SPEAKER channelMask,
-            UInt32 samplesPerBuffer
+            Interop.Wave.WaveFormatExtensiblePart.SPEAKER channelMask
         ) : base(
             deviceID,
             channels,
             samplesPerSecond,
             channelMask,
-            new Guid("00000001-0000-0010-8000-00aa00389b71"),
-            samplesPerBuffer
+            new Guid("00000001-0000-0010-8000-00aa00389b71")
             )
         { }
     }
@@ -56,15 +54,13 @@ namespace Momiji.Core.Wave
             UInt32 deviceID,
             UInt16 channels,
             UInt32 samplesPerSecond,
-            Interop.Wave.WaveFormatExtensiblePart.SPEAKER channelMask,
-            UInt32 samplesPerBuffer
+            Interop.Wave.WaveFormatExtensiblePart.SPEAKER channelMask
         ) : base(
             deviceID,
             channels,
             samplesPerSecond,
             channelMask,
-            new Guid("00000003-0000-0010-8000-00aa00389b71"),
-            samplesPerBuffer
+            new Guid("00000003-0000-0010-8000-00aa00389b71")
             )
         { }
     }
@@ -111,8 +107,7 @@ namespace Momiji.Core.Wave
             UInt16 channels,
             UInt32 samplesPerSecond,
             Interop.Wave.WaveFormatExtensiblePart.SPEAKER channelMask,
-            Guid formatSubType,
-            UInt32 samplesPerBuffer
+            Guid formatSubType
         )
         {
             SIZE_OF_T = Marshal.SizeOf<T>();
@@ -208,9 +203,9 @@ namespace Momiji.Core.Wave
 
         private IntPtr Prepare(PcmBuffer<T> data)
         {
-            Trace.WriteLine("[wave] header receive TRY");
+        //    Trace.WriteLine("[wave] header receive TRY");
             var header = headerQueue.Receive();
-            Trace.WriteLine("[wave] header receive OK");
+        //    Trace.WriteLine("[wave] header receive OK");
             {
                 var waveHeader = header.Target;
                 waveHeader.data = data.AddrOfPinnedObject();
@@ -235,7 +230,7 @@ namespace Momiji.Core.Wave
                 headerQueue.Post(header);
                 throw new WaveException(mmResult);
             }
-            Trace.WriteLine("[wave] prepare OK");
+        //    Trace.WriteLine("[wave] prepare OK");
             headerBusyPool.Add(header.AddrOfPinnedObject(), header);
             dataBusyPool.Add(data.AddrOfPinnedObject(), data);
             return header.AddrOfPinnedObject();
@@ -260,7 +255,7 @@ namespace Momiji.Core.Wave
             PcmBuffer<T> data;
             dataBusyPool.Remove(header.Target.data, out data);
             _inputReleaseQueue.Post(data);
-            Trace.WriteLine("[wave] release data:" + data.GetHashCode());
+        //    Trace.WriteLine("[wave] release data:" + data.GetHashCode());
 
             headerQueue.Post(header);
         }
@@ -311,7 +306,7 @@ namespace Momiji.Core.Wave
                 Unprepare(headerPtr);
                 throw new WaveException(mmResult);
             }
-            Trace.WriteLine("[wave] write OK");
+        //    Trace.WriteLine("[wave] write OK");
         }
 
         public void Reset()
@@ -358,9 +353,9 @@ namespace Momiji.Core.Wave
 
                     try
                     {
-                        Trace.WriteLine("[wave] get data TRY");
+                    //    Trace.WriteLine("[wave] get data TRY");
                         var data = inputQueue.Receive(new TimeSpan(20_000_000), ct);
-                        Trace.WriteLine("[wave] get data OK");
+                    //    Trace.WriteLine("[wave] get data OK");
 
                         Send(data);
                     }

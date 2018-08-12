@@ -124,7 +124,6 @@ namespace Momiji.Core.Vst
             Single opt
         )
         {
-            Trace.WriteLine($"AudioMasterCallBackProc opcode:{opcode:F}");
             switch (opcode)
             {
                 case AudioMasterOpcodes.audioMasterVersion:
@@ -145,8 +144,11 @@ namespace Momiji.Core.Vst
 
                 case AudioMasterOpcodes.audioMasterGetBlockSize:
                     return new IntPtr(BlockSize);
+
+                default:
+                    Trace.WriteLine($"AudioMasterCallBackProc NOP opcode:{opcode:F}");
+                    return IntPtr.Zero;
             }
-            return IntPtr.Zero;
         }
     }
 
@@ -277,7 +279,7 @@ namespace Momiji.Core.Vst
             IReceivableSourceBlock<VstMidiEvent> midiEventQueue,
             CancellationToken ct)
         {
-            int blockSize = audioMaster.BlockSize;
+            var blockSize = audioMaster.BlockSize;
             using (var events = new PinnedBuffer<byte[]>(new byte[4000]))
             using (var eventList = new PinnedBuffer<byte[]>(new byte[4000]))
             using (var buffer = new VstBuffer<T>(blockSize, numOutputs))
@@ -320,7 +322,7 @@ namespace Momiji.Core.Vst
                                         s.Wait((int)left, ct);
                                         after = stopwatch.ElapsedMilliseconds;
                                     }
-                                    Trace.WriteLine($"[vst] get data OK [{diff}+{left}]ms [{interval}]ms ");
+                                //    Trace.WriteLine($"[vst] get data OK [{diff}+{left}]ms [{interval}]ms ");
                                     before = after;
                                 }
 
@@ -358,7 +360,7 @@ namespace Momiji.Core.Vst
                                             events.AddrOfPinnedObject(),
                                             0
                                         );
-                                    Trace.WriteLine($"effProcessEvents:{processEventsResult}");
+                                //    Trace.WriteLine($"effProcessEvents:{processEventsResult}");
                                 }
 
                                 processReplacing(
@@ -385,7 +387,7 @@ namespace Momiji.Core.Vst
 
                                 var finish = stopwatch.ElapsedMilliseconds;
 
-                                Trace.WriteLine($"[vst] post data:[{finish - before}]ms");
+                            //    Trace.WriteLine($"[vst] post data:[{finish - before}]ms");
                             }
                             catch (TimeoutException te)
                             {
