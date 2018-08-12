@@ -3,7 +3,7 @@ using System.Runtime.InteropServices;
 
 namespace Momiji.Interop
 {
-    public class PinnedBuffer<T> : IDisposable
+    public class PinnedBuffer<T> : IDisposable where T : class
     {
         private bool disposed = false;
         private GCHandle handle;

@@ -317,7 +317,7 @@ namespace Momiji.Core.Vst
                                     if (left > 0)
                                     {
                                         //セマフォで時間調整を行う
-                                        s.Wait((int)left);
+                                        s.Wait((int)left, ct);
                                         after = stopwatch.ElapsedMilliseconds;
                                     }
                                     Trace.WriteLine($"[vst] get data OK [{diff}+{left}]ms [{interval}]ms ");
@@ -378,9 +378,6 @@ namespace Momiji.Core.Vst
                                     {
                                         target[targetIdx++] = left[idx];
                                         target[targetIdx++] = right[idx];
-
-                                        //target[targetIdx++] = (T)(object)Convert.ToInt16(left[idx] * short.MaxValue);
-                                        //target[targetIdx++] = (T)(object)Convert.ToInt16(right[idx] * short.MaxValue);
                                     }
                                 }
 

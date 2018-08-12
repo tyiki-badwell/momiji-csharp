@@ -73,7 +73,10 @@ namespace Momiji.Core.Wave
     {
         private bool disposed = false;
 
-        private BufferBlock<PinnedBuffer<Interop.Wave.WaveHeader>> headerPool = new BufferBlock<PinnedBuffer<Interop.Wave.WaveHeader>>();
+        private BufferPool<PinnedBuffer<Interop.Wave.WaveHeader>> headerPool = 
+            new BufferPool<PinnedBuffer<Interop.Wave.WaveHeader>>(2, () => { return new PinnedBuffer<Interop.Wave.WaveHeader>(new Interop.Wave.WaveHeader()); });
+        private BufferBlock<PinnedBuffer<Interop.Wave.WaveHeader>> headerQueue = null;
+
         private IDictionary<IntPtr, PinnedBuffer<Interop.Wave.WaveHeader>> headerBusyPool = new ConcurrentDictionary<IntPtr, PinnedBuffer<Interop.Wave.WaveHeader>>();
         private IDictionary<IntPtr, PcmBuffer<T>> dataBusyPool = new ConcurrentDictionary<IntPtr, PcmBuffer<T>>();
 
@@ -81,7 +84,10 @@ namespace Momiji.Core.Wave
 
         private Task processTask;
         //TODO デリゲート経由で使えるよう直す
-        ITargetBlock<PcmBuffer<T>> _inputReleaseQueue;
+        private ITargetBlock<PcmBuffer<T>> _inputReleaseQueue;
+
+        private int SIZE_OF_T { get; }
+        private uint SIZE_OF_WAVEHEADER { get; }
 
         private async void DriverCallBackProc(
             IntPtr hdrvr,
@@ -109,11 +115,14 @@ namespace Momiji.Core.Wave
             UInt32 samplesPerBuffer
         )
         {
+            SIZE_OF_T = Marshal.SizeOf<T>();
+            SIZE_OF_WAVEHEADER = (uint)Marshal.SizeOf<Interop.Wave.WaveHeader>();
+
             var format = new Interop.Wave.WaveFormatExtensible();
             format.wfe.formatType = Interop.Wave.WaveFormatEx.FORMAT.EXTENSIBLE;
             format.wfe.channels = channels;
             format.wfe.samplesPerSecond = samplesPerSecond;
-            format.wfe.bitsPerSample = (ushort)(Marshal.SizeOf<T>() * 8);
+            format.wfe.bitsPerSample = (ushort)(SIZE_OF_T * 8);
             format.wfe.blockAlign = (ushort)(format.wfe.channels * format.wfe.bitsPerSample / 8);
             format.wfe.averageBytesPerSecond = format.wfe.samplesPerSecond * format.wfe.blockAlign;
             format.wfe.size = (ushort)(Marshal.SizeOf<Interop.Wave.WaveFormatExtensiblePart>());
@@ -122,8 +131,7 @@ namespace Momiji.Core.Wave
             format.exp.channelMask = channelMask;
             format.exp.subFormat = formatSubType;
 
-            headerPool.Post(new PinnedBuffer<Interop.Wave.WaveHeader>(new Interop.Wave.WaveHeader()));
-            headerPool.Post(new PinnedBuffer<Interop.Wave.WaveHeader>(new Interop.Wave.WaveHeader()));
+            headerQueue = headerPool.makeBufferBlock();
 
             var mmResult =
                 Interop.Wave.waveOutOpen(
@@ -179,15 +187,15 @@ namespace Momiji.Core.Wave
                         Reset();
 
                         //バッファの開放待ち
+                        Trace.WriteLine($"[wave] wait busy buffers :{headerBusyPool.Count}");
                         while (headerBusyPool.Count > 0)
                         {
                             Thread.Sleep(1000);
                         }
-                        PinnedBuffer<Interop.Wave.WaveHeader> header;
-                        while (headerPool.TryReceive(out header))
-                        {
-                            header.Dispose();
-                        }
+                        Trace.WriteLine($"[wave] wait end :{headerBusyPool.Count}");
+
+                        headerPool.Dispose();
+                        headerPool = null;
 
                         handle.Close();
                     }
@@ -201,13 +209,13 @@ namespace Momiji.Core.Wave
         private IntPtr Prepare(PcmBuffer<T> data)
         {
             Trace.WriteLine("[wave] header receive TRY");
-            var header = headerPool.Receive();
+            var header = headerQueue.Receive();
             Trace.WriteLine("[wave] header receive OK");
             {
                 var waveHeader = header.Target;
                 waveHeader.data = data.AddrOfPinnedObject();
-                waveHeader.bufferLength = (uint)(data.Target.Length * Marshal.SizeOf<T>());
-                waveHeader.flags = 0;// (Interop.Wave.WaveHeader.FLAG.BEGINLOOP | Interop.Wave.WaveHeader.FLAG.ENDLOOP);
+                waveHeader.bufferLength = (uint)(data.Target.Length * SIZE_OF_T);
+                waveHeader.flags = 0;
                 waveHeader.loops = 1;
 
                 waveHeader.bytesRecorded = 0;
@@ -220,11 +228,11 @@ namespace Momiji.Core.Wave
                 Interop.Wave.waveOutPrepareHeader(
                     handle,
                     header.AddrOfPinnedObject(),
-                    (uint)Marshal.SizeOf<Interop.Wave.WaveHeader>()
+                    SIZE_OF_WAVEHEADER
                 );
             if (mmResult != Interop.Wave.MMRESULT.NOERROR)
             {
-                headerPool.Post(header);
+                headerQueue.Post(header);
                 throw new WaveException(mmResult);
             }
             Trace.WriteLine("[wave] prepare OK");
@@ -242,7 +250,7 @@ namespace Momiji.Core.Wave
                 Interop.Wave.waveOutUnprepareHeader(
                     handle,
                     headerPtr,
-                    (uint)Marshal.SizeOf<Interop.Wave.WaveHeader>()
+                    SIZE_OF_WAVEHEADER
                 );
             if (mmResult != Interop.Wave.MMRESULT.NOERROR)
             {
@@ -254,12 +262,7 @@ namespace Momiji.Core.Wave
             _inputReleaseQueue.Post(data);
             Trace.WriteLine("[wave] release data:" + data.GetHashCode());
 
-            headerPool.Post(header);
-        }
-
-        private Interop.Wave.WaveHeader AllocateHeader()
-        {
-            return new Interop.Wave.WaveHeader();
+            headerQueue.Post(header);
         }
 
         static public UInt32 GetNumDevices()
@@ -301,7 +304,7 @@ namespace Momiji.Core.Wave
                 Interop.Wave.waveOutWrite(
                     handle,
                     headerPtr,
-                    (uint)Marshal.SizeOf<Interop.Wave.WaveHeader>()
+                    SIZE_OF_WAVEHEADER
                 );
             if (mmResult != Interop.Wave.MMRESULT.NOERROR)
             {
@@ -360,9 +363,6 @@ namespace Momiji.Core.Wave
                         Trace.WriteLine("[wave] get data OK");
 
                         Send(data);
-
-                        //inputReleaseQueue.Post(data);
-                        //Trace.WriteLine("[wave] post data");
                     }
                     catch (TimeoutException te)
                     {

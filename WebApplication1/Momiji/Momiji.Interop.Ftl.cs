@@ -136,7 +136,7 @@ namespace Momiji.Interop
         }
 
         [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Ansi)]
-        public struct Handle
+        public class Handle
         {
             public IntPtr priv;
         }
