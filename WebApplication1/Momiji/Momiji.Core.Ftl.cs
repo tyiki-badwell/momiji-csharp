@@ -1,4 +1,5 @@
-﻿using Momiji.Core.Opus;
+﻿using Momiji.Core.H264;
+using Momiji.Core.Opus;
 using Momiji.Interop;
 using System;
 using System.Diagnostics;
@@ -25,8 +26,8 @@ namespace Momiji.Core.Ftl
         {
             Interop.Ftl.IngestParams param;
             param.stream_key = streamKey;
-            param.video_codec = Interop.Ftl.VideoCodec.FTL_VIDEO_H264;
-            //param.video_codec = Interop.Ftl.VideoCodec.FTL_VIDEO_NULL;
+            //param.video_codec = Interop.Ftl.VideoCodec.FTL_VIDEO_H264;
+            param.video_codec = Interop.Ftl.VideoCodec.FTL_VIDEO_NULL;
             param.audio_codec = Interop.Ftl.AudioCodec.FTL_AUDIO_OPUS;
             param.ingest_hostname = "auto";
             param.fps_num = 0;
@@ -60,12 +61,12 @@ namespace Momiji.Core.Ftl
         public void Run(
             ISourceBlock<OpusOutputBuffer> inputAudioQueue,
             ITargetBlock<OpusOutputBuffer> inputAudioReleaseQueue,
-            ISourceBlock<PinnedBuffer<byte[]>> inputVideoQueue,
-            ITargetBlock<PinnedBuffer<byte[]>> inputVideoReleaseQueue,
+            ISourceBlock<H264OutputBuffer> inputVideoQueue,
+            ITargetBlock<H264OutputBuffer> inputVideoReleaseQueue,
             CancellationToken ct)
         {
             processAudioTask = Process(inputAudioQueue, inputAudioReleaseQueue, ct);
-         //   processVideoTask = Process(inputVideoQueue, inputVideoReleaseQueue, ct);
+            processVideoTask = Process(inputVideoQueue, inputVideoReleaseQueue, ct);
         }
 
         public void Dispose()
@@ -146,22 +147,19 @@ namespace Momiji.Core.Ftl
             disposed = true;
         }
 
-        private static DateTime UNIX_EPOCH = new DateTime(1970, 1, 1, 0, 0, 0, 0);
-
-        public int SendVideo(PinnedBuffer<Interop.Ftl.Handle> handle, PinnedBuffer<byte[]> buffer)
+        public int SendVideo(PinnedBuffer<Interop.Ftl.Handle> handle, H264OutputBuffer buffer)
         {
-            var now = DateTime.UtcNow;
-            var usec = ((long)(now - UNIX_EPOCH).TotalSeconds * 1000000) + (now.Millisecond * 1000);
+            var usec = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds() * 1000;
 
             var sent = Interop.Ftl.ftl_ingest_send_media_dts(
                 handle.AddrOfPinnedObject(),
                 Interop.Ftl.MediaType.FTL_VIDEO_DATA,
                 usec,
                 buffer.AddrOfPinnedObject(),
-                buffer.Target.Length,
-                1
+                buffer.Wrote,
+                buffer.EndOfFrame ? 1: 0
             );
-            Trace.WriteLine($"ftl_ingest_send_media_dts(FTL_VIDEO_DATA):{sent} / {(usec- videoUsec) / 1000}");
+            Trace.WriteLine($"ftl_ingest_send_media_dts(FTL_VIDEO_DATA, {usec}:{buffer.Wrote}):{sent} / {(usec - videoUsec) / 1000}");
             videoUsec = usec;
             return sent;
         }
@@ -169,8 +167,7 @@ namespace Momiji.Core.Ftl
 
         public int SendAudio(PinnedBuffer<Interop.Ftl.Handle> handle, OpusOutputBuffer buffer)
         {
-            var now = DateTime.UtcNow;
-            var usec = ((long)(now - UNIX_EPOCH).TotalSeconds * 1000000) + (now.Millisecond * 1000);
+            var usec = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds() * 1000;
 
             var sent = Interop.Ftl.ftl_ingest_send_media_dts(
                 handle.AddrOfPinnedObject(),
@@ -219,8 +216,8 @@ namespace Momiji.Core.Ftl
         }
 
         private async Task Process(
-            ISourceBlock<PinnedBuffer<byte[]>> inputQueue,
-            ITargetBlock<PinnedBuffer<byte[]>> inputReleaseQueue,
+            ISourceBlock<H264OutputBuffer> inputQueue,
+            ITargetBlock<H264OutputBuffer> inputReleaseQueue,
             CancellationToken ct)
         {
             await Task.Run(() =>

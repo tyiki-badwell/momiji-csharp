@@ -3,13 +3,14 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using Momiji.Core;
 using Momiji.Core.Ftl;
+using Momiji.Core.H264;
 using Momiji.Core.Opus;
 using Momiji.Core.Vst;
 using Momiji.Core.Wave;
 using Momiji.Core.WebMidi;
 using Momiji.Interop;
+using Momiji.Test.H264File;
 using System;
-using System.Collections.Generic;
 using System.Diagnostics;
 using System.Runtime.InteropServices;
 using System.Threading;
@@ -71,20 +72,20 @@ namespace WebApplication1.Controllers
                     0.12
                      */
 
-                    using (var pcmPool = new BufferPool<PcmBuffer<float>>(4, () => { return new PcmBuffer<float>(blockSize, 2); }))
-                    using (var opusPool = new BufferPool<OpusOutputBuffer>(4, () => { return new OpusOutputBuffer(5000); }))
-                    using (var videoPool = new BufferPool<PinnedBuffer<byte[]>>(4, () => { return new PinnedBuffer<byte[]>(new byte[blockSize * 2]); }))
+                    using (var pcmPool = new BufferPool<PcmBuffer<float>>(2, () => { return new PcmBuffer<float>(blockSize, 2); }))
+                    using (var opusPool = new BufferPool<OpusOutputBuffer>(2, () => { return new OpusOutputBuffer(5000); }))
+                    using (var videoPool = new BufferPool<H264OutputBuffer>(3, () => { return new H264OutputBuffer(10000000); }))
                     {
-                        var vstToOpusInput = new BufferBlock<PcmBuffer<float>>();
+                        var vstToOpusInput = pcmPool.makeEmptyBufferBlock();
                         var vstToOpusOutput = pcmPool.makeBufferBlock();
                         var opusToFtlInput = opusPool.makeBufferBlock();
-                        var opusToFtlOutput = new BufferBlock<OpusOutputBuffer>();
+                        var opusToFtlOutput = opusPool.makeEmptyBufferBlock();
                         var videoToFtlInput = videoPool.makeBufferBlock();
-                        var videoToFtlOutput = new BufferBlock<PinnedBuffer<byte[]>>();
-                        var midiEventInput = new BufferBlock<Vst.VstMidiEvent>();
+                        var videoToFtlOutput = videoPool.makeEmptyBufferBlock();
 
                         using (var vst = new AudioMaster<float>(samplingRate, blockSize))
                         using (var encoder = new OpusEncoder(Opus.SamplingRate.Sampling48000, Opus.Channels.Stereo))
+                        using (var h264 = new H264File())
                         using (var ftl = new FtlIngest($"{Configuration["MIXER_STREAM_KEY"]}"))
                         {
                             var effect = vst.AddEffect("Synth1 VST.dll");
@@ -104,18 +105,19 @@ namespace WebApplication1.Controllers
                                 ct
                             );
 
-                            ftl.Run(
-                                opusToFtlOutput,
-                                opusToFtlInput,
+                            h264.Run(
                                 videoToFtlInput,
-                                videoToFtlInput,
+                                videoToFtlOutput,
                                 ct
                             );
 
-                            int a = 0;
-                            bool on = true;
-                            byte note = 0x40;
-                            byte v = 0x40;
+                            ftl.Run(
+                                opusToFtlOutput,
+                                opusToFtlInput,
+                                videoToFtlOutput,
+                                videoToFtlInput,
+                                ct
+                            );
 
                             while (true)
                             {
@@ -123,40 +125,6 @@ namespace WebApplication1.Controllers
                                 {
                                     break;
                                 }
-                                Logger.LogInformation("wait:" + a++);
-
-                                var vstEvent = new Vst.VstMidiEvent();
-                                vstEvent.type = Vst.VstEvent.VstEventTypes.kVstMidiType;
-                                vstEvent.byteSize = Marshal.SizeOf<Vst.VstMidiEvent>();
-                                vstEvent.deltaFrames = 0;
-                                vstEvent.flags = Vst.VstMidiEvent.VstMidiEventFlags.kVstMidiEventIsRealtime;
-
-                                if (on)
-                                {
-                                    vstEvent.midiData0 = 0x90;
-                                    vstEvent.midiData1 = note;
-                                    vstEvent.midiData2 = v;
-                                    vstEvent.midiData3 = 0x00;
-                                }
-                                else
-                                {
-                                    vstEvent.midiData0 = 0x80;
-                                    vstEvent.midiData1 = note;
-                                    vstEvent.midiData2 = 0x00;
-                                    vstEvent.midiData3 = 0x00;
-
-                                    note++;
-                                    if (note < 0x40)
-                                    {
-                                        note = 0x40;
-                                    }
-
-                                    v++;
-                                }
-                                on = !on;
-
-                                midiEventInput.Post(vstEvent);
-
                                 Thread.Sleep(1000);
                             }
                         }
@@ -185,7 +153,7 @@ namespace WebApplication1.Controllers
                     Int32 samplingRate = 48000;
                     Int32 blockSize = (Int32)(samplingRate * 0.05/*0.05*/);
 
-                    using (var pcmPool = new BufferPool<PcmBuffer<float>>(6, () => { return new PcmBuffer<float>(blockSize, 2); }))
+                    using (var pcmPool = new BufferPool<PcmBuffer<float>>(2, () => { return new PcmBuffer<float>(blockSize, 2); }))
                     {
                         var vstToOpusInput = pcmPool.makeBufferBlock();
                         var vstToOpusOutput = new BufferBlock<PcmBuffer<float>>();
@@ -286,7 +254,7 @@ namespace WebApplication1.Controllers
                                 {
                                     break;
                                 }
-                                Logger.LogInformation("wait");
+                                //Logger.LogInformation("wait");
                                 Thread.Sleep(1000);
                             }
                         }
@@ -361,35 +329,7 @@ namespace WebApplication1.Controllers
                                 {
                                     break;
                                 }
-                                Logger.LogInformation("wait:" + a++);
-                                /*
-                                var vstEvent = new Vst.VstMidiEvent();
-                                vstEvent.type = Vst.VstEvent.VstEventTypes.kVstMidiType;
-                                vstEvent.byteSize = Marshal.SizeOf<Vst.VstMidiEvent>();
-                                vstEvent.deltaFrames = 0;
-                                vstEvent.flags = Vst.VstMidiEvent.VstMidiEventFlags.kVstMidiEventIsRealtime;
-
-                                if (on)
-                                {
-                                    vstEvent.midiData0 = 0x90;
-                                    vstEvent.midiData1 = note;
-                                    vstEvent.midiData2 = v;
-                                    vstEvent.midiData3 = 0x00;
-                                }
-                                else
-                                {
-                                    vstEvent.midiData0 = 0x80;
-                                    vstEvent.midiData1 = note;
-                                    vstEvent.midiData2 = 0x00;
-                                    vstEvent.midiData3 = 0x00;
-
-                                    note++;
-                                    v++;
-                                }
-                                on = !on;
-
-                                midiEventInput.Post(vstEvent);
-                                */
+                                //Logger.LogInformation("wait:" + a++);
                                 Thread.Sleep(1000);
                             }
                         }
@@ -403,20 +343,26 @@ namespace WebApplication1.Controllers
         }
 
         [HttpPost]
-        public IActionResult Note([FromBody]MIDIMessageEvent midiMessage)
+        public IActionResult Note([FromBody]MIDIMessageEvent[] midiMessage)
         {
-            var vstEvent = new Vst.VstMidiEvent();
-            vstEvent.type = Vst.VstEvent.VstEventTypes.kVstMidiType;
-            vstEvent.byteSize = Marshal.SizeOf<Vst.VstMidiEvent>();
-            vstEvent.deltaFrames = 0;
-            vstEvent.flags = Vst.VstMidiEvent.VstMidiEventFlags.kVstMidiEventIsRealtime;
+            foreach (var item in midiMessage)
+            {
+                Logger.LogInformation($"note {DateTimeOffset.FromUnixTimeMilliseconds((long)item.receivedTime).ToUniversalTime()}");
 
-            vstEvent.midiData0 = midiMessage.data[0];
-            vstEvent.midiData1 = midiMessage.data[1];
-            vstEvent.midiData2 = midiMessage.data[2];
-            vstEvent.midiData3 = 0x00;
+                var vstEvent = new Vst.VstMidiEvent
+                {
+                    type = Vst.VstEvent.VstEventTypes.kVstMidiType,
+                    byteSize = Marshal.SizeOf<Vst.VstMidiEvent>(),
+                    deltaFrames = 0,
+                    flags = Vst.VstMidiEvent.VstMidiEventFlags.kVstMidiEventIsRealtime,
 
-            midiEventInput.Post(vstEvent);
+                    midiData0 = item.data[0],
+                    midiData1 = item.data[1],
+                    midiData2 = item.data[2],
+                    midiData3 = 0x00
+                };
+                midiEventInput.Post(vstEvent);
+            }
 
             return Ok("{\"result\":\"OK\"}");
         }

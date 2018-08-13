@@ -109,10 +109,10 @@ namespace Momiji.Core.Opus
                         if (pcm == null)
                         {
                             pcm = inputQueue.Receive(new TimeSpan(20_000_000), ct);
-                            Trace.WriteLine("[opus] receive pcm");
+                            //Trace.WriteLine("[opus] receive pcm");
                         }
                         var data = bufferQueue.Receive(new TimeSpan(20_000_000), ct);
-                        Trace.WriteLine("[opus] get data");
+                        //Trace.WriteLine("[opus] get data");
 
                         data.Wrote = Interop.Opus.opus_encode_float(
                             encoder,
@@ -124,14 +124,14 @@ namespace Momiji.Core.Opus
 
                         inputReleaseQueue.Post(pcm);
                         pcm = null;
-                        Trace.WriteLine("[opus] release pcm");
+                        //Trace.WriteLine("[opus] release pcm");
                         if (data.Wrote < 0)
                         {
                             throw new Exception($"[opus] opus_encode_float error:{data.Wrote}");
                         }
                         else
                         {
-                            Trace.WriteLine($"[opus] post data: wrote {data.Wrote}");
+                            //Trace.WriteLine($"[opus] post data: wrote {data.Wrote}");
                         }
 
                         outputQueue.Post(data);

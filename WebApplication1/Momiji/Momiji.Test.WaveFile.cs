@@ -70,6 +70,22 @@ namespace Momiji.Test.WaveFile
 
             if (disposing)
             {
+                if (processTask != null)
+                {
+                    try
+                    {
+                        processTask.Wait();
+                    }
+                    catch (AggregateException e)
+                    {
+                        foreach (var v in e.InnerExceptions)
+                        {
+                            Trace.WriteLine($"[wave file] Process Exception:{e.Message} {v.Message}");
+                        }
+                    }
+                    processTask = null;
+                }
+
                 writer.Flush();
 
                 var fileSize = file.Position;

@@ -113,8 +113,6 @@ namespace Momiji.Core.Vst
             disposed = true;
         }
 
-        private static DateTime UNIX_EPOCH = new DateTime(1970, 1, 1, 0, 0, 0, 0);
-
         internal IntPtr AudioMasterCallBackProc(
             IntPtr/*AEffect^*/		aeffectPtr,
             AudioMasterOpcodes opcode,
@@ -132,10 +130,7 @@ namespace Momiji.Core.Vst
                     }
                 case AudioMasterOpcodes.audioMasterGetTime:
                     {
-                        var now = DateTime.UtcNow;
-                        var usec = ((long)(now - UNIX_EPOCH).TotalSeconds * 1000000) + (now.Millisecond * 1000);
-
-                        vstTimeInfo.Target.nanoSeconds = usec * 1000;
+                        vstTimeInfo.Target.nanoSeconds = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds() * 1000000;
 
                         return vstTimeInfo.AddrOfPinnedObject();
                     }
