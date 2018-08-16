@@ -4,6 +4,7 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
+using System.Runtime.InteropServices;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Threading.Tasks.Dataflow;
@@ -78,6 +79,17 @@ namespace Momiji.Test.H264File
             {
                 ct.ThrowIfCancellationRequested();
 
+                byte[] bufA = new byte[100000000];
+                byte[] bufB = new byte[100000000];
+                byte[] current = bufA;
+                byte[] next = bufB;
+
+                //棄てる
+                H264_get_nalu(current, out int firstLen);
+
+                H264_get_nalu(current, out int currentLen);
+                H264_get_nalu(next, out int nextLen);
+
                 while (true)
                 {
                     if (ct.IsCancellationRequested)
@@ -88,26 +100,42 @@ namespace Momiji.Test.H264File
                     try
                     {
                         var data = inputQueue.Receive(new TimeSpan(20_000_000), ct);
-                        bool got_sc = H264_get_nalu(data.Target, out int len);
 
-                        if (got_sc)
+                        var forbidden_zero_bit = (current[0] & 0b10000000) >> 7;
+                        var nal_ref_idc        = (current[0] & 0b01100000) >> 5;
+                        var nal_unit_type      = (current[0] & 0b00011111);
+
+                        Marshal.Copy(current, 0, data.AddrOfPinnedObject(), currentLen);
+                        data.Wrote = currentLen;
+
+                        Swap(ref current, ref next);
+                        Swap(ref currentLen, ref nextLen);
+                        if (!H264_get_nalu(next, out nextLen))
                         {
-
+                            file.Seek(0, SeekOrigin.Begin);
+                            //棄てる
+                            H264_get_nalu(next, out firstLen);
+                            H264_get_nalu(next, out nextLen);
                         }
-
-                        data.Wrote = len;
-                        data.EndOfFrame = true;
 
                         inputReleaseQueue.Post(data);
                     }
                     catch (TimeoutException te)
                     {
-                        Trace.WriteLine("[wave] timeout");
+                        Trace.WriteLine("[h264 file] timeout");
                         continue;
                     }
                 }
-                Trace.WriteLine("[wave] loop end");
+                Trace.WriteLine("[h264 file] loop end");
             });
+        }
+
+        private void Swap<T>(ref T lhs, ref T rhs)
+        {
+            T temp;
+            temp = lhs;
+            lhs = rhs;
+            rhs = temp;
         }
 
         private bool H264_get_nalu(byte[] buf, out int len)
@@ -138,6 +166,7 @@ namespace Momiji.Test.H264File
             }
             catch (EndOfStreamException ee)
             {
+                Trace.WriteLine("[h264 file] end of stream");
             }
             return false;
         }

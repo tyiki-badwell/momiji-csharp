@@ -267,6 +267,47 @@ namespace WebApplication1.Controllers
             }
         }
 
+        private async Task Loop4()
+        {
+            var ct = processCancel.Token;
+
+            Logger.LogInformation("main loop start");
+
+            try
+            {
+                await Task.Run(() =>
+                {
+                    ct.ThrowIfCancellationRequested();
+                    using (var videoPool = new BufferPool<H264OutputBuffer>(3, () => { return new H264OutputBuffer(10000000); }))
+                    {
+                        var videoToFtlInput = videoPool.makeBufferBlock();
+
+                        using (var h264 = new H264File())
+                        {
+                            h264.Run(
+                                videoToFtlInput,
+                                videoToFtlInput,
+                                ct
+                            );
+
+                            while (true)
+                            {
+                                if (ct.IsCancellationRequested)
+                                {
+                                    break;
+                                }
+                                Thread.Sleep(1000);
+                            }
+                        }
+                    }
+                });
+            }
+            finally
+            {
+                Logger.LogInformation("main loop end");
+            }
+        }
+
         private async Task Loop5()
         {
             var ct = processCancel.Token;
@@ -398,6 +439,18 @@ namespace WebApplication1.Controllers
             {
                 processCancel = new CancellationTokenSource();
                 processTask = Loop3();
+            }
+
+            return View();
+        }
+
+        public IActionResult Start4()
+        {
+            ViewData["Message"] = "Start.";
+            if (processCancel == null)
+            {
+                processCancel = new CancellationTokenSource();
+                processTask = Loop4();
             }
 
             return View();

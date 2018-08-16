@@ -239,7 +239,7 @@ namespace Momiji.Core.Ftl
                         inputReleaseQueue.Post(buffer);
                         //Trace.WriteLine("[ftl] release buffer");
 
-                        Thread.Sleep(1000);
+                        Thread.Sleep(100);
                     }
                     catch (TimeoutException te)
                     {
