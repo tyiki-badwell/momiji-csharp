@@ -159,7 +159,7 @@ namespace Momiji.Core.Ftl
                 buffer.Wrote,
                 buffer.EndOfFrame ? 1: 0
             );
-            Trace.WriteLine($"ftl_ingest_send_media_dts(FTL_VIDEO_DATA, {usec}:{buffer.Wrote}):{sent} / {(usec - videoUsec) / 1000}");
+            //Trace.WriteLine($"ftl_ingest_send_media_dts(FTL_VIDEO_DATA, {usec}:{buffer.Wrote}):{sent} / {(usec - videoUsec) / 1000}");
             videoUsec = usec;
             return sent;
         }
@@ -177,7 +177,7 @@ namespace Momiji.Core.Ftl
                 buffer.Wrote,
                 0
             );
-            Trace.WriteLine($"ftl_ingest_send_media_dts(FTL_AUDIO_DATA, {usec}:{buffer.Wrote}):{sent} / {(usec - audioUsec) /1000}");
+        //    Trace.WriteLine($"ftl_ingest_send_media_dts(FTL_AUDIO_DATA, {usec}:{buffer.Wrote}):{sent} / {(usec - audioUsec) /1000}");
             audioUsec = usec;
             return sent;
         }

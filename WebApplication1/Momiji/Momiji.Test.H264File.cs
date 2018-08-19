@@ -129,7 +129,7 @@ namespace Momiji.Test.H264File
 
                         Marshal.Copy(current, 0, data.AddrOfPinnedObject(), currentLen);
                         data.Wrote = currentLen;
-                        data.EndOfFrame = true;
+                        data.EndOfFrame = (nal_unit_type == 1 || nal_unit_type == 5);
 
                         Swap(ref current, ref next);
                         Swap(ref currentLen, ref nextLen);
