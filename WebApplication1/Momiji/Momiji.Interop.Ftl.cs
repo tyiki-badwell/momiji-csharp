@@ -149,6 +149,63 @@ namespace Momiji.Interop
             public string msg;
         };
 
+        [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Ansi)]
+        public struct FtlStatusEventMsg
+        {
+            public StatusEventType type;
+            public StatusEventReasons reason;
+            public Status error_code;
+        };
+
+        [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Ansi)]
+        public struct FtlPacketStatsMsg
+        {
+            public long period; //period of time in ms the stats were collected over
+            public long sent;
+            public long nack_reqs;
+            public long lost;
+            public long recovered;
+            public long late;
+        };
+
+        [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Ansi)]
+        public struct FtlPacketStatsInstantMsg
+        {
+            public long period; //period of time in ms the stats were collected over
+            public int min_rtt;
+            public int max_rtt;
+            public int avg_rtt;
+            public int min_xmit_delay;
+            public int max_xmit_delay;
+            public int avg_xmit_delay;
+        };
+
+        [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Ansi)]
+        public struct FtlVideoFrameStatsMsg
+        {
+            public long period; //period of time in ms the stats were collected over
+            public long frames_queued;
+            public long frames_sent;
+            public long bytes_queued;
+            public long bytes_sent;
+            public long bw_throttling_count;
+            public int queue_fullness;
+            public int max_frame_size;
+        };
+
+        [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Ansi)]
+        public struct FtlBitrateChangedMsg
+        {
+            public BitrateChangedType bitrate_changed_type;
+            public BitrateChangedReason bitrate_changed_reason;
+            public long current_encoding_bitrate;
+            public long previous_encoding_bitrate;
+            public float nacks_to_frames_ratio;
+            public float avg_rtt;
+            public long avg_frames_dropped;
+            public float queue_fullness;
+        };
+
         /*
 
         typedef struct {
@@ -163,54 +220,6 @@ namespace Momiji.Interop
             }
             speed_test_t;
 
-
-typedef struct {
-ftl_status_event_types_t type;
-ftl_status_event_reasons_t reason;
-ftl_status_t error_code;
-}ftl_status_event_msg_t;
-
-typedef struct {
-int64_t period; //period of time in ms the stats were collected over
-int64_t sent;
-int64_t nack_reqs;
-int64_t lost;
-int64_t recovered;
-int64_t late;
-}ftl_packet_stats_msg_t;
-
-typedef struct {
-int64_t period; //period of time in ms the stats were collected over
-int min_rtt;
-int max_rtt;
-int avg_rtt;
-int min_xmit_delay;
-int max_xmit_delay;
-int avg_xmit_delay;
-}ftl_packet_stats_instant_msg_t;
-
-typedef struct {
-int64_t period; //period of time in ms the stats were collected over
-int64_t frames_queued;
-int64_t frames_sent;
-int64_t bytes_queued;
-int64_t bytes_sent;
-int64_t bw_throttling_count;
-int queue_fullness;
-int max_frame_size;
-}ftl_video_frame_stats_msg_t;
-
-            typedef struct
-{
-ftl_bitrate_changed_type_t bitrate_changed_type;
-ftl_bitrate_changed_reason_t bitrate_changed_reason;
-uint64_t current_encoding_bitrate;
-uint64_t previous_encoding_bitrate;
-float nacks_to_frames_ratio;
-float avg_rtt;
-uint64_t avg_frames_dropped;
-float queue_fullness;
-} ftl_bitrate_changed_msg_t;
 
 *
 * 

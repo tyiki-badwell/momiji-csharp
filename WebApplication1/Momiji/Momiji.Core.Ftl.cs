@@ -26,8 +26,8 @@ namespace Momiji.Core.Ftl
         {
             Interop.Ftl.IngestParams param;
             param.stream_key = streamKey;
-            //param.video_codec = Interop.Ftl.VideoCodec.FTL_VIDEO_H264;
-            param.video_codec = Interop.Ftl.VideoCodec.FTL_VIDEO_NULL;
+            param.video_codec = Interop.Ftl.VideoCodec.FTL_VIDEO_H264;
+            //param.video_codec = Interop.Ftl.VideoCodec.FTL_VIDEO_NULL;
             param.audio_codec = Interop.Ftl.AudioCodec.FTL_AUDIO_OPUS;
             param.ingest_hostname = "auto";
             param.fps_num = 0;
@@ -283,42 +283,108 @@ namespace Momiji.Core.Ftl
                             switch (type)
                             {
                                 case Interop.Ftl.StatusTypes.FTL_STATUS_NONE:
-                                    Trace.WriteLine("[ftl] NONE");
-                                    break;
+                                    {
+                                        Trace.WriteLine("[ftl] NONE");
+                                        break;
+                                    }
                                 case Interop.Ftl.StatusTypes.FTL_STATUS_LOG:
-                                    Interop.Ftl.FtlStatusLogMsg log = Marshal.PtrToStructure<Interop.Ftl.FtlStatusLogMsg>(msg + 8);
-                                    Trace.WriteLine($"[ftl] LOG {log.log_level}:{log.msg}");
-                                    break;
+                                    {
+                                        Interop.Ftl.FtlStatusLogMsg log = Marshal.PtrToStructure<Interop.Ftl.FtlStatusLogMsg>(msg + 8);
+                                        Trace.WriteLine($"[ftl] LOG {log.log_level}:{log.msg}");
+                                        break;
+                                    }
                                 case Interop.Ftl.StatusTypes.FTL_STATUS_EVENT:
-                                    Trace.WriteLine("[ftl] EVENT");
-                                    break;
+                                    {
+                                        Interop.Ftl.FtlStatusEventMsg eventMsg = Marshal.PtrToStructure<Interop.Ftl.FtlStatusEventMsg>(msg + 8);
+                                        switch (eventMsg.type)
+                                        {
+                                            case Interop.Ftl.StatusEventType.FTL_STATUS_EVENT_TYPE_UNKNOWN:
+                                                {
+                                                    Trace.WriteLine($"[ftl] EVENT UNKNOWN [{eventMsg.error_code}][{eventMsg.reason}]");
+                                                    break;
+                                                }
+                                            case Interop.Ftl.StatusEventType.FTL_STATUS_EVENT_TYPE_CONNECTED:
+                                                {
+                                                    Trace.WriteLine($"[ftl] EVENT CONNECTED [{eventMsg.error_code}][{eventMsg.reason}]");
+                                                    break;
+                                                }
+                                            case Interop.Ftl.StatusEventType.FTL_STATUS_EVENT_TYPE_DISCONNECTED:
+                                                {
+                                                    Trace.WriteLine($"[ftl] EVENT DISCONNECTED [{eventMsg.error_code}][{eventMsg.reason}]");
+                                                    break;
+                                                }
+                                            case Interop.Ftl.StatusEventType.FTL_STATUS_EVENT_TYPE_DESTROYED:
+                                                {
+                                                    Trace.WriteLine($"[ftl] EVENT DESTROYED [{eventMsg.error_code}][{eventMsg.reason}]");
+                                                    break;
+                                                }
+                                            case Interop.Ftl.StatusEventType.FTL_STATUS_EVENT_INGEST_ERROR_CODE:
+                                                {
+                                                    Trace.WriteLine($"[ftl] EVENT INGEST_ERROR_CODE [{eventMsg.error_code}][{eventMsg.reason}]");
+                                                    break;
+                                                }
+                                        }
+                                        break;
+                                    }
                                 case Interop.Ftl.StatusTypes.FTL_STATUS_VIDEO_PACKETS:
-                                    Trace.WriteLine("[ftl] VIDEO_PACKETS");
-                                    break;
+                                    {
+                                        Interop.Ftl.FtlPacketStatsMsg packetMsg = Marshal.PtrToStructure<Interop.Ftl.FtlPacketStatsMsg>(msg + 8);
+                                        Trace.WriteLine(
+                                            $"[ftl] VIDEO_PACKETS packet per second[{(double)packetMsg.sent * 1000.0f / (double)packetMsg.period}]" +
+                                            $" total nack requests[{packetMsg.nack_reqs}]" +
+                                            $" lost[{packetMsg.lost}]" +
+                                            $" recovered[{packetMsg.recovered}]" +
+                                            $" late[{packetMsg.late}]"
+                                            );
+                                        break;
+                                    }
                                 case Interop.Ftl.StatusTypes.FTL_STATUS_VIDEO_PACKETS_INSTANT:
-                                    Trace.WriteLine("[ftl] VIDEO_PACKETS_INSTANT");
-                                    break;
+                                    {
+                                        Interop.Ftl.FtlPacketStatsInstantMsg packetMsg = Marshal.PtrToStructure<Interop.Ftl.FtlPacketStatsInstantMsg>(msg + 8);
+                                        Trace.WriteLine(
+                                            $"[ftl] VIDEO_PACKETS_INSTANT avg transmit delay {packetMsg.avg_xmit_delay}ms (min: {packetMsg.min_xmit_delay}, max: {packetMsg.max_xmit_delay})," +
+                                            $" avg rtt {packetMsg.avg_rtt}ms (min: {packetMsg.min_rtt}, max: {packetMsg.max_rtt})");
+                                        break;
+                                    }
                                 case Interop.Ftl.StatusTypes.FTL_STATUS_AUDIO_PACKETS:
-                                    Trace.WriteLine("[ftl] AUDIO_PACKETS");
-                                    break;
+                                    {
+                                        Trace.WriteLine("[ftl] AUDIO_PACKETS");
+                                        break;
+                                    }
                                 case Interop.Ftl.StatusTypes.FTL_STATUS_VIDEO:
-                                    Trace.WriteLine("[ftl] VIDEO");
-                                    break;
+                                    {
+                                        Interop.Ftl.FtlVideoFrameStatsMsg videoMsg = Marshal.PtrToStructure<Interop.Ftl.FtlVideoFrameStatsMsg>(msg + 8);
+                                        Trace.WriteLine(
+                                            $"[ftl] VIDEO Queue an average of {(double)videoMsg.frames_queued * 1000.0f / (double)videoMsg.period}f fps ({(double)videoMsg.bytes_queued / (double)videoMsg.period * 8}f kbps)," +
+                                            $" sent an average of {(double)videoMsg.frames_sent * 1000.0f / (double)videoMsg.period}f fps ({(double)videoMsg.bytes_sent / (double)videoMsg.period * 8}f kbps)," +
+                                            $" queue fullness {videoMsg.queue_fullness}, max frame size {videoMsg.max_frame_size}, {videoMsg.bw_throttling_count}");
+                                        break;
+                                    }
                                 case Interop.Ftl.StatusTypes.FTL_STATUS_AUDIO:
-                                    Trace.WriteLine("[ftl] AUDIO");
-                                    break;
+                                    {
+                                        Trace.WriteLine("[ftl] AUDIO");
+                                        break;
+                                    }
                                 case Interop.Ftl.StatusTypes.FTL_STATUS_FRAMES_DROPPED:
-                                    Trace.WriteLine("[ftl] FRAMES_DROPPED");
-                                    break;
+                                    {
+                                        Trace.WriteLine("[ftl] FRAMES_DROPPED");
+                                        break;
+                                    }
                                 case Interop.Ftl.StatusTypes.FTL_STATUS_NETWORK:
-                                    Trace.WriteLine("[ftl] NETWORK");
-                                    break;
+                                    {
+                                        Trace.WriteLine("[ftl] NETWORK");
+                                        break;
+                                    }
                                 case Interop.Ftl.StatusTypes.FTL_BITRATE_CHANGED:
-                                    Trace.WriteLine("[ftl] BITRATE_CHANGED");
-                                    break;
+                                    {
+                                        Trace.WriteLine("[ftl] BITRATE_CHANGED");
+                                        break;
+                                    }
                                 default:
-                                    Trace.WriteLine($"[ftl] {type}");
-                                    break;
+                                    {
+                                        Trace.WriteLine($"[ftl] {type}");
+                                        break;
+                                    }
                             }
                         }
                     }, ct);
