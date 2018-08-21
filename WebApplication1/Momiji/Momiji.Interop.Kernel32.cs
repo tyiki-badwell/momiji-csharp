@@ -155,5 +155,18 @@ namespace Momiji.Interop
             [In]   string lpPathName
         );
 
+        [DllImport("kernel32.dll", CallingConvention = CallingConvention.Cdecl, CharSet = CharSet.Unicode, SetLastError = true)]
+        internal static extern Boolean CopyMemory(
+            [In]   IntPtr Destination,
+            [In]   IntPtr Source,
+            [In]   long Length
+        );
+
+        [DllImport("kernel32.dll", CallingConvention = CallingConvention.Cdecl, CharSet = CharSet.Unicode, SetLastError = true)]
+        internal static extern IntPtr FillMemory(
+            [In]   IntPtr Destination,
+            [In]   long Length,
+            [In]   byte Fill
+        );
     }
 }

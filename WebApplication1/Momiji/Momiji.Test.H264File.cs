@@ -129,6 +129,7 @@ namespace Momiji.Test.H264File
 
                         Marshal.Copy(current, 0, data.AddrOfPinnedObject(), currentLen);
                         data.Wrote = currentLen;
+                        // 仮コード
                         data.EndOfFrame = (nal_unit_type == 1 || nal_unit_type == 5);
 
                         Swap(ref current, ref next);
@@ -141,6 +142,7 @@ namespace Momiji.Test.H264File
                             H264_get_nalu(next, out nextLen);
                         }
 
+                        //TODO 時刻を見てwait
                         inputReleaseQueue.Post(data);
                     }
                     catch (TimeoutException te)

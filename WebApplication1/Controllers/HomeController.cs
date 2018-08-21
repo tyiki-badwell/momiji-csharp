@@ -85,7 +85,7 @@ namespace WebApplication1.Controllers
 
                         using (var vst = new AudioMaster<float>(samplingRate, blockSize))
                         using (var encoder = new OpusEncoder(Opus.SamplingRate.Sampling48000, Opus.Channels.Stereo))
-                        using (var h264 = new H264File())
+                        using (var h264 = new H264Encoder(1280, 720, 5_000_000, 30.0f))
                         using (var ftl = new FtlIngest($"{Configuration["MIXER_STREAM_KEY"]}"))
                         {
                             var effect = vst.AddEffect("Synth1 VST.dll");
@@ -282,22 +282,8 @@ namespace WebApplication1.Controllers
                     {
                         var videoToFtlInput = videoPool.makeBufferBlock();
 
-                        using (var h264 = new H264File())
+                        using (var h264 = new H264Encoder(100, 100, 5_000_000, 30.0f))
                         {
-                            h264.Run(
-                                videoToFtlInput,
-                                videoToFtlInput,
-                                ct
-                            );
-
-                            while (true)
-                            {
-                                if (ct.IsCancellationRequested)
-                                {
-                                    break;
-                                }
-                                Thread.Sleep(1000);
-                            }
                         }
                     }
                 });
