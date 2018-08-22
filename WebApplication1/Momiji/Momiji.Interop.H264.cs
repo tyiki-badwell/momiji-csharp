@@ -348,129 +348,144 @@ namespace Momiji.Interop
         /**
         * @brief Frame bit stream info
         */
-        /*
         [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Ansi)]
         public class SFrameBSInfo
         {
             public int iLayerNum;
-            [MarshalAs(UnmanagedType.ByValArray, SizeConst = 128 * Marshal.SizeOf<SLayerBSInfo>())]
-            public byte[] sLayerInfo;
+            public SLayerBSInfo sLayerInfo000;
+            public SLayerBSInfo sLayerInfo001;
+            public SLayerBSInfo sLayerInfo002;
+            public SLayerBSInfo sLayerInfo003;
+            public SLayerBSInfo sLayerInfo004;
+            public SLayerBSInfo sLayerInfo005;
+            public SLayerBSInfo sLayerInfo006;
+            public SLayerBSInfo sLayerInfo007;
+            public SLayerBSInfo sLayerInfo008;
+            public SLayerBSInfo sLayerInfo009;
+            public SLayerBSInfo sLayerInfo010;
+            public SLayerBSInfo sLayerInfo011;
+            public SLayerBSInfo sLayerInfo012;
+            public SLayerBSInfo sLayerInfo013;
+            public SLayerBSInfo sLayerInfo014;
+            public SLayerBSInfo sLayerInfo015;
+            public SLayerBSInfo sLayerInfo016;
+            public SLayerBSInfo sLayerInfo017;
+            public SLayerBSInfo sLayerInfo018;
+            public SLayerBSInfo sLayerInfo019;
+            public SLayerBSInfo sLayerInfo020;
+            public SLayerBSInfo sLayerInfo021;
+            public SLayerBSInfo sLayerInfo022;
+            public SLayerBSInfo sLayerInfo023;
+            public SLayerBSInfo sLayerInfo024;
+            public SLayerBSInfo sLayerInfo025;
+            public SLayerBSInfo sLayerInfo026;
+            public SLayerBSInfo sLayerInfo027;
+            public SLayerBSInfo sLayerInfo028;
+            public SLayerBSInfo sLayerInfo029;
+            public SLayerBSInfo sLayerInfo030;
+            public SLayerBSInfo sLayerInfo031;
+            public SLayerBSInfo sLayerInfo032;
+            public SLayerBSInfo sLayerInfo033;
+            public SLayerBSInfo sLayerInfo034;
+            public SLayerBSInfo sLayerInfo035;
+            public SLayerBSInfo sLayerInfo036;
+            public SLayerBSInfo sLayerInfo037;
+            public SLayerBSInfo sLayerInfo038;
+            public SLayerBSInfo sLayerInfo039;
+            public SLayerBSInfo sLayerInfo040;
+            public SLayerBSInfo sLayerInfo041;
+            public SLayerBSInfo sLayerInfo042;
+            public SLayerBSInfo sLayerInfo043;
+            public SLayerBSInfo sLayerInfo044;
+            public SLayerBSInfo sLayerInfo045;
+            public SLayerBSInfo sLayerInfo046;
+            public SLayerBSInfo sLayerInfo047;
+            public SLayerBSInfo sLayerInfo048;
+            public SLayerBSInfo sLayerInfo049;
+            public SLayerBSInfo sLayerInfo050;
+            public SLayerBSInfo sLayerInfo051;
+            public SLayerBSInfo sLayerInfo052;
+            public SLayerBSInfo sLayerInfo053;
+            public SLayerBSInfo sLayerInfo054;
+            public SLayerBSInfo sLayerInfo055;
+            public SLayerBSInfo sLayerInfo056;
+            public SLayerBSInfo sLayerInfo057;
+            public SLayerBSInfo sLayerInfo058;
+            public SLayerBSInfo sLayerInfo059;
+            public SLayerBSInfo sLayerInfo060;
+            public SLayerBSInfo sLayerInfo061;
+            public SLayerBSInfo sLayerInfo062;
+            public SLayerBSInfo sLayerInfo063;
+            public SLayerBSInfo sLayerInfo064;
+            public SLayerBSInfo sLayerInfo065;
+            public SLayerBSInfo sLayerInfo066;
+            public SLayerBSInfo sLayerInfo067;
+            public SLayerBSInfo sLayerInfo068;
+            public SLayerBSInfo sLayerInfo069;
+            public SLayerBSInfo sLayerInfo070;
+            public SLayerBSInfo sLayerInfo071;
+            public SLayerBSInfo sLayerInfo072;
+            public SLayerBSInfo sLayerInfo073;
+            public SLayerBSInfo sLayerInfo074;
+            public SLayerBSInfo sLayerInfo075;
+            public SLayerBSInfo sLayerInfo076;
+            public SLayerBSInfo sLayerInfo077;
+            public SLayerBSInfo sLayerInfo078;
+            public SLayerBSInfo sLayerInfo079;
+            public SLayerBSInfo sLayerInfo080;
+            public SLayerBSInfo sLayerInfo081;
+            public SLayerBSInfo sLayerInfo082;
+            public SLayerBSInfo sLayerInfo083;
+            public SLayerBSInfo sLayerInfo084;
+            public SLayerBSInfo sLayerInfo085;
+            public SLayerBSInfo sLayerInfo086;
+            public SLayerBSInfo sLayerInfo087;
+            public SLayerBSInfo sLayerInfo088;
+            public SLayerBSInfo sLayerInfo089;
+            public SLayerBSInfo sLayerInfo090;
+            public SLayerBSInfo sLayerInfo091;
+            public SLayerBSInfo sLayerInfo092;
+            public SLayerBSInfo sLayerInfo093;
+            public SLayerBSInfo sLayerInfo094;
+            public SLayerBSInfo sLayerInfo095;
+            public SLayerBSInfo sLayerInfo096;
+            public SLayerBSInfo sLayerInfo097;
+            public SLayerBSInfo sLayerInfo098;
+            public SLayerBSInfo sLayerInfo099;
+            public SLayerBSInfo sLayerInfo100;
+            public SLayerBSInfo sLayerInfo101;
+            public SLayerBSInfo sLayerInfo102;
+            public SLayerBSInfo sLayerInfo103;
+            public SLayerBSInfo sLayerInfo104;
+            public SLayerBSInfo sLayerInfo105;
+            public SLayerBSInfo sLayerInfo106;
+            public SLayerBSInfo sLayerInfo107;
+            public SLayerBSInfo sLayerInfo108;
+            public SLayerBSInfo sLayerInfo109;
+            public SLayerBSInfo sLayerInfo110;
+            public SLayerBSInfo sLayerInfo111;
+            public SLayerBSInfo sLayerInfo112;
+            public SLayerBSInfo sLayerInfo113;
+            public SLayerBSInfo sLayerInfo114;
+            public SLayerBSInfo sLayerInfo115;
+            public SLayerBSInfo sLayerInfo116;
+            public SLayerBSInfo sLayerInfo117;
+            public SLayerBSInfo sLayerInfo118;
+            public SLayerBSInfo sLayerInfo119;
+            public SLayerBSInfo sLayerInfo120;
+            public SLayerBSInfo sLayerInfo121;
+            public SLayerBSInfo sLayerInfo122;
+            public SLayerBSInfo sLayerInfo123;
+            public SLayerBSInfo sLayerInfo124;
+            public SLayerBSInfo sLayerInfo125;
+            public SLayerBSInfo sLayerInfo126;
+            public SLayerBSInfo sLayerInfo127;
+            public SLayerBSInfo sLayerInfo128;
             public EVideoFrameType eFrameType;
             public int iFrameSizeInBytes;
             public long uiTimeStamp;
         }
-        /**/
-        public class SFrameBSInfo : IDisposable
-        {
-            private bool disposed = false;
-            private IntPtr handle = IntPtr.Zero;
-
-            public SFrameBSInfo()
-            {
-                int size =
-                    Marshal.SizeOf<int>()
-                    + Marshal.SizeOf<int>() //padding
-                    + Marshal.SizeOf<SLayerBSInfo>() * 128
-                    + Marshal.SizeOf<int>() //EVideoFrameType
-                    + Marshal.SizeOf<int>()
-                    + Marshal.SizeOf<long>();
-                handle = Marshal.AllocHGlobal(size);
-                ZeroMemory();
-            }
-
-            public void Dispose()
-            {
-                Dispose(true);
-                GC.SuppressFinalize(this);
-            }
-
-            protected virtual void Dispose(bool disposing)
-            {
-                if (disposed) return;
-
-                if (disposing)
-                {
-                    if (handle != IntPtr.Zero)
-                    {
-                        Marshal.FreeHGlobal(handle);
-                        handle = IntPtr.Zero;
-                    }
-                }
-
-                disposed = true;
-            }
-
-            public IntPtr AddrOfPinnedObject()
-            {
-                return handle;
-            }
-
-            public void ZeroMemory()
-            {
-                int size =
-                    Marshal.SizeOf<int>()
-                    + Marshal.SizeOf<int>() //padding
-                    + Marshal.SizeOf<SLayerBSInfo>() * 128
-                    + Marshal.SizeOf<int>() //EVideoFrameType
-                    + Marshal.SizeOf<int>()
-                    + Marshal.SizeOf<long>();
-                for (int idx = 0; idx < size; idx++)
-                {
-                    Marshal.WriteByte(handle, idx, 0xFF);
-                }
-            }
-
-            public int iLayerNum
-            {
-                get
-                {
-                    return Marshal.ReadInt32(handle, 0);
-                }
-            }
-            public SLayerBSInfo sLayerInfo(int index) {
-                IntPtr ptr = handle + Marshal.SizeOf<int>()
-                        + Marshal.SizeOf<int>() //padding
-                        + Marshal.SizeOf<SLayerBSInfo>() * index;
-                return Marshal.PtrToStructure<SLayerBSInfo>(ptr);
-            }
-            public EVideoFrameType eFrameType
-            {
-                get
-                {
-                    return (EVideoFrameType)Marshal.ReadInt32(
-                        handle, Marshal.SizeOf<int>()
-                        + Marshal.SizeOf<int>() //padding
-                        + Marshal.SizeOf<SLayerBSInfo>() * 128
-                        );
-                }
-            }
-            public int iFrameSizeInBytes
-            {
-                get
-                {
-                    return Marshal.ReadInt32(handle, 
-                        Marshal.SizeOf<int>()
-                        + Marshal.SizeOf<int>() //padding
-                        + Marshal.SizeOf<SLayerBSInfo>() * 128
-                        + Marshal.SizeOf<int>() //EVideoFrameType
-                        );
-                }
-            }
-            public long uiTimeStamp
-            {
-                get
-                {
-                    return Marshal.ReadInt64(handle, 
-                        Marshal.SizeOf<int>()
-                        + Marshal.SizeOf<int>() //padding
-                        + Marshal.SizeOf<SLayerBSInfo>() * 128
-                        + Marshal.SizeOf<int>() //EVideoFrameType
-                        + Marshal.SizeOf<int>()
-                        );
-                }
-            }
-        }
-        /**/
+        
         /**
         *  @brief Structure for source picture
         */

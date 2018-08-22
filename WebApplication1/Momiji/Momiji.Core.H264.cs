@@ -181,7 +181,7 @@ namespace Momiji.Core.H264
             var frameSize = picWidth * picHeight * 3 / 2;
             using (var buffer = new PinnedBuffer<byte[]>(new byte[frameSize]))
             using (var SSourcePictureBuffer = new PinnedBuffer<Interop.H264.SSourcePicture>(new Interop.H264.SSourcePicture()))
-            using (var SFrameBSInfoBuffer = new Interop.H264.SFrameBSInfo())
+            using (var SFrameBSInfoBuffer = new PinnedBuffer<Interop.H264.SFrameBSInfo>(new Interop.H264.SFrameBSInfo()))
             {
                 SSourcePictureBuffer.Target.iColorFormat = Interop.H264.EVideoFormatType.videoFormatI420;
                 SSourcePictureBuffer.Target.iStride0 = picWidth;
@@ -242,20 +242,24 @@ namespace Momiji.Core.H264
 
                                 data.Wrote = 0;
                                 var dataPtr = data.AddrOfPinnedObject();
-                                for (var idx = 0; idx < SFrameBSInfoBuffer.iLayerNum; idx++)
+                                
+                                for (var idx = 0; idx < SFrameBSInfoBuffer.Target.iLayerNum; idx++)
                                 {
                                     var length = 0;
-                                    var layer = SFrameBSInfoBuffer.sLayerInfo(idx);
+                                    //TODO 効率化
+                                    var layer = (Interop.H264.SLayerBSInfo)typeof(Interop.H264.SFrameBSInfo).GetField($"sLayerInfo{idx:000}").GetValue(SFrameBSInfoBuffer.Target);
                                     for (var nalIdx =0; nalIdx < layer.iNalCount; nalIdx++)
                                     {
                                         length += Marshal.ReadInt32(layer.pNalLengthInByte, nalIdx * Marshal.SizeOf<Int32>());
+                                        //TODO NAL毎に送る
                                     }
+                                    //TODO CopyMemoryは無い
                                     Kernel32.CopyMemory(dataPtr, layer.pBsBuf, length);
                                     dataPtr += length;
                                     data.Wrote += length;
                                 }
 
-                                data.EndOfFrame = (SFrameBSInfoBuffer.eFrameType == Interop.H264.EVideoFrameType.videoFrameTypeIDR);
+                                data.EndOfFrame = (SFrameBSInfoBuffer.Target.eFrameType == Interop.H264.EVideoFrameType.videoFrameTypeIDR);
                                 
                                 outputQueue.Post(data);
 
