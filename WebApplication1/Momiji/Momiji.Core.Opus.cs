@@ -20,7 +20,6 @@ namespace Momiji.Core.Opus
     {
         private bool disposed = false;
         private Interop.Opus.OpusEncoder encoder;
-        private Task processTask;
 
         public OpusEncoder(
             Interop.Opus.SamplingRate Fs,
@@ -40,16 +39,6 @@ namespace Momiji.Core.Opus
             }
         }
 
-        public void Run(
-            ISourceBlock<Wave.PcmBuffer<float>> inputQueue,
-            ITargetBlock<Wave.PcmBuffer<float>> inputReleaseQueue,
-            ISourceBlock<OpusOutputBuffer> bufferQueue,
-            ITargetBlock<OpusOutputBuffer> outputQueue,
-            CancellationToken ct)
-        {
-            processTask = Process(inputQueue, inputReleaseQueue, bufferQueue, outputQueue, ct);
-        }
-
         public void Dispose()
         {
             Dispose(true);
@@ -62,29 +51,13 @@ namespace Momiji.Core.Opus
 
             if (disposing)
             {
-                if (processTask != null)
-                {
-                    try
-                    {
-                        processTask.Wait();
-                    }
-                    catch (AggregateException e)
-                    {
-                        foreach (var v in e.InnerExceptions)
-                        {
-                            Trace.WriteLine($"[opus] OpusEncode Process Exception:{e.Message} {v.Message}");
-                        }
-                    }
-                    processTask = null;
-                }
-
                 encoder.Close();
             }
 
             disposed = true;
         }
 
-        private async Task Process(
+        public async Task Run(
             ISourceBlock<Wave.PcmBuffer<float>> inputQueue,
             ITargetBlock<Wave.PcmBuffer<float>> inputReleaseQueue,
             ISourceBlock<OpusOutputBuffer> bufferQueue,

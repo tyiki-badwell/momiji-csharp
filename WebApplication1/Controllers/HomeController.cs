@@ -11,6 +11,7 @@ using Momiji.Core.WebMidi;
 using Momiji.Interop;
 using Momiji.Test.H264File;
 using System;
+using System.Collections.Generic;
 using System.Diagnostics;
 using System.Runtime.InteropServices;
 using System.Threading;
@@ -90,42 +91,56 @@ namespace WebApplication1.Controllers
                         {
                             var effect = vst.AddEffect("Synth1 VST.dll");
 
-                            effect.Run(
+                            var taskSet = new HashSet<Task>();
+
+                            taskSet.Add(effect.Run(
                                 vstToOpusOutput,
                                 vstToOpusInput,
                                 midiEventInput,
                                 ct
-                            );
+                            ));
 
-                            encoder.Run(
+                            taskSet.Add(encoder.Run(
                                 vstToOpusInput,
                                 vstToOpusOutput,
                                 opusToFtlInput,
                                 opusToFtlOutput,
                                 ct
-                            );
+                            ));
 
-                            h264.Run(
+                            taskSet.Add(h264.Run(
                                 videoToFtlInput,
                                 videoToFtlOutput,
                                 ct
-                            );
+                            ));
 
-                            ftl.Run(
+                            taskSet.Add(ftl.Run(
                                 opusToFtlOutput,
                                 opusToFtlInput,
+                                ct
+                            ));
+
+                            taskSet.Add(ftl.Run(
                                 videoToFtlOutput,
                                 videoToFtlInput,
                                 ct
-                            );
+                            ));
 
-                            while (true)
+                            while (taskSet.Count > 0)
                             {
-                                if (ct.IsCancellationRequested)
+                                var any = Task.WhenAny(taskSet);
+                                any.ConfigureAwait(false);
+                                any.Wait();
+                                var task = any.Result;
+                                taskSet.Remove(task);
+                                if (task.IsFaulted)
                                 {
-                                    break;
+                                    processCancel.Cancel();
+                                    foreach (var v in task.Exception.InnerExceptions)
+                                    {
+                                        Trace.WriteLine($"Process Exception:{task.Exception.Message} {v.Message}");
+                                    }
                                 }
-                                Thread.Sleep(1000);
                             }
                         }
                     }
@@ -167,27 +182,40 @@ namespace WebApplication1.Controllers
                         {
                             var effect = vst.AddEffect("Synth1 VST.dll");
 
-                            effect.Run(
+                            var taskSet = new HashSet<Task>();
+
+                            taskSet.Add(effect.Run(
                                 vstToOpusOutput,
                                 vstToOpusInput,
                                 midiEventInput,
                                 ct
-                            );
+                            ));
 
-                            wave.Run(
+                            taskSet.Add(wave.Run(
                                 vstToOpusInput,
+                                ct
+                            ));
+
+                            taskSet.Add(wave.Release(
                                 vstToOpusOutput,
                                 ct
-                            );
+                            ));
 
-                            while (true)
+                            while (taskSet.Count > 0)
                             {
-                                if (ct.IsCancellationRequested)
+                                var any = Task.WhenAny(taskSet);
+                                any.ConfigureAwait(false);
+                                any.Wait();
+                                var task = any.Result;
+                                taskSet.Remove(task);
+                                if (task.IsFaulted)
                                 {
-                                    break;
+                                    processCancel.Cancel();
+                                    foreach (var v in task.Exception.InnerExceptions)
+                                    {
+                                        Trace.WriteLine($"Process Exception:{task.Exception.Message} {v.Message}");
+                                    }
                                 }
-
-                                Thread.Sleep(1000);
                             }
                         }
                     }
@@ -242,20 +270,33 @@ namespace WebApplication1.Controllers
                             (uint)samplingRate,
                             Wave.WaveFormatExtensiblePart.SPEAKER.FRONT_LEFT | Wave.WaveFormatExtensiblePart.SPEAKER.FRONT_RIGHT))
                         {
-                            wave.Run(
-                                vstToOpusInput,
+                            var taskSet = new HashSet<Task>();
+
+                            taskSet.Add(wave.Run(
                                 vstToOpusInput,
                                 ct
-                            );
+                            ));
 
-                            while (true)
+                            taskSet.Add(wave.Release(
+                                vstToOpusInput,
+                                ct
+                            ));
+
+                            while (taskSet.Count > 0)
                             {
-                                if (ct.IsCancellationRequested)
+                                var any = Task.WhenAny(taskSet);
+                                any.ConfigureAwait(false);
+                                any.Wait();
+                                var task = any.Result;
+                                taskSet.Remove(task);
+                                if (task.IsFaulted)
                                 {
-                                    break;
+                                    processCancel.Cancel();
+                                    foreach (var v in task.Exception.InnerExceptions)
+                                    {
+                                        Trace.WriteLine($"Process Exception:{task.Exception.Message} {v.Message}");
+                                    }
                                 }
-                                //Logger.LogInformation("wait");
-                                Thread.Sleep(1000);
                             }
                         }
                     }
@@ -329,35 +370,38 @@ namespace WebApplication1.Controllers
                         {
                             var effect = vst.AddEffect("Synth1 VST.dll");
 
-                            effect.Run(
+                            var taskSet = new HashSet<Task>();
+
+                            taskSet.Add(effect.Run(
                                 vstToOpusOutput,
                                 vstToOpusInput,
                                 midiEventInput,
                                 ct
-                            );
+                            ));
 
-                            encoder.Run(
+                            taskSet.Add(encoder.Run(
                                 vstToOpusInput,
                                 vstToOpusOutput,
                                 opusToFtlInput,
                                 opusToFtlInput,
                                 ct
-                            );
+                            ));
 
-
-                            int a = 0;
-                            bool on = true;
-                            byte note = 0x40;
-                            byte v = 0x40;
-
-                            while (true)
+                            while (taskSet.Count > 0)
                             {
-                                if (ct.IsCancellationRequested)
+                                var any = Task.WhenAny(taskSet);
+                                any.ConfigureAwait(false);
+                                any.Wait();
+                                var task = any.Result;
+                                taskSet.Remove(task);
+                                if (task.IsFaulted)
                                 {
-                                    break;
+                                    processCancel.Cancel();
+                                    foreach (var v in task.Exception.InnerExceptions)
+                                    {
+                                        Trace.WriteLine($"Process Exception:{task.Exception.Message} {v.Message}");
+                                    }
                                 }
-                                //Logger.LogInformation("wait:" + a++);
-                                Thread.Sleep(1000);
                             }
                         }
                     }

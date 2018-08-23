@@ -154,8 +154,6 @@ namespace Momiji.Core.Vst
         private Kernel32.DynamicLinkLibrary dll;
         public IntPtr AeffectPtr { get; private set; }
 
-        private Task processTask;
-
         private AEffectDispatcherProc dispatcher;
         private AEffectSetParameterProc setParameter;
         private AEffectGetParameterProc getParameter;
@@ -259,16 +257,7 @@ namespace Momiji.Core.Vst
             Open(audioMaster);
         }
 
-        public void Run(
-            ISourceBlock<Wave.PcmBuffer<T>> bufferQueue,
-            ITargetBlock<Wave.PcmBuffer<T>> outputQueue,
-            IReceivableSourceBlock<VstMidiEvent> midiEventQueue,
-            CancellationToken ct)
-        {
-            processTask = Process(bufferQueue, outputQueue, midiEventQueue, ct);
-        }
-
-        private async Task Process(
+        public async Task Run(
             ISourceBlock<Wave.PcmBuffer<T>> bufferQueue,
             ITargetBlock<Wave.PcmBuffer<T>> outputQueue,
             IReceivableSourceBlock<VstMidiEvent> midiEventQueue,
@@ -505,22 +494,6 @@ namespace Momiji.Core.Vst
             if (disposing)
             {
                 Trace.WriteLine("[vst] stop");
-                if (processTask != null)
-                {
-                    try
-                    {
-                        processTask.Wait();
-                    }
-                    catch (AggregateException e)
-                    {
-                        foreach (var v in e.InnerExceptions)
-                        {
-                            Trace.WriteLine($"[vst] Process Exception:{e.Message} {v.Message}");
-                        }
-                    }
-                    processTask = null;
-                }
-
                 Close();
 
                 if (dll != null && !dll.IsInvalid)

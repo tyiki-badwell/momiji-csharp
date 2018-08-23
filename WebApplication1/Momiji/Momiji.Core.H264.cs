@@ -34,8 +34,6 @@ namespace Momiji.Core.H264
         private int picWidth;
         private int picHeight;
 
-        private Task processTask;
-
         private Interop.H264.ISVCEncoderVtbl.InitializeProc Initialize;
         private Interop.H264.ISVCEncoderVtbl.GetDefaultParamsProc GetDefaultParams;
         private Interop.H264.ISVCEncoderVtbl.UninitializeProc Uninitialize;
@@ -137,21 +135,6 @@ namespace Momiji.Core.H264
             if (disposing)
             {
                 Trace.WriteLine("[h264] stop");
-                if (processTask != null)
-                {
-                    try
-                    {
-                        processTask.Wait();
-                    }
-                    catch (AggregateException e)
-                    {
-                        foreach (var v in e.InnerExceptions)
-                        {
-                            Trace.WriteLine($"[h264] Process Exception:{e.Message} {v.Message}");
-                        }
-                    }
-                    processTask = null;
-                }
 
                 if (ISVCEncoderVtblPtr != IntPtr.Zero)
                 {
@@ -165,15 +148,7 @@ namespace Momiji.Core.H264
             disposed = true;
         }
 
-        public void Run(
-            ISourceBlock<H264OutputBuffer> bufferQueue,
-            ITargetBlock<H264OutputBuffer> outputQueue,
-            CancellationToken ct)
-        {
-            processTask = Process(bufferQueue, outputQueue, ct);
-        }
-
-        private async Task Process(
+        public async Task Run(
             ISourceBlock<H264OutputBuffer> bufferQueue,
             ITargetBlock<H264OutputBuffer> outputQueue,
             CancellationToken ct)

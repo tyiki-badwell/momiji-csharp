@@ -79,9 +79,6 @@ namespace Momiji.Core.Wave
 
         private Interop.Wave.WaveOut handle;
 
-        private Task processTask;
-        private Task releaseTask;
-
         private int SIZE_OF_T { get; }
         private uint SIZE_OF_WAVEHEADER { get; }
 
@@ -157,37 +154,6 @@ namespace Momiji.Core.Wave
             if (disposing)
             {
                 Trace.WriteLine("[wave] stop");
-                if (processTask != null)
-                {
-                    try
-                    {
-                        processTask.Wait();
-                    }
-                    catch (AggregateException e)
-                    {
-                        foreach (var v in e.InnerExceptions)
-                        {
-                            Trace.WriteLine($"[wave] Process Exception:{e.Message} {v.Message}");
-                        }
-                    }
-                    processTask = null;
-                }
-
-                if (releaseTask != null)
-                {
-                    try
-                    {
-                        releaseTask.Wait();
-                    }
-                    catch (AggregateException e)
-                    {
-                        foreach (var v in e.InnerExceptions)
-                        {
-                            Trace.WriteLine($"[wave] Release Exception:{e.Message} {v.Message}");
-                        }
-                    }
-                    releaseTask = null;
-                }
 
                 if (handle != null)
                 {
@@ -342,16 +308,7 @@ namespace Momiji.Core.Wave
             }
         }
 
-        public void Run(
-            ISourceBlock<PcmBuffer<T>> inputQueue,
-            ITargetBlock<PcmBuffer<T>> inputReleaseQueue,
-            CancellationToken ct)
-        {
-            processTask = Process(inputQueue, ct);
-            releaseTask = Release(inputReleaseQueue, ct);
-        }
-
-        private async Task Process(
+        public async Task Run(
             ISourceBlock<PcmBuffer<T>> inputQueue,
             CancellationToken ct)
         {
@@ -382,7 +339,7 @@ namespace Momiji.Core.Wave
             });
         }
 
-        private async Task Release(
+        public async Task Release(
             ITargetBlock<PcmBuffer<T>> inputReleaseQueue,
             CancellationToken ct)
         {

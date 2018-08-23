@@ -14,8 +14,6 @@ namespace Momiji.Core.Ftl
     {
         private bool disposed = false;
         private PinnedBuffer<Interop.Ftl.Handle> handle;
-        private Task processAudioTask;
-        private Task processVideoTask;
         private CancellationTokenSource logCancel = new CancellationTokenSource();
         private Task logTask;
 
@@ -58,17 +56,6 @@ namespace Momiji.Core.Ftl
             Trace.WriteLine($"ftl_ingest_connect:{status}");
         }
 
-        public void Run(
-            ISourceBlock<OpusOutputBuffer> inputAudioQueue,
-            ITargetBlock<OpusOutputBuffer> inputAudioReleaseQueue,
-            ISourceBlock<H264OutputBuffer> inputVideoQueue,
-            ITargetBlock<H264OutputBuffer> inputVideoReleaseQueue,
-            CancellationToken ct)
-        {
-            processAudioTask = Process(inputAudioQueue, inputAudioReleaseQueue, ct);
-            processVideoTask = Process(inputVideoQueue, inputVideoReleaseQueue, ct);
-        }
-
         public void Dispose()
         {
             Dispose(true);
@@ -81,38 +68,6 @@ namespace Momiji.Core.Ftl
 
             if (disposing)
             {
-                if (processAudioTask != null)
-                {
-                    try
-                    {
-                        processAudioTask.Wait();
-                    }
-                    catch (AggregateException e)
-                    {
-                        foreach (var v in e.InnerExceptions)
-                        {
-                            Trace.WriteLine($"FtlIngest Process Exception:{e.Message} {v.Message}");
-                        }
-                    }
-                    processAudioTask = null;
-                }
-
-                if (processVideoTask != null)
-                {
-                    try
-                    {
-                        processVideoTask.Wait();
-                    }
-                    catch (AggregateException e)
-                    {
-                        foreach (var v in e.InnerExceptions)
-                        {
-                            Trace.WriteLine($"FtlIngest Process Exception:{e.Message} {v.Message}");
-                        }
-                    }
-                    processVideoTask = null;
-                }
-
                 if (handle != null)
                 {
                     Interop.Ftl.Status status;
@@ -147,7 +102,7 @@ namespace Momiji.Core.Ftl
             disposed = true;
         }
 
-        public int SendVideo(PinnedBuffer<Interop.Ftl.Handle> handle, H264OutputBuffer buffer)
+        private int SendVideo(PinnedBuffer<Interop.Ftl.Handle> handle, H264OutputBuffer buffer)
         {
             var usec = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds() * 1000;
 
@@ -165,7 +120,7 @@ namespace Momiji.Core.Ftl
         }
 
 
-        public int SendAudio(PinnedBuffer<Interop.Ftl.Handle> handle, OpusOutputBuffer buffer)
+        private int SendAudio(PinnedBuffer<Interop.Ftl.Handle> handle, OpusOutputBuffer buffer)
         {
             var usec = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds() * 1000;
 
@@ -182,7 +137,7 @@ namespace Momiji.Core.Ftl
             return sent;
         }
 
-        private async Task Process(
+        public async Task Run(
             ISourceBlock<OpusOutputBuffer> inputQueue,
             ITargetBlock<OpusOutputBuffer> inputReleaseQueue,
             CancellationToken ct)
@@ -215,7 +170,7 @@ namespace Momiji.Core.Ftl
             }, ct);
         }
 
-        private async Task Process(
+        public async Task Run(
             ISourceBlock<H264OutputBuffer> inputQueue,
             ITargetBlock<H264OutputBuffer> inputReleaseQueue,
             CancellationToken ct)
