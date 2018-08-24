@@ -17,15 +17,11 @@ namespace Momiji.Core.Ftl
         private CancellationTokenSource logCancel = new CancellationTokenSource();
         private Task logTask;
 
-        private long audioUsec;
-        private long videoUsec;
-
         public FtlIngest(string streamKey)
         {
             Interop.Ftl.IngestParams param;
             param.stream_key = streamKey;
             param.video_codec = Interop.Ftl.VideoCodec.FTL_VIDEO_H264;
-            //param.video_codec = Interop.Ftl.VideoCodec.FTL_VIDEO_NULL;
             param.audio_codec = Interop.Ftl.AudioCodec.FTL_AUDIO_OPUS;
             param.ingest_hostname = "auto";
             param.fps_num = 0;
@@ -102,39 +98,9 @@ namespace Momiji.Core.Ftl
             disposed = true;
         }
 
-        private int SendVideo(PinnedBuffer<Interop.Ftl.Handle> handle, H264OutputBuffer buffer)
+        private long getUsec()
         {
-            var usec = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds() * 1000;
-
-            var sent = Interop.Ftl.ftl_ingest_send_media_dts(
-                handle.AddrOfPinnedObject(),
-                Interop.Ftl.MediaType.FTL_VIDEO_DATA,
-                usec,
-                buffer.AddrOfPinnedObject(),
-                buffer.Wrote,
-                buffer.EndOfFrame ? 1: 0
-            );
-            //Trace.WriteLine($"ftl_ingest_send_media_dts(FTL_VIDEO_DATA, {usec}:{buffer.Wrote}):{sent} / {(usec - videoUsec) / 1000}");
-            videoUsec = usec;
-            return sent;
-        }
-
-
-        private int SendAudio(PinnedBuffer<Interop.Ftl.Handle> handle, OpusOutputBuffer buffer)
-        {
-            var usec = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds() * 1000;
-
-            var sent = Interop.Ftl.ftl_ingest_send_media_dts(
-                handle.AddrOfPinnedObject(),
-                Interop.Ftl.MediaType.FTL_AUDIO_DATA,
-                usec,
-                buffer.AddrOfPinnedObject(),
-                buffer.Wrote,
-                0
-            );
-        //    Trace.WriteLine($"ftl_ingest_send_media_dts(FTL_AUDIO_DATA, {usec}:{buffer.Wrote}):{sent} / {(usec - audioUsec) /1000}");
-            audioUsec = usec;
-            return sent;
+            return DateTimeOffset.UtcNow.ToUnixTimeMilliseconds() * 1000;
         }
 
         public async Task Run(
@@ -157,7 +123,15 @@ namespace Momiji.Core.Ftl
                     {
                         var buffer = inputQueue.Receive(new TimeSpan(20_000_000), ct);
                         //Trace.WriteLine("[ftl] receive buffer");
-                        var sent = SendAudio(handle, buffer);
+                        var sent = Interop.Ftl.ftl_ingest_send_media_dts(
+                            handle.AddrOfPinnedObject(),
+                            Interop.Ftl.MediaType.FTL_AUDIO_DATA,
+                            getUsec(),
+                            buffer.AddrOfPinnedObject(),
+                            buffer.Wrote,
+                            0
+                        );
+                        Trace.WriteLine($"[ftl] ftl_ingest_send_media_dts AUDIO {buffer.Wrote}->{sent}");
                         inputReleaseQueue.Post(buffer);
                         //Trace.WriteLine("[ftl] release buffer");
                     }
@@ -190,11 +164,18 @@ namespace Momiji.Core.Ftl
                     {
                         var buffer = inputQueue.Receive(new TimeSpan(20_000_000), ct);
                         //Trace.WriteLine("[ftl] receive buffer");
-                        var sent = SendVideo(handle, buffer);
+                        var sent = Interop.Ftl.ftl_ingest_send_media_dts(
+                            handle.AddrOfPinnedObject(),
+                            Interop.Ftl.MediaType.FTL_VIDEO_DATA,
+                            getUsec(),
+                            buffer.AddrOfPinnedObject(),
+                            buffer.Wrote,
+                            buffer.EndOfFrame ? 1 : 0
+                        );
+                        Trace.WriteLine($"[ftl] ftl_ingest_send_media_dts VIDEO {buffer.Wrote}->{sent}");
                         inputReleaseQueue.Post(buffer);
-                        //Trace.WriteLine("[ftl] release buffer");
-
-                        Thread.Sleep(100);
+                        
+                        //Thread.Sleep(100);
                     }
                     catch (TimeoutException te)
                     {

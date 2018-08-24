@@ -1,7 +1,5 @@
 ﻿using Momiji.Core.H264;
-using Momiji.Interop;
 using System;
-using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.Runtime.InteropServices;
@@ -17,8 +15,6 @@ namespace Momiji.Test.H264File
 
         private FileStream file;
         private BinaryReader reader;
-
-        private Task processTask;
 
         public H264File()
         {
@@ -39,22 +35,6 @@ namespace Momiji.Test.H264File
 
             if (disposing)
             {
-                if (processTask != null)
-                {
-                    try
-                    {
-                        processTask.Wait();
-                    }
-                    catch (AggregateException e)
-                    {
-                        foreach (var v in e.InnerExceptions)
-                        {
-                            Trace.WriteLine($"[h264 file] Process Exception:{e.Message} {v.Message}");
-                        }
-                    }
-                    processTask = null;
-                }
-
                 reader.Close();
                 reader = null;
             }
@@ -62,15 +42,7 @@ namespace Momiji.Test.H264File
             disposed = true;
         }
 
-        public void Run(
-            ISourceBlock<H264OutputBuffer> inputQueue,
-            ITargetBlock<H264OutputBuffer> inputReleaseQueue,
-            CancellationToken ct)
-        {
-            processTask = Process(inputQueue, inputReleaseQueue, ct);
-        }
-
-        private async Task Process(
+        public async Task Run(
             ISourceBlock<H264OutputBuffer> inputQueue,
             ITargetBlock<H264OutputBuffer> inputReleaseQueue,
             CancellationToken ct)
@@ -144,6 +116,7 @@ namespace Momiji.Test.H264File
 
                         //TODO 時刻を見てwait
                         inputReleaseQueue.Post(data);
+                        Thread.Sleep(100);
                     }
                     catch (TimeoutException te)
                     {

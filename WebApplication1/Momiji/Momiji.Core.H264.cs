@@ -1,6 +1,8 @@
 ﻿using Momiji.Interop;
 using System;
+using System.Collections.Generic;
 using System.Diagnostics;
+using System.Reflection;
 using System.Runtime.InteropServices;
 using System.Threading;
 using System.Threading.Tasks;
@@ -170,6 +172,12 @@ namespace Momiji.Core.H264
                 SSourcePictureBuffer.Target.iPicWidth = picWidth;
                 SSourcePictureBuffer.Target.iPicHeight = picHeight;
 
+                var layerInfoList = new List<FieldInfo>();
+                for (var idx = 0; idx < 128; idx++)
+                {
+                    layerInfoList.Add(typeof(Interop.H264.SFrameBSInfo).GetField($"sLayerInfo{idx:000}"));
+                }
+
                 await Task.Run(() =>
                 {
                     ct.ThrowIfCancellationRequested();
@@ -190,7 +198,8 @@ namespace Momiji.Core.H264
                             try
                             {
                                 //Trace.WriteLine("[h264] get data TRY");
-                                var data = bufferQueue.Receive(new TimeSpan(20_000_000), ct);
+                                
+                                //var data = bufferQueue.Receive(new TimeSpan(20_000_000), ct);
                                 {
                                     var after = stopwatch.ElapsedMilliseconds;
                                     var diff = after - before;
@@ -205,8 +214,14 @@ namespace Momiji.Core.H264
                                     before = after;
                                 }
 
-
                                 SSourcePictureBuffer.Target.uiTimeStamp = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
+                                {
+                                    var result = ForceIntraFrame(ISVCEncoderVtblPtr, true);
+                                    if (result != 0)
+                                    {
+                                        throw new H264Exception($"WelsCreateSVCEncoder ForceIntraFrame failed {result}");
+                                    }
+                                }
                                 {
                                     var result = EncodeFrame(ISVCEncoderVtblPtr, SSourcePictureBuffer.AddrOfPinnedObject(), SFrameBSInfoBuffer.AddrOfPinnedObject());
                                     if (result != 0)
@@ -214,32 +229,24 @@ namespace Momiji.Core.H264
                                         throw new H264Exception($"WelsCreateSVCEncoder EncodeFrame failed {result}");
                                     }
                                 }
-
+                                /*
                                 data.Wrote = 0;
                                 var dataPtr = data.AddrOfPinnedObject();
-                                
+                                */
                                 for (var idx = 0; idx < SFrameBSInfoBuffer.Target.iLayerNum; idx++)
                                 {
-                                    var length = 0;
-                                    //TODO 効率化
-                                    var layer = (Interop.H264.SLayerBSInfo)typeof(Interop.H264.SFrameBSInfo).GetField($"sLayerInfo{idx:000}").GetValue(SFrameBSInfoBuffer.Target);
+                                    var layer = (Interop.H264.SLayerBSInfo)layerInfoList[idx].GetValue(SFrameBSInfoBuffer.Target);
                                     for (var nalIdx =0; nalIdx < layer.iNalCount; nalIdx++)
                                     {
-                                        length += Marshal.ReadInt32(layer.pNalLengthInByte, nalIdx * Marshal.SizeOf<Int32>());
-                                        //TODO NAL毎に送る
+                                        var data = bufferQueue.Receive(new TimeSpan(20_000_000), ct);
+                                        var length = Marshal.ReadInt32(layer.pNalLengthInByte, nalIdx * Marshal.SizeOf<Int32>());
+                                        Kernel32.RtlCopyMemory(data.AddrOfPinnedObject(), layer.pBsBuf+4, length-4);
+                                        data.Wrote = length-4;
+                                        data.EndOfFrame = (nalIdx == layer.iNalCount-1);
+                                        outputQueue.Post(data);
                                     }
-                                    //TODO CopyMemoryは無い
-                                    Kernel32.CopyMemory(dataPtr, layer.pBsBuf, length);
-                                    dataPtr += length;
-                                    data.Wrote += length;
                                 }
-
-                                data.EndOfFrame = (SFrameBSInfoBuffer.Target.eFrameType == Interop.H264.EVideoFrameType.videoFrameTypeIDR);
-                                
-                                outputQueue.Post(data);
-
                                 var finish = stopwatch.ElapsedMilliseconds;
-
                                 //    Trace.WriteLine($"[h264] post data:[{finish - before}]ms");
                             }
                             catch (TimeoutException te)

@@ -480,7 +480,7 @@ namespace Momiji.Interop
             public SLayerBSInfo sLayerInfo125;
             public SLayerBSInfo sLayerInfo126;
             public SLayerBSInfo sLayerInfo127;
-            public SLayerBSInfo sLayerInfo128;
+            //public SLayerBSInfo sLayerInfo128;
             public EVideoFrameType eFrameType;
             public int iFrameSizeInBytes;
             public long uiTimeStamp;
