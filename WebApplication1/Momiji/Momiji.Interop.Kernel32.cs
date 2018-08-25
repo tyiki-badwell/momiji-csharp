@@ -151,13 +151,13 @@ namespace Momiji.Interop
         internal static extern Boolean SetDllDirectory(
             [In]   string lpPathName
         );
-
+        /*
         [DllImport("kernel32.dll", CallingConvention = CallingConvention.Cdecl, CharSet = CharSet.Unicode, SetLastError = true)]
         internal static extern void RtlCopyMemory(
             [In]   IntPtr Destination,
             [In]   IntPtr Source,
             [In]   long Length
         );
-
+        */
     }
 }

@@ -258,7 +258,7 @@ namespace Momiji.Core.H264
                                     {
                                         var data = bufferQueue.Receive(new TimeSpan(20_000_000), ct);
                                         var length = Marshal.ReadInt32(layer.pNalLengthInByte, nalIdx * Marshal.SizeOf<Int32>());
-                                        Kernel32.RtlCopyMemory(data.AddrOfPinnedObject(), layer.pBsBuf+4, length-4);
+                                        CopyMemory(data.AddrOfPinnedObject(), layer.pBsBuf+4, length-4);
                                         data.Wrote = length-4;
                                         data.EndOfFrame = (nalIdx == layer.iNalCount-1);
                                         //Logger.LogInformation($"[h264] post data:buffer:{SFrameBSInfoBuffer.Target.eFrameType}, layer:{layer.eFrameType}");
@@ -278,6 +278,16 @@ namespace Momiji.Core.H264
                     Logger.LogInformation("[h264] loop end");
                 });
             }
+        }
+
+        private void CopyMemory(
+            IntPtr Destination,
+            IntPtr Source,
+            long Length)
+        {
+            var temp = new byte[Length];
+            Marshal.Copy(Source, temp, 0, (int)Length);
+            Marshal.Copy(temp, 0, Destination, (int)Length);
         }
 
     }
