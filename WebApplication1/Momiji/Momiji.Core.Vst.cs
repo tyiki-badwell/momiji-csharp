@@ -337,11 +337,13 @@ namespace Momiji.Core.Vst
                                     var vstEvents = new VstEvents();
                                     vstEvents.numEvents = list.Count;
 
+                                    //TODO 境界チェック
                                     Marshal.StructureToPtr(vstEvents, eventsPtr, false);
                                     eventsPtr += sizeVstEvents;
 
                                     list.ForEach(midiEvent =>
                                     {
+                                        //TODO 境界チェック
                                         Marshal.StructureToPtr(midiEvent, eventListPtr, false);
                                         Marshal.WriteIntPtr(eventsPtr, eventListPtr);
                                         eventListPtr += sizeVstMidiEvent;

@@ -122,7 +122,7 @@ namespace Momiji.Test.H264File
 
                         //TODO 時刻を見てwait
                         inputReleaseQueue.Post(data);
-                        Thread.Sleep(100);
+                        Thread.Sleep(33);
                     }
                     catch (TimeoutException te)
                     {

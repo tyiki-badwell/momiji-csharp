@@ -247,18 +247,18 @@ namespace Momiji.Core.H264
                                         throw new H264Exception($"WelsCreateSVCEncoder EncodeFrame failed {result}");
                                     }
                                 }
-                                /*
-                                data.Wrote = 0;
-                                var dataPtr = data.AddrOfPinnedObject();
-                                */
+
                                 for (var idx = 0; idx < SFrameBSInfoBuffer.Target.iLayerNum; idx++)
                                 {
                                     var layer = (Interop.H264.SLayerBSInfo)layerInfoList[idx].GetValue(SFrameBSInfoBuffer.Target);
-                                    for (var nalIdx =0; nalIdx < layer.iNalCount; nalIdx++)
+                                    var bsBuf = layer.pBsBuf;
+
+                                    for (var nalIdx = 0; nalIdx < layer.iNalCount; nalIdx++)
                                     {
                                         var data = bufferQueue.Receive(new TimeSpan(20_000_000), ct);
                                         var length = Marshal.ReadInt32(layer.pNalLengthInByte, nalIdx * Marshal.SizeOf<Int32>());
-                                        CopyMemory(data.AddrOfPinnedObject(), layer.pBsBuf+4, length-4);
+                                        CopyMemory(data.AddrOfPinnedObject(), bsBuf+4, length-4);
+                                        bsBuf += length;
                                         data.Wrote = length-4;
                                         data.EndOfFrame = (nalIdx == layer.iNalCount-1);
                                         //Logger.LogInformation($"[h264] post data:buffer:{SFrameBSInfoBuffer.Target.eFrameType}, layer:{layer.eFrameType}");

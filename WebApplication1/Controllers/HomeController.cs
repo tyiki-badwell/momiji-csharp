@@ -9,6 +9,7 @@ using Momiji.Core.Vst;
 using Momiji.Core.Wave;
 using Momiji.Core.WebMidi;
 using Momiji.Interop;
+using Momiji.Test.H264File;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
@@ -77,6 +78,10 @@ namespace WebApplication1.Controllers
                     using (var pcmPool = new BufferPool<PcmBuffer<float>>(2, () => { return new PcmBuffer<float>(blockSize, 2); }))
                     using (var opusPool = new BufferPool<OpusOutputBuffer>(2, () => { return new OpusOutputBuffer(5000); }))
                     using (var videoPool = new BufferPool<H264OutputBuffer>(3, () => { return new H264OutputBuffer(10000000); }))
+                    using (var vst = new AudioMaster<float>(samplingRate, blockSize, LoggerFactory))
+                    using (var encoder = new OpusEncoder(Opus.SamplingRate.Sampling48000, Opus.Channels.Stereo, LoggerFactory))
+                    using (var h264 = new H264Encoder(1280, 720, 5_000_000, 30.0f, LoggerFactory))
+                    //using (var h264 = new H264File(LoggerFactory))
                     {
                         var vstToOpusInput = pcmPool.makeEmptyBufferBlock();
                         var vstToOpusOutput = pcmPool.makeBufferBlock();
@@ -85,14 +90,10 @@ namespace WebApplication1.Controllers
                         var videoToFtlInput = videoPool.makeBufferBlock();
                         var videoToFtlOutput = videoPool.makeEmptyBufferBlock();
 
-                        using (var vst = new AudioMaster<float>(samplingRate, blockSize, LoggerFactory))
-                        using (var encoder = new OpusEncoder(Opus.SamplingRate.Sampling48000, Opus.Channels.Stereo, LoggerFactory))
-                        using (var h264 = new H264Encoder(1280, 720, 5_000_000, 30.0f, LoggerFactory))
-                        //using (var h264 = new H264File())
+                        var effect = vst.AddEffect("Synth1 VST.dll");
+
                         using (var ftl = new FtlIngest($"{Configuration["MIXER_STREAM_KEY"]}", LoggerFactory))
                         {
-                            var effect = vst.AddEffect("Synth1 VST.dll");
-
                             var taskSet = new HashSet<Task>();
 
                             taskSet.Add(effect.Run(
