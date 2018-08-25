@@ -111,8 +111,6 @@ namespace Momiji.Core.Ftl
             await Task.Run(() =>
             {
                 ct.ThrowIfCancellationRequested();
-
-                int a = 0;
                 while (true)
                 {
                     if (ct.IsCancellationRequested)
@@ -122,7 +120,6 @@ namespace Momiji.Core.Ftl
                     try
                     {
                         var buffer = inputQueue.Receive(new TimeSpan(20_000_000), ct);
-                        //Trace.WriteLine("[ftl] receive buffer");
                         var sent = Interop.Ftl.ftl_ingest_send_media_dts(
                             handle.AddrOfPinnedObject(),
                             Interop.Ftl.MediaType.FTL_AUDIO_DATA,
@@ -131,9 +128,8 @@ namespace Momiji.Core.Ftl
                             buffer.Wrote,
                             0
                         );
-                        Trace.WriteLine($"[ftl] ftl_ingest_send_media_dts AUDIO {buffer.Wrote}->{sent}");
+                        //Trace.WriteLine($"[ftl] ftl_ingest_send_media_dts AUDIO {buffer.Wrote}->{sent}");
                         inputReleaseQueue.Post(buffer);
-                        //Trace.WriteLine("[ftl] release buffer");
                     }
                     catch (TimeoutException te)
                     {
@@ -152,8 +148,6 @@ namespace Momiji.Core.Ftl
             await Task.Run(() =>
             {
                 ct.ThrowIfCancellationRequested();
-
-                int a = 0;
                 while (true)
                 {
                     if (ct.IsCancellationRequested)
@@ -163,7 +157,6 @@ namespace Momiji.Core.Ftl
                     try
                     {
                         var buffer = inputQueue.Receive(new TimeSpan(20_000_000), ct);
-                        //Trace.WriteLine("[ftl] receive buffer");
                         var sent = Interop.Ftl.ftl_ingest_send_media_dts(
                             handle.AddrOfPinnedObject(),
                             Interop.Ftl.MediaType.FTL_VIDEO_DATA,
@@ -172,10 +165,8 @@ namespace Momiji.Core.Ftl
                             buffer.Wrote,
                             buffer.EndOfFrame ? 1 : 0
                         );
-                        Trace.WriteLine($"[ftl] ftl_ingest_send_media_dts VIDEO {buffer.Wrote}->{sent}");
+                        //Trace.WriteLine($"[ftl] ftl_ingest_send_media_dts VIDEO {buffer.Wrote}->{sent}");
                         inputReleaseQueue.Post(buffer);
-                        
-                        //Thread.Sleep(100);
                     }
                     catch (TimeoutException te)
                     {

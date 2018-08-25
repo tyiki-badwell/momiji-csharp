@@ -31,10 +31,12 @@ namespace Momiji.Core.H264
     public class H264Encoder : IDisposable
     {
         private bool disposed = false;
-        public IntPtr ISVCEncoderVtblPtr { get; private set; }
+        private IntPtr ISVCEncoderVtblPtr { get; set; }
 
-        private int picWidth;
-        private int picHeight;
+        private int PicWidth { get; }
+        private int PicHeight { get; }
+        private int TargetBitrate { get; }
+        private float MaxFrameRate { get; }
 
         private Interop.H264.ISVCEncoderVtbl.InitializeProc Initialize;
         private Interop.H264.ISVCEncoderVtbl.GetDefaultParamsProc GetDefaultParams;
@@ -52,8 +54,10 @@ namespace Momiji.Core.H264
             float maxFrameRate
         )
         {
-            this.picWidth = picWidth;
-            this.picHeight = picHeight;
+            PicWidth = picWidth;
+            PicHeight = picHeight;
+            TargetBitrate = targetBitrate;
+            MaxFrameRate = maxFrameRate;
             {
                 IntPtr handle = IntPtr.Zero;
                 var result = Interop.H264.WelsCreateSVCEncoder(out handle);
@@ -110,11 +114,11 @@ namespace Momiji.Core.H264
             using (var param = new PinnedBuffer<Interop.H264.SEncParamBase>(new Interop.H264.SEncParamBase()))
             {
                 param.Target.iUsageType = Interop.H264.EUsageType.CAMERA_VIDEO_REAL_TIME;
-                param.Target.iPicWidth = picWidth;
-                param.Target.iPicHeight = picHeight;
-                param.Target.iTargetBitrate = targetBitrate;
+                param.Target.iPicWidth = PicWidth;
+                param.Target.iPicHeight = PicHeight;
+                param.Target.iTargetBitrate = TargetBitrate;
                 param.Target.iRCMode = Interop.H264.RC_MODES.RC_QUALITY_MODE;
-                param.Target.fMaxFrameRate = maxFrameRate;
+                param.Target.fMaxFrameRate = MaxFrameRate;
 
                 var result = Initialize(ISVCEncoderVtblPtr, param.AddrOfPinnedObject());
                 if (result != 0)
@@ -155,22 +159,22 @@ namespace Momiji.Core.H264
             ITargetBlock<H264OutputBuffer> outputQueue,
             CancellationToken ct)
         {
-            var frameSize = picWidth * picHeight * 3 / 2;
+            var frameSize = PicWidth * PicHeight * 3 / 2;
             using (var buffer = new PinnedBuffer<byte[]>(new byte[frameSize]))
             using (var SSourcePictureBuffer = new PinnedBuffer<Interop.H264.SSourcePicture>(new Interop.H264.SSourcePicture()))
             using (var SFrameBSInfoBuffer = new PinnedBuffer<Interop.H264.SFrameBSInfo>(new Interop.H264.SFrameBSInfo()))
             {
                 SSourcePictureBuffer.Target.iColorFormat = Interop.H264.EVideoFormatType.videoFormatI420;
-                SSourcePictureBuffer.Target.iStride0 = picWidth;
-                SSourcePictureBuffer.Target.iStride1 = picWidth >> 1;
-                SSourcePictureBuffer.Target.iStride2 = picWidth >> 1;
+                SSourcePictureBuffer.Target.iStride0 = PicWidth;
+                SSourcePictureBuffer.Target.iStride1 = PicWidth >> 1;
+                SSourcePictureBuffer.Target.iStride2 = PicWidth >> 1;
                 SSourcePictureBuffer.Target.iStride3 = 0;
                 SSourcePictureBuffer.Target.pData0 = buffer.AddrOfPinnedObject();
-                SSourcePictureBuffer.Target.pData1 = SSourcePictureBuffer.Target.pData0 + (picWidth * picHeight);
-                SSourcePictureBuffer.Target.pData2 = SSourcePictureBuffer.Target.pData1 + (picWidth * picHeight >> 2);
+                SSourcePictureBuffer.Target.pData1 = SSourcePictureBuffer.Target.pData0 + (PicWidth * PicHeight);
+                SSourcePictureBuffer.Target.pData2 = SSourcePictureBuffer.Target.pData1 + (PicWidth * PicHeight >> 2);
                 SSourcePictureBuffer.Target.pData3 = IntPtr.Zero;
-                SSourcePictureBuffer.Target.iPicWidth = picWidth;
-                SSourcePictureBuffer.Target.iPicHeight = picHeight;
+                SSourcePictureBuffer.Target.iPicWidth = PicWidth;
+                SSourcePictureBuffer.Target.iPicHeight = PicHeight;
 
                 var layerInfoList = new List<FieldInfo>();
                 for (var idx = 0; idx < 128; idx++)
@@ -184,7 +188,8 @@ namespace Momiji.Core.H264
 
                     var stopwatch = Stopwatch.StartNew();
                     var before = stopwatch.ElapsedMilliseconds;
-                    var interval = 33.33333;
+                    var interval = 1000 / MaxFrameRate;
+                    var intraFrameCount = 0f;
 
                     using (var s = new SemaphoreSlim(1))
                     {
@@ -210,19 +215,24 @@ namespace Momiji.Core.H264
                                         s.Wait((int)left, ct);
                                         after = stopwatch.ElapsedMilliseconds;
                                     }
-                                    //    Trace.WriteLine($"[h264] get data OK [{diff}+{left}]ms [{interval}]ms ");
+                                    //Trace.WriteLine($"[h264] start [{diff}+{left}]ms [{interval}]ms ");
                                     before = after;
                                 }
 
-                                SSourcePictureBuffer.Target.uiTimeStamp = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
+                                if (intraFrameCount <= 0)
                                 {
+                                    intraFrameCount = 2000f;
+                                    Trace.WriteLine($"[h264] ForceIntraFrame");
                                     var result = ForceIntraFrame(ISVCEncoderVtblPtr, true);
                                     if (result != 0)
                                     {
                                         throw new H264Exception($"WelsCreateSVCEncoder ForceIntraFrame failed {result}");
                                     }
                                 }
+                                intraFrameCount -= interval;
+
                                 {
+                                    SSourcePictureBuffer.Target.uiTimeStamp = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
                                     var result = EncodeFrame(ISVCEncoderVtblPtr, SSourcePictureBuffer.AddrOfPinnedObject(), SFrameBSInfoBuffer.AddrOfPinnedObject());
                                     if (result != 0)
                                     {
@@ -243,6 +253,7 @@ namespace Momiji.Core.H264
                                         Kernel32.RtlCopyMemory(data.AddrOfPinnedObject(), layer.pBsBuf+4, length-4);
                                         data.Wrote = length-4;
                                         data.EndOfFrame = (nalIdx == layer.iNalCount-1);
+                                        //Trace.WriteLine($"[h264] post data:buffer:{SFrameBSInfoBuffer.Target.eFrameType}, layer:{layer.eFrameType}");
                                         outputQueue.Post(data);
                                     }
                                 }
