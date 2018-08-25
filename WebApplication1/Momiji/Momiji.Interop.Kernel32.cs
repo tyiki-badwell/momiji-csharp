@@ -152,7 +152,7 @@ namespace Momiji.Interop
             [In]   string lpPathName
         );
 
-        [DllImport("NtDll.dll", CallingConvention = CallingConvention.Cdecl, CharSet = CharSet.Unicode, SetLastError = true)]
+        [DllImport("kernel32.dll", CallingConvention = CallingConvention.Cdecl, CharSet = CharSet.Unicode, SetLastError = true)]
         internal static extern void RtlCopyMemory(
             [In]   IntPtr Destination,
             [In]   IntPtr Source,
