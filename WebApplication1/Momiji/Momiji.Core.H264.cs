@@ -1,4 +1,5 @@
-﻿using Momiji.Interop;
+﻿using Microsoft.Extensions.Logging;
+using Momiji.Interop;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
@@ -30,6 +31,9 @@ namespace Momiji.Core.H264
 
     public class H264Encoder : IDisposable
     {
+        private ILoggerFactory LoggerFactory { get; }
+        private ILogger Logger { get; }
+
         private bool disposed = false;
         private IntPtr ISVCEncoderVtblPtr { get; set; }
 
@@ -51,9 +55,13 @@ namespace Momiji.Core.H264
             int picWidth,
             int picHeight,
             int targetBitrate,
-            float maxFrameRate
+            float maxFrameRate, 
+            ILoggerFactory loggerFactory
         )
         {
+            LoggerFactory = loggerFactory;
+            Logger = LoggerFactory.CreateLogger<H264Encoder>();
+
             PicWidth = picWidth;
             PicHeight = picHeight;
             TargetBitrate = targetBitrate;
@@ -140,7 +148,7 @@ namespace Momiji.Core.H264
 
             if (disposing)
             {
-                Trace.WriteLine("[h264] stop");
+                Logger.LogInformation("[h264] stop");
 
                 if (ISVCEncoderVtblPtr != IntPtr.Zero)
                 {
@@ -202,7 +210,7 @@ namespace Momiji.Core.H264
 
                             try
                             {
-                                //Trace.WriteLine("[h264] get data TRY");
+                                //Logger.LogInformation("[h264] get data TRY");
                                 
                                 //var data = bufferQueue.Receive(new TimeSpan(20_000_000), ct);
                                 {
@@ -215,14 +223,14 @@ namespace Momiji.Core.H264
                                         s.Wait((int)left, ct);
                                         after = stopwatch.ElapsedMilliseconds;
                                     }
-                                    //Trace.WriteLine($"[h264] start [{diff}+{left}]ms [{interval}]ms ");
+                                    //Logger.LogInformation($"[h264] start [{diff}+{left}]ms [{interval}]ms ");
                                     before = after;
                                 }
 
                                 if (intraFrameCount <= 0)
                                 {
                                     intraFrameCount = 2000f;
-                                    Trace.WriteLine($"[h264] ForceIntraFrame");
+                                    Logger.LogInformation($"[h264] ForceIntraFrame");
                                     var result = ForceIntraFrame(ISVCEncoderVtblPtr, true);
                                     if (result != 0)
                                     {
@@ -253,21 +261,21 @@ namespace Momiji.Core.H264
                                         Kernel32.RtlCopyMemory(data.AddrOfPinnedObject(), layer.pBsBuf+4, length-4);
                                         data.Wrote = length-4;
                                         data.EndOfFrame = (nalIdx == layer.iNalCount-1);
-                                        //Trace.WriteLine($"[h264] post data:buffer:{SFrameBSInfoBuffer.Target.eFrameType}, layer:{layer.eFrameType}");
+                                        //Logger.LogInformation($"[h264] post data:buffer:{SFrameBSInfoBuffer.Target.eFrameType}, layer:{layer.eFrameType}");
                                         outputQueue.Post(data);
                                     }
                                 }
                                 var finish = stopwatch.ElapsedMilliseconds;
-                                //    Trace.WriteLine($"[h264] post data:[{finish - before}]ms");
+                                //    Logger.LogInformation($"[h264] post data:[{finish - before}]ms");
                             }
                             catch (TimeoutException te)
                             {
-                                Trace.WriteLine("[h264] timeout");
+                                Logger.LogInformation("[h264] timeout");
                                 continue;
                             }
                         }
                     }
-                    Trace.WriteLine("[h264] loop end");
+                    Logger.LogInformation("[h264] loop end");
                 });
             }
         }

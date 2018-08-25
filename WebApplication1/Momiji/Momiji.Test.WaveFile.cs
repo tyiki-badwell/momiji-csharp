@@ -1,17 +1,20 @@
-﻿using Momiji.Interop;
+﻿using Microsoft.Extensions.Logging;
+using Momiji.Interop;
 using System;
-using System.Runtime.InteropServices;
-using System.Threading.Tasks.Dataflow;
-using System.Diagnostics;
-using System.Threading.Tasks;
-using System.Threading;
 using System.IO;
+using System.Runtime.InteropServices;
 using System.Text;
+using System.Threading;
+using System.Threading.Tasks;
+using System.Threading.Tasks.Dataflow;
 
 namespace Momiji.Test.WaveFile
 {
     public class WaveFile : IDisposable
     {
+        private ILoggerFactory LoggerFactory { get; }
+        private ILogger Logger { get; }
+
         private bool disposed = false;
 
         private FileStream file;
@@ -30,9 +33,13 @@ namespace Momiji.Test.WaveFile
             UInt16 bitsPerSample,
             Wave.WaveFormatExtensiblePart.SPEAKER channelMask,
             Guid formatSubType,
-            UInt32 samplesPerBuffer
+            UInt32 samplesPerBuffer,
+            ILoggerFactory loggerFactory
         )
         {
+            LoggerFactory = loggerFactory;
+            Logger = LoggerFactory.CreateLogger<WaveFile>();
+
             var fileName = Environment.GetFolderPath(Environment.SpecialFolder.DesktopDirectory) + @"\test.wav";
             file = new FileStream(fileName, FileMode.Create, FileAccess.Write);
             writer = new BinaryWriter(file);
@@ -80,7 +87,7 @@ namespace Momiji.Test.WaveFile
                     {
                         foreach (var v in e.InnerExceptions)
                         {
-                            Trace.WriteLine($"[wave file] Process Exception:{e.Message} {v.Message}");
+                            Logger.LogInformation($"[wave file] Process Exception:{e.Message} {v.Message}");
                         }
                     }
                     processTask = null;
@@ -141,11 +148,11 @@ namespace Momiji.Test.WaveFile
                     }
                     catch (TimeoutException te)
                     {
-                        Trace.WriteLine("[wave] timeout");
+                        Logger.LogInformation("[wave] timeout");
                         continue;
                     }
                 }
-                Trace.WriteLine("[wave] loop end");
+                Logger.LogInformation("[wave] loop end");
             });
         }
     }

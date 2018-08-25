@@ -1,8 +1,8 @@
-﻿using Momiji.Core.H264;
+﻿using Microsoft.Extensions.Logging;
+using Momiji.Core.H264;
 using Momiji.Core.Opus;
 using Momiji.Interop;
 using System;
-using System.Diagnostics;
 using System.Runtime.InteropServices;
 using System.Threading;
 using System.Threading.Tasks;
@@ -12,13 +12,19 @@ namespace Momiji.Core.Ftl
 {
     public class FtlIngest : IDisposable
     {
+        private ILoggerFactory LoggerFactory { get; }
+        private ILogger Logger { get; }
+
         private bool disposed = false;
         private PinnedBuffer<Interop.Ftl.Handle> handle;
         private CancellationTokenSource logCancel = new CancellationTokenSource();
         private Task logTask;
 
-        public FtlIngest(string streamKey)
+        public FtlIngest(string streamKey, ILoggerFactory loggerFactory)
         {
+            LoggerFactory = loggerFactory;
+            Logger = LoggerFactory.CreateLogger<FtlIngest>();
+
             Interop.Ftl.IngestParams param;
             param.stream_key = streamKey;
             param.video_codec = Interop.Ftl.VideoCodec.FTL_VIDEO_H264;
@@ -32,12 +38,12 @@ namespace Momiji.Core.Ftl
 
             Interop.Ftl.Status status;
             status = Interop.Ftl.ftl_init();
-            Trace.WriteLine($"ftl_init:{status}");
+            Logger.LogInformation($"ftl_init:{status}");
 
             handle = new PinnedBuffer<Interop.Ftl.Handle>(new Interop.Ftl.Handle());
 
             status = Interop.Ftl.ftl_ingest_create(handle.AddrOfPinnedObject(), ref param);
-            Trace.WriteLine($"ftl_ingest_create:{status}");
+            Logger.LogInformation($"ftl_ingest_create:{status}");
             if (status != Interop.Ftl.Status.FTL_SUCCESS)
             {
                 handle.Dispose();
@@ -49,7 +55,7 @@ namespace Momiji.Core.Ftl
             logTask = PrintTrace(logCancel, handle);
 
             status = Interop.Ftl.ftl_ingest_connect(handle.AddrOfPinnedObject());
-            Trace.WriteLine($"ftl_ingest_connect:{status}");
+            Logger.LogInformation($"ftl_ingest_connect:{status}");
         }
 
         public void Dispose()
@@ -68,10 +74,10 @@ namespace Momiji.Core.Ftl
                 {
                     Interop.Ftl.Status status;
                     status = Interop.Ftl.ftl_ingest_disconnect(handle.AddrOfPinnedObject());
-                    Trace.WriteLine($"ftl_ingest_disconnect:{status}");
+                    Logger.LogInformation($"ftl_ingest_disconnect:{status}");
 
                     status = Interop.Ftl.ftl_ingest_destroy(handle.AddrOfPinnedObject());
-                    Trace.WriteLine($"ftl_ingest_destroy:{status}");
+                    Logger.LogInformation($"ftl_ingest_destroy:{status}");
 
                     logCancel.Cancel();
                     try
@@ -82,7 +88,7 @@ namespace Momiji.Core.Ftl
                     {
                         foreach (var v in e.InnerExceptions)
                         {
-                            Trace.WriteLine($"FtlIngest Log Exception:{e.Message} {v.Message}");
+                            Logger.LogInformation($"FtlIngest Log Exception:{e.Message} {v.Message}");
                         }
                     }
                     finally
@@ -128,12 +134,12 @@ namespace Momiji.Core.Ftl
                             buffer.Wrote,
                             0
                         );
-                        //Trace.WriteLine($"[ftl] ftl_ingest_send_media_dts AUDIO {buffer.Wrote}->{sent}");
+                        //Logger.LogInformation($"[ftl] ftl_ingest_send_media_dts AUDIO {buffer.Wrote}->{sent}");
                         inputReleaseQueue.Post(buffer);
                     }
                     catch (TimeoutException te)
                     {
-                        Trace.WriteLine("[ftl] timeout");
+                        Logger.LogInformation("[ftl] timeout");
                         continue;
                     }
                 }
@@ -165,12 +171,12 @@ namespace Momiji.Core.Ftl
                             buffer.Wrote,
                             buffer.EndOfFrame ? 1 : 0
                         );
-                        //Trace.WriteLine($"[ftl] ftl_ingest_send_media_dts VIDEO {buffer.Wrote}->{sent}");
+                        //Logger.LogInformation($"[ftl] ftl_ingest_send_media_dts VIDEO {buffer.Wrote}->{sent}");
                         inputReleaseQueue.Post(buffer);
                     }
                     catch (TimeoutException te)
                     {
-                        Trace.WriteLine("[ftl] timeout");
+                        Logger.LogInformation("[ftl] timeout");
                         continue;
                     }
                 }
@@ -181,7 +187,7 @@ namespace Momiji.Core.Ftl
         {
             CancellationToken ct = logCancel.Token;
 
-            Trace.WriteLine("trace start");
+            Logger.LogInformation("trace start");
             try
             {
                 Interop.Ftl.Status status;
@@ -211,13 +217,13 @@ namespace Momiji.Core.Ftl
                             {
                                 case Interop.Ftl.StatusTypes.FTL_STATUS_NONE:
                                     {
-                                        Trace.WriteLine("[ftl] NONE");
+                                        Logger.LogInformation("[ftl] NONE");
                                         break;
                                     }
                                 case Interop.Ftl.StatusTypes.FTL_STATUS_LOG:
                                     {
                                         Interop.Ftl.FtlStatusLogMsg log = Marshal.PtrToStructure<Interop.Ftl.FtlStatusLogMsg>(msg + 8);
-                                        Trace.WriteLine($"[ftl] LOG {log.log_level}:{log.msg}");
+                                        Logger.LogInformation($"[ftl] LOG {log.log_level}:{log.msg}");
                                         break;
                                     }
                                 case Interop.Ftl.StatusTypes.FTL_STATUS_EVENT:
@@ -227,27 +233,27 @@ namespace Momiji.Core.Ftl
                                         {
                                             case Interop.Ftl.StatusEventType.FTL_STATUS_EVENT_TYPE_UNKNOWN:
                                                 {
-                                                    Trace.WriteLine($"[ftl] EVENT UNKNOWN [{eventMsg.error_code}][{eventMsg.reason}]");
+                                                    Logger.LogInformation($"[ftl] EVENT UNKNOWN [{eventMsg.error_code}][{eventMsg.reason}]");
                                                     break;
                                                 }
                                             case Interop.Ftl.StatusEventType.FTL_STATUS_EVENT_TYPE_CONNECTED:
                                                 {
-                                                    Trace.WriteLine($"[ftl] EVENT CONNECTED [{eventMsg.error_code}][{eventMsg.reason}]");
+                                                    Logger.LogInformation($"[ftl] EVENT CONNECTED [{eventMsg.error_code}][{eventMsg.reason}]");
                                                     break;
                                                 }
                                             case Interop.Ftl.StatusEventType.FTL_STATUS_EVENT_TYPE_DISCONNECTED:
                                                 {
-                                                    Trace.WriteLine($"[ftl] EVENT DISCONNECTED [{eventMsg.error_code}][{eventMsg.reason}]");
+                                                    Logger.LogInformation($"[ftl] EVENT DISCONNECTED [{eventMsg.error_code}][{eventMsg.reason}]");
                                                     break;
                                                 }
                                             case Interop.Ftl.StatusEventType.FTL_STATUS_EVENT_TYPE_DESTROYED:
                                                 {
-                                                    Trace.WriteLine($"[ftl] EVENT DESTROYED [{eventMsg.error_code}][{eventMsg.reason}]");
+                                                    Logger.LogInformation($"[ftl] EVENT DESTROYED [{eventMsg.error_code}][{eventMsg.reason}]");
                                                     break;
                                                 }
                                             case Interop.Ftl.StatusEventType.FTL_STATUS_EVENT_INGEST_ERROR_CODE:
                                                 {
-                                                    Trace.WriteLine($"[ftl] EVENT INGEST_ERROR_CODE [{eventMsg.error_code}][{eventMsg.reason}]");
+                                                    Logger.LogInformation($"[ftl] EVENT INGEST_ERROR_CODE [{eventMsg.error_code}][{eventMsg.reason}]");
                                                     break;
                                                 }
                                         }
@@ -256,7 +262,7 @@ namespace Momiji.Core.Ftl
                                 case Interop.Ftl.StatusTypes.FTL_STATUS_VIDEO_PACKETS:
                                     {
                                         Interop.Ftl.FtlPacketStatsMsg packetMsg = Marshal.PtrToStructure<Interop.Ftl.FtlPacketStatsMsg>(msg + 8);
-                                        Trace.WriteLine(
+                                        Logger.LogInformation(
                                             $"[ftl] VIDEO_PACKETS packet per second[{(double)packetMsg.sent * 1000.0f / (double)packetMsg.period}]" +
                                             $" total nack requests[{packetMsg.nack_reqs}]" +
                                             $" lost[{packetMsg.lost}]" +
@@ -268,20 +274,20 @@ namespace Momiji.Core.Ftl
                                 case Interop.Ftl.StatusTypes.FTL_STATUS_VIDEO_PACKETS_INSTANT:
                                     {
                                         Interop.Ftl.FtlPacketStatsInstantMsg packetMsg = Marshal.PtrToStructure<Interop.Ftl.FtlPacketStatsInstantMsg>(msg + 8);
-                                        Trace.WriteLine(
+                                        Logger.LogInformation(
                                             $"[ftl] VIDEO_PACKETS_INSTANT avg transmit delay {packetMsg.avg_xmit_delay}ms (min: {packetMsg.min_xmit_delay}, max: {packetMsg.max_xmit_delay})," +
                                             $" avg rtt {packetMsg.avg_rtt}ms (min: {packetMsg.min_rtt}, max: {packetMsg.max_rtt})");
                                         break;
                                     }
                                 case Interop.Ftl.StatusTypes.FTL_STATUS_AUDIO_PACKETS:
                                     {
-                                        Trace.WriteLine("[ftl] AUDIO_PACKETS");
+                                        Logger.LogInformation("[ftl] AUDIO_PACKETS");
                                         break;
                                     }
                                 case Interop.Ftl.StatusTypes.FTL_STATUS_VIDEO:
                                     {
                                         Interop.Ftl.FtlVideoFrameStatsMsg videoMsg = Marshal.PtrToStructure<Interop.Ftl.FtlVideoFrameStatsMsg>(msg + 8);
-                                        Trace.WriteLine(
+                                        Logger.LogInformation(
                                             $"[ftl] VIDEO Queue an average of {(double)videoMsg.frames_queued * 1000.0f / (double)videoMsg.period}f fps ({(double)videoMsg.bytes_queued / (double)videoMsg.period * 8}f kbps)," +
                                             $" sent an average of {(double)videoMsg.frames_sent * 1000.0f / (double)videoMsg.period}f fps ({(double)videoMsg.bytes_sent / (double)videoMsg.period * 8}f kbps)," +
                                             $" queue fullness {videoMsg.queue_fullness}, max frame size {videoMsg.max_frame_size}, {videoMsg.bw_throttling_count}");
@@ -289,27 +295,27 @@ namespace Momiji.Core.Ftl
                                     }
                                 case Interop.Ftl.StatusTypes.FTL_STATUS_AUDIO:
                                     {
-                                        Trace.WriteLine("[ftl] AUDIO");
+                                        Logger.LogInformation("[ftl] AUDIO");
                                         break;
                                     }
                                 case Interop.Ftl.StatusTypes.FTL_STATUS_FRAMES_DROPPED:
                                     {
-                                        Trace.WriteLine("[ftl] FRAMES_DROPPED");
+                                        Logger.LogInformation("[ftl] FRAMES_DROPPED");
                                         break;
                                     }
                                 case Interop.Ftl.StatusTypes.FTL_STATUS_NETWORK:
                                     {
-                                        Trace.WriteLine("[ftl] NETWORK");
+                                        Logger.LogInformation("[ftl] NETWORK");
                                         break;
                                     }
                                 case Interop.Ftl.StatusTypes.FTL_BITRATE_CHANGED:
                                     {
-                                        Trace.WriteLine("[ftl] BITRATE_CHANGED");
+                                        Logger.LogInformation("[ftl] BITRATE_CHANGED");
                                         break;
                                     }
                                 default:
                                     {
-                                        Trace.WriteLine($"[ftl] {type}");
+                                        Logger.LogInformation($"[ftl] {type}");
                                         break;
                                     }
                             }
@@ -319,7 +325,7 @@ namespace Momiji.Core.Ftl
             }
             finally
             {
-                Trace.WriteLine("trace end");
+                Logger.LogInformation("trace end");
             }
         }
     }

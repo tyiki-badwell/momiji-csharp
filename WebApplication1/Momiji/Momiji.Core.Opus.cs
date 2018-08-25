@@ -1,6 +1,6 @@
-﻿using Momiji.Interop;
+﻿using Microsoft.Extensions.Logging;
+using Momiji.Interop;
 using System;
-using System.Diagnostics;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Threading.Tasks.Dataflow;
@@ -18,14 +18,21 @@ namespace Momiji.Core.Opus
 
     public class OpusEncoder : IDisposable
     {
+        private ILoggerFactory LoggerFactory { get; }
+        private ILogger Logger { get; }
+
         private bool disposed = false;
         private Interop.Opus.OpusEncoder encoder;
 
         public OpusEncoder(
             Interop.Opus.SamplingRate Fs,
-            Interop.Opus.Channels channels
+            Interop.Opus.Channels channels, 
+            ILoggerFactory loggerFactory
         )
         {
+            LoggerFactory = loggerFactory;
+            Logger = LoggerFactory.CreateLogger<OpusEncoder>();
+
             var error = Interop.Opus.OpusStatusCode.Unimplemented;
 
             encoder =
@@ -82,10 +89,10 @@ namespace Momiji.Core.Opus
                         if (pcm == null)
                         {
                             pcm = inputQueue.Receive(new TimeSpan(20_000_000), ct);
-                            //Trace.WriteLine("[opus] receive pcm");
+                            //Logger.LogInformation("[opus] receive pcm");
                         }
                         var data = bufferQueue.Receive(new TimeSpan(20_000_000), ct);
-                        //Trace.WriteLine("[opus] get data");
+                        //Logger.LogInformation("[opus] get data");
 
                         data.Wrote = Interop.Opus.opus_encode_float(
                             encoder,
@@ -97,21 +104,21 @@ namespace Momiji.Core.Opus
 
                         inputReleaseQueue.Post(pcm);
                         pcm = null;
-                        //Trace.WriteLine("[opus] release pcm");
+                        //Logger.LogInformation("[opus] release pcm");
                         if (data.Wrote < 0)
                         {
                             throw new Exception($"[opus] opus_encode_float error:{data.Wrote}");
                         }
                         else
                         {
-                            //Trace.WriteLine($"[opus] post data: wrote {data.Wrote}");
+                            //Logger.LogInformation($"[opus] post data: wrote {data.Wrote}");
                         }
 
                         outputQueue.Post(data);
                     }
                     catch (TimeoutException te)
                     {
-                        Trace.WriteLine("[opus] timeout");
+                        Logger.LogInformation("[opus] timeout");
                         continue;
                     }
                 }

@@ -1,4 +1,5 @@
-﻿using Momiji.Interop;
+﻿using Microsoft.Extensions.Logging;
+using Momiji.Interop;
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
@@ -49,6 +50,9 @@ namespace Momiji.Core.Vst
 
     public class AudioMaster<T> : IDisposable where T : struct
     {
+        private ILoggerFactory LoggerFactory { get; }
+        private ILogger Logger { get; }
+
         private bool disposed = false;
         private IDictionary<IntPtr, Effect<T>> effectMap = new ConcurrentDictionary<IntPtr, Effect<T>>();
 
@@ -57,8 +61,11 @@ namespace Momiji.Core.Vst
         public Int32 SamplingRate { get; }
         public Int32 BlockSize { get; }
 
-        public AudioMaster(Int32 samplingRate, Int32 blockSize)
+        public AudioMaster(Int32 samplingRate, Int32 blockSize, ILoggerFactory loggerFactory)
         {
+            LoggerFactory = loggerFactory;
+            Logger = LoggerFactory.CreateLogger<AudioMaster<T>>();
+
             SamplingRate = samplingRate;
             BlockSize = blockSize;
 
@@ -83,7 +90,7 @@ namespace Momiji.Core.Vst
 
         public Effect<T> AddEffect(string library)
         {
-            var effect = new Effect<T>(library, this);
+            var effect = new Effect<T>(library, this, LoggerFactory);
             effectMap.Add(effect.AeffectPtr, effect);
             return effect;
         }
@@ -100,10 +107,10 @@ namespace Momiji.Core.Vst
 
             if (disposing)
             {
-                Trace.WriteLine("[vst host] stop");
+                Logger.LogInformation("[vst host] stop");
                 foreach (var (ptr, effect) in effectMap)
                 {
-                    Trace.WriteLine("[vst] try stop");
+                    Logger.LogInformation("[vst] try stop");
                     effect.Dispose();
                 }
                 effectMap.Clear();
@@ -141,7 +148,7 @@ namespace Momiji.Core.Vst
                     return new IntPtr(BlockSize);
 
                 default:
-                    Trace.WriteLine($"AudioMasterCallBackProc NOP opcode:{opcode:F}");
+                    Logger.LogInformation($"AudioMasterCallBackProc NOP opcode:{opcode:F}");
                     return IntPtr.Zero;
             }
         }
@@ -150,6 +157,9 @@ namespace Momiji.Core.Vst
 
     public class Effect<T> : IDisposable where T : struct
     {
+        private ILoggerFactory LoggerFactory { get; }
+        private ILogger Logger { get; }
+
         private bool disposed = false;
         private Kernel32.DynamicLinkLibrary dll;
         public IntPtr AeffectPtr { get; private set; }
@@ -163,15 +173,18 @@ namespace Momiji.Core.Vst
         int numOutputs;
         private AudioMaster<T> audioMaster;
 
-        public Effect(string library, AudioMaster<T> audioMaster)
+        public Effect(string library, AudioMaster<T> audioMaster, ILoggerFactory loggerFactory)
         {
+            LoggerFactory = loggerFactory;
+            Logger = LoggerFactory.CreateLogger<Effect<T>>();
+
             this.audioMaster = audioMaster;
 
             dll = Kernel32.LoadLibrary(library);
             if (dll.IsInvalid)
             {
                 var error = Marshal.GetHRForLastWin32Error();
-                Trace.WriteLine($"LoadLibrary error:{error}");
+                Logger.LogInformation($"LoadLibrary error:{error}");
                 Marshal.ThrowExceptionForHR(error);
             }
 
@@ -184,7 +197,7 @@ namespace Momiji.Core.Vst
             if (proc == IntPtr.Zero)
             {
                 var error = Marshal.GetHRForLastWin32Error();
-                Trace.WriteLine($"GetProcAddress error:{error}");
+                Logger.LogInformation($"GetProcAddress error:{error}");
                 Marshal.ThrowExceptionForHR(error);
             }
 
@@ -195,34 +208,34 @@ namespace Momiji.Core.Vst
             var aeffect = Marshal.PtrToStructure<AEffect>(AeffectPtr);
             numOutputs = aeffect.numOutputs;
 
-            Trace.WriteLine($"magic:{aeffect.magic}");
-            Trace.WriteLine($"dispatcher:{aeffect.dispatcher}");
-            Trace.WriteLine($"processDeprecated:{aeffect.processDeprecated}");
-            Trace.WriteLine($"setParameter:{aeffect.setParameter}");
-            Trace.WriteLine($"getParameter:{aeffect.getParameter}");
+            Logger.LogInformation($"magic:{aeffect.magic}");
+            Logger.LogInformation($"dispatcher:{aeffect.dispatcher}");
+            Logger.LogInformation($"processDeprecated:{aeffect.processDeprecated}");
+            Logger.LogInformation($"setParameter:{aeffect.setParameter}");
+            Logger.LogInformation($"getParameter:{aeffect.getParameter}");
 
-            Trace.WriteLine($"numPrograms:{aeffect.numPrograms}");
-            Trace.WriteLine($"numParams:{aeffect.numParams}");
-            Trace.WriteLine($"numInputs:{aeffect.numInputs}");
-            Trace.WriteLine($"numOutputs:{aeffect.numOutputs}");
-            Trace.WriteLine($"flags:{aeffect.flags}");
+            Logger.LogInformation($"numPrograms:{aeffect.numPrograms}");
+            Logger.LogInformation($"numParams:{aeffect.numParams}");
+            Logger.LogInformation($"numInputs:{aeffect.numInputs}");
+            Logger.LogInformation($"numOutputs:{aeffect.numOutputs}");
+            Logger.LogInformation($"flags:{aeffect.flags}");
 
-            //Trace.WriteLine($"resvd1:"+aeffect.resvd1);
-            //Trace.WriteLine($"resvd2:"+aeffect.resvd2);
+            //Logger.LogInformation($"resvd1:"+aeffect.resvd1);
+            //Logger.LogInformation($"resvd2:"+aeffect.resvd2);
 
-            Trace.WriteLine($"initialDelay:{aeffect.initialDelay}");
+            Logger.LogInformation($"initialDelay:{aeffect.initialDelay}");
 
-            Trace.WriteLine($"realQualitiesDeprecated:{aeffect.realQualitiesDeprecated}");
-            Trace.WriteLine($"offQualitiesDeprecated:{aeffect.offQualitiesDeprecated}");
-            Trace.WriteLine($"ioRatioDeprecated:{aeffect.ioRatioDeprecated}");
-            //Trace.WriteLine($"object:"+aeffect._object);
-            Trace.WriteLine($"user:{aeffect.user}");
+            Logger.LogInformation($"realQualitiesDeprecated:{aeffect.realQualitiesDeprecated}");
+            Logger.LogInformation($"offQualitiesDeprecated:{aeffect.offQualitiesDeprecated}");
+            Logger.LogInformation($"ioRatioDeprecated:{aeffect.ioRatioDeprecated}");
+            //Logger.LogInformation($"object:"+aeffect._object);
+            Logger.LogInformation($"user:{aeffect.user}");
 
-            Trace.WriteLine($"uniqueID:{aeffect.uniqueID}");
-            Trace.WriteLine($"version:{aeffect.version}");
+            Logger.LogInformation($"uniqueID:{aeffect.uniqueID}");
+            Logger.LogInformation($"version:{aeffect.version}");
 
-            //Trace.WriteLine("processReplacing:"+aeffect.processReplacing);
-            //Trace.WriteLine("processDoubleReplacing:"+aeffect.processDoubleReplacing);
+            //Logger.LogInformation("processReplacing:"+aeffect.processReplacing);
+            //Logger.LogInformation("processDoubleReplacing:"+aeffect.processDoubleReplacing);
 
             if (aeffect.dispatcher != IntPtr.Zero)
             {
@@ -294,7 +307,7 @@ namespace Momiji.Core.Vst
 
                             try
                             {
-                                //Trace.WriteLine("[vst] get data TRY");
+                                //Logger.LogInformation("[vst] get data TRY");
                                 var data = bufferQueue.Receive(new TimeSpan(20_000_000), ct);
                                 {
                                     var after = stopwatch.ElapsedMilliseconds;
@@ -306,7 +319,7 @@ namespace Momiji.Core.Vst
                                         s.Wait((int)left, ct);
                                         after = stopwatch.ElapsedMilliseconds;
                                     }
-                                //    Trace.WriteLine($"[vst] get data OK [{diff}+{left}]ms [{interval}]ms ");
+                                //    Logger.LogInformation($"[vst] get data OK [{diff}+{left}]ms [{interval}]ms ");
                                     before = after;
                                 }
 
@@ -344,7 +357,7 @@ namespace Momiji.Core.Vst
                                             events.AddrOfPinnedObject(),
                                             0
                                         );
-                                //    Trace.WriteLine($"effProcessEvents:{processEventsResult}");
+                                //    Logger.LogInformation($"effProcessEvents:{processEventsResult}");
                                 }
 
                                 processReplacing(
@@ -371,16 +384,16 @@ namespace Momiji.Core.Vst
 
                                 var finish = stopwatch.ElapsedMilliseconds;
 
-                            //    Trace.WriteLine($"[vst] post data:[{finish - before}]ms");
+                            //    Logger.LogInformation($"[vst] post data:[{finish - before}]ms");
                             }
                             catch (TimeoutException te)
                             {
-                                Trace.WriteLine("[vst] timeout");
+                                Logger.LogInformation("[vst] timeout");
                                 continue;
                             }
                         }
                     }
-                    Trace.WriteLine("[vst] loop end");
+                    Logger.LogInformation("[vst] loop end");
                 });
             }
         }
@@ -396,7 +409,7 @@ namespace Momiji.Core.Vst
                     IntPtr.Zero,
                     0
                 );
-            Trace.WriteLine($"effOpen:{openResult}");
+            Logger.LogInformation($"effOpen:{openResult}");
 
             var setSampleRateResult =
                 dispatcher(
@@ -407,7 +420,7 @@ namespace Momiji.Core.Vst
                     IntPtr.Zero,
                     audioMaster.SamplingRate
                 );
-            Trace.WriteLine($"effSetSampleRate:{setSampleRateResult}");
+            Logger.LogInformation($"effSetSampleRate:{setSampleRateResult}");
             var setBlockSizeResult =
                 dispatcher(
                     AeffectPtr,
@@ -417,7 +430,7 @@ namespace Momiji.Core.Vst
                     IntPtr.Zero,
                     0
                 );
-            Trace.WriteLine($"effSetBlockSize:{setBlockSizeResult}");
+            Logger.LogInformation($"effSetBlockSize:{setBlockSizeResult}");
             //resume
             var resumeResult =
                 dispatcher(
@@ -428,7 +441,7 @@ namespace Momiji.Core.Vst
                     IntPtr.Zero,
                     0
                 );
-            Trace.WriteLine($"effMainsChanged:{resumeResult}");
+            Logger.LogInformation($"effMainsChanged:{resumeResult}");
             //start
             var startProcessResult =
                 dispatcher(
@@ -439,7 +452,7 @@ namespace Momiji.Core.Vst
                     IntPtr.Zero,
                     0
                 );
-            Trace.WriteLine($"effStartProcess:{startProcessResult}");
+            Logger.LogInformation($"effStartProcess:{startProcessResult}");
         }
 
         private void Close()
@@ -454,7 +467,7 @@ namespace Momiji.Core.Vst
                     IntPtr.Zero,
                     0
                 );
-            Trace.WriteLine($"effStopProcess:{stopProcessResult}");
+            Logger.LogInformation($"effStopProcess:{stopProcessResult}");
             //suspend
             var suspendResult =
                 dispatcher(
@@ -465,7 +478,7 @@ namespace Momiji.Core.Vst
                     IntPtr.Zero,
                     0
                 );
-            Trace.WriteLine($"effMainsChanged:{suspendResult}");
+            Logger.LogInformation($"effMainsChanged:{suspendResult}");
             //close
             var closeResult =
                 dispatcher(
@@ -476,7 +489,7 @@ namespace Momiji.Core.Vst
                     IntPtr.Zero,
                     0
                 );
-            Trace.WriteLine($"effClose:{closeResult}");
+            Logger.LogInformation($"effClose:{closeResult}");
 
             AeffectPtr = IntPtr.Zero;
         }
@@ -493,7 +506,7 @@ namespace Momiji.Core.Vst
 
             if (disposing)
             {
-                Trace.WriteLine("[vst] stop");
+                Logger.LogInformation("[vst] stop");
                 Close();
 
                 if (dll != null && !dll.IsInvalid)

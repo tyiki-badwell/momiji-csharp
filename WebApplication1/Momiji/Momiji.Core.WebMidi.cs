@@ -1,6 +1,4 @@
-﻿using System;
-
-namespace Momiji.Core.WebMidi
+﻿namespace Momiji.Core.WebMidi
 {
     public struct MIDIMessageEvent
     {

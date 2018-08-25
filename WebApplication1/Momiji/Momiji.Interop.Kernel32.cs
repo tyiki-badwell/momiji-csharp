@@ -1,5 +1,4 @@
 ﻿using System;
-using System.Diagnostics;
 using System.Runtime.ConstrainedExecution;
 using System.Runtime.InteropServices;
 using System.Security.Permissions;
@@ -122,13 +121,11 @@ namespace Momiji.Interop
         {
             public DynamicLinkLibrary() : base(true)
             {
-                Trace.WriteLine("DynamicLinkLibrary");
             }
 
             [ReliabilityContract(Consistency.WillNotCorruptState, Cer.MayFail)]
             protected override Boolean ReleaseHandle()
             {
-                Trace.WriteLine("FreeLibrary");
                 return FreeLibrary(handle);
             }
         };

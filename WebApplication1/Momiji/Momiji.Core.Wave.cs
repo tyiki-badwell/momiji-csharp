@@ -1,12 +1,12 @@
-﻿using Momiji.Interop;
+﻿using Microsoft.Extensions.Logging;
+using Momiji.Interop;
 using System;
-using System.Runtime.InteropServices;
-using System.Threading.Tasks.Dataflow;
-using System.Collections.Generic;
-using System.Diagnostics;
-using System.Threading.Tasks;
-using System.Threading;
 using System.Collections.Concurrent;
+using System.Collections.Generic;
+using System.Runtime.InteropServices;
+using System.Threading;
+using System.Threading.Tasks;
+using System.Threading.Tasks.Dataflow;
 
 namespace Momiji.Core.Wave
 {
@@ -37,13 +37,15 @@ namespace Momiji.Core.Wave
             UInt32 deviceID,
             UInt16 channels,
             UInt32 samplesPerSecond,
-            Interop.Wave.WaveFormatExtensiblePart.SPEAKER channelMask
+            Interop.Wave.WaveFormatExtensiblePart.SPEAKER channelMask,
+            ILoggerFactory loggerFactory
         ) : base(
             deviceID,
             channels,
             samplesPerSecond,
             channelMask,
-            new Guid("00000001-0000-0010-8000-00aa00389b71")
+            new Guid("00000001-0000-0010-8000-00aa00389b71"),
+            loggerFactory
             )
         { }
     }
@@ -54,19 +56,24 @@ namespace Momiji.Core.Wave
             UInt32 deviceID,
             UInt16 channels,
             UInt32 samplesPerSecond,
-            Interop.Wave.WaveFormatExtensiblePart.SPEAKER channelMask
+            Interop.Wave.WaveFormatExtensiblePart.SPEAKER channelMask,
+            ILoggerFactory loggerFactory
         ) : base(
             deviceID,
             channels,
             samplesPerSecond,
             channelMask,
-            new Guid("00000003-0000-0010-8000-00aa00389b71")
+            new Guid("00000003-0000-0010-8000-00aa00389b71"),
+            loggerFactory
             )
         { }
     }
 
     public class WaveOut<T> : IDisposable where T : struct
     {
+        private ILoggerFactory LoggerFactory { get; }
+        private ILogger Logger { get; }
+
         private bool disposed = false;
 
         private BufferPool<PinnedBuffer<Interop.Wave.WaveHeader>> headerPool = 
@@ -101,9 +108,13 @@ namespace Momiji.Core.Wave
             UInt16 channels,
             UInt32 samplesPerSecond,
             Interop.Wave.WaveFormatExtensiblePart.SPEAKER channelMask,
-            Guid formatSubType
+            Guid formatSubType, 
+            ILoggerFactory loggerFactory
         )
         {
+            LoggerFactory = loggerFactory;
+            Logger = LoggerFactory.CreateLogger<WaveOut<T>>();
+
             SIZE_OF_T = Marshal.SizeOf<T>();
             SIZE_OF_WAVEHEADER = (uint)Marshal.SizeOf<Interop.Wave.WaveHeader>();
 
@@ -153,7 +164,7 @@ namespace Momiji.Core.Wave
 
             if (disposing)
             {
-                Trace.WriteLine("[wave] stop");
+                Logger.LogInformation("[wave] stop");
 
                 if (handle != null)
                 {
@@ -165,7 +176,7 @@ namespace Momiji.Core.Wave
                         Reset();
 
                         //バッファの開放待ち
-                        Trace.WriteLine($"[wave] wait busy buffers :{headerBusyPool.Count}");
+                        Logger.LogInformation($"[wave] wait busy buffers :{headerBusyPool.Count}");
                         while (headerBusyPool.Count > 0)
                         {
                             IntPtr headerPtr = IntPtr.Zero;
@@ -176,7 +187,7 @@ namespace Momiji.Core.Wave
 
                             Thread.Sleep(1000);
                         }
-                        Trace.WriteLine($"[wave] wait end :{headerBusyPool.Count}");
+                        Logger.LogInformation($"[wave] wait end :{headerBusyPool.Count}");
 
                         headerPool.Dispose();
                         headerPool = null;
@@ -331,11 +342,11 @@ namespace Momiji.Core.Wave
                     }
                     catch (TimeoutException te)
                     {
-                        Trace.WriteLine("[wave] process loop timeout");
+                        Logger.LogInformation("[wave] process loop timeout");
                         continue;
                     }
                 }
-                Trace.WriteLine("[wave] process loop end");
+                Logger.LogInformation("[wave] process loop end");
             });
         }
 
@@ -362,11 +373,11 @@ namespace Momiji.Core.Wave
                     }
                     catch (TimeoutException te)
                     {
-                        Trace.WriteLine("[wave] release loop timeout");
+                        Logger.LogInformation("[wave] release loop timeout");
                         continue;
                     }
                 }
-                Trace.WriteLine("[wave] release loop end");
+                Logger.LogInformation("[wave] release loop end");
             });
         }
     }

@@ -9,7 +9,6 @@ using Momiji.Core.Vst;
 using Momiji.Core.Wave;
 using Momiji.Core.WebMidi;
 using Momiji.Interop;
-using Momiji.Test.H264File;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
@@ -26,14 +25,16 @@ namespace WebApplication1.Controllers
         private static CancellationTokenSource processCancel;
         private static Task processTask;
         private IConfiguration Configuration { get; }
+        private ILoggerFactory LoggerFactory { get; }
         private ILogger Logger { get; }
 
         private static BufferBlock<Vst.VstMidiEvent> midiEventInput = new BufferBlock<Vst.VstMidiEvent>();
 
-        public HomeController(IConfiguration configuration, ILogger<HomeController> logger)
+        public HomeController(IConfiguration configuration, ILoggerFactory loggerFactory)
         {
             Configuration = configuration;
-            Logger = logger;
+            LoggerFactory = loggerFactory;
+            Logger = LoggerFactory.CreateLogger<HomeController>();
         }
 
         private async Task Loop()
@@ -84,11 +85,11 @@ namespace WebApplication1.Controllers
                         var videoToFtlInput = videoPool.makeBufferBlock();
                         var videoToFtlOutput = videoPool.makeEmptyBufferBlock();
 
-                        using (var vst = new AudioMaster<float>(samplingRate, blockSize))
-                        using (var encoder = new OpusEncoder(Opus.SamplingRate.Sampling48000, Opus.Channels.Stereo))
-                        using (var h264 = new H264Encoder(1280, 720, 5_000_000, 30.0f))
+                        using (var vst = new AudioMaster<float>(samplingRate, blockSize, LoggerFactory))
+                        using (var encoder = new OpusEncoder(Opus.SamplingRate.Sampling48000, Opus.Channels.Stereo, LoggerFactory))
+                        using (var h264 = new H264Encoder(1280, 720, 5_000_000, 30.0f, LoggerFactory))
                         //using (var h264 = new H264File())
-                        using (var ftl = new FtlIngest($"{Configuration["MIXER_STREAM_KEY"]}"))
+                        using (var ftl = new FtlIngest($"{Configuration["MIXER_STREAM_KEY"]}", LoggerFactory))
                         {
                             var effect = vst.AddEffect("Synth1 VST.dll");
 
@@ -139,7 +140,7 @@ namespace WebApplication1.Controllers
                                     processCancel.Cancel();
                                     foreach (var v in task.Exception.InnerExceptions)
                                     {
-                                        Trace.WriteLine($"Process Exception:{task.Exception.Message} {v.Message}");
+                                        Logger.LogInformation($"Process Exception:{task.Exception.Message} {v.Message}");
                                     }
                                 }
                             }
@@ -174,12 +175,13 @@ namespace WebApplication1.Controllers
                         var vstToOpusInput = pcmPool.makeBufferBlock();
                         var vstToOpusOutput = new BufferBlock<PcmBuffer<float>>();
 
-                        using (var vst = new AudioMaster<float>(samplingRate, blockSize))
+                        using (var vst = new AudioMaster<float>(samplingRate, blockSize, LoggerFactory))
                         using (var wave = new WaveOutFloat(
                             0,
                             2,
                             (uint)samplingRate,
-                            Wave.WaveFormatExtensiblePart.SPEAKER.FRONT_LEFT | Wave.WaveFormatExtensiblePart.SPEAKER.FRONT_RIGHT))
+                            Wave.WaveFormatExtensiblePart.SPEAKER.FRONT_LEFT | Wave.WaveFormatExtensiblePart.SPEAKER.FRONT_RIGHT, 
+                            LoggerFactory))
                         {
                             var effect = vst.AddEffect("Synth1 VST.dll");
 
@@ -214,7 +216,7 @@ namespace WebApplication1.Controllers
                                     processCancel.Cancel();
                                     foreach (var v in task.Exception.InnerExceptions)
                                     {
-                                        Trace.WriteLine($"Process Exception:{task.Exception.Message} {v.Message}");
+                                        Logger.LogInformation($"Process Exception:{task.Exception.Message} {v.Message}");
                                     }
                                 }
                             }
@@ -269,7 +271,8 @@ namespace WebApplication1.Controllers
                             0,
                             2,
                             (uint)samplingRate,
-                            Wave.WaveFormatExtensiblePart.SPEAKER.FRONT_LEFT | Wave.WaveFormatExtensiblePart.SPEAKER.FRONT_RIGHT))
+                            Wave.WaveFormatExtensiblePart.SPEAKER.FRONT_LEFT | Wave.WaveFormatExtensiblePart.SPEAKER.FRONT_RIGHT, 
+                            LoggerFactory))
                         {
                             var taskSet = new HashSet<Task>();
 
@@ -295,7 +298,7 @@ namespace WebApplication1.Controllers
                                     processCancel.Cancel();
                                     foreach (var v in task.Exception.InnerExceptions)
                                     {
-                                        Trace.WriteLine($"Process Exception:{task.Exception.Message} {v.Message}");
+                                        Logger.LogInformation($"Process Exception:{task.Exception.Message} {v.Message}");
                                     }
                                 }
                             }
@@ -324,7 +327,7 @@ namespace WebApplication1.Controllers
                     {
                         var videoToFtlInput = videoPool.makeBufferBlock();
 
-                        using (var h264 = new H264Encoder(100, 100, 5_000_000, 30.0f))
+                        using (var h264 = new H264Encoder(100, 100, 5_000_000, 30.0f, LoggerFactory))
                         {
                         }
                     }
@@ -366,8 +369,8 @@ namespace WebApplication1.Controllers
                         opusToFtlInput.Post(out1);
                         opusToFtlInput.Post(out2);
 
-                        using (var vst = new AudioMaster<float>(samplingRate, blockSize))
-                        using (var encoder = new OpusEncoder(Opus.SamplingRate.Sampling48000, Opus.Channels.Stereo))
+                        using (var vst = new AudioMaster<float>(samplingRate, blockSize, LoggerFactory))
+                        using (var encoder = new OpusEncoder(Opus.SamplingRate.Sampling48000, Opus.Channels.Stereo, LoggerFactory))
                         {
                             var effect = vst.AddEffect("Synth1 VST.dll");
 
@@ -400,7 +403,7 @@ namespace WebApplication1.Controllers
                                     processCancel.Cancel();
                                     foreach (var v in task.Exception.InnerExceptions)
                                     {
-                                        Trace.WriteLine($"Process Exception:{task.Exception.Message} {v.Message}");
+                                        Logger.LogInformation($"Process Exception:{task.Exception.Message} {v.Message}");
                                     }
                                 }
                             }

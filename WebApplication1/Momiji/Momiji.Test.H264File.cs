@@ -1,6 +1,6 @@
-﻿using Momiji.Core.H264;
+﻿using Microsoft.Extensions.Logging;
+using Momiji.Core.H264;
 using System;
-using System.Diagnostics;
 using System.IO;
 using System.Runtime.InteropServices;
 using System.Threading;
@@ -11,13 +11,19 @@ namespace Momiji.Test.H264File
 {
     public class H264File : IDisposable
     {
+        private ILoggerFactory LoggerFactory { get; }
+        private ILogger Logger { get; }
+
         private bool disposed = false;
 
         private FileStream file;
         private BinaryReader reader;
 
-        public H264File()
+        public H264File(ILoggerFactory loggerFactory)
         {
+            LoggerFactory = loggerFactory;
+            Logger = LoggerFactory.CreateLogger<H264File>();
+
             var fileName = Environment.GetFolderPath(Environment.SpecialFolder.DesktopDirectory) + @"\sintel.h264";
             file = new FileStream(fileName, FileMode.Open, FileAccess.Read);
             reader = new BinaryReader(file);
@@ -120,11 +126,11 @@ namespace Momiji.Test.H264File
                     }
                     catch (TimeoutException te)
                     {
-                        Trace.WriteLine("[h264 file] timeout");
+                        Logger.LogInformation("[h264 file] timeout");
                         continue;
                     }
                 }
-                Trace.WriteLine("[h264 file] loop end");
+                Logger.LogInformation("[h264 file] loop end");
             });
         }
 
@@ -164,7 +170,7 @@ namespace Momiji.Test.H264File
             }
             catch (EndOfStreamException ee)
             {
-                Trace.WriteLine("[h264 file] end of stream");
+                Logger.LogInformation("[h264 file] end of stream");
             }
             return false;
         }
