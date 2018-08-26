@@ -1,5 +1,6 @@
 ﻿using Microsoft.Extensions.Logging;
 using Momiji.Interop;
+using Momiji.Interop.H264;
 using System;
 using System.Collections.Generic;
 using System.Reflection;
@@ -43,14 +44,14 @@ namespace Momiji.Core.H264
         private float MaxFrameRate { get; }
         private double IntraFrameIntervalUs { get; }
 
-        private Interop.H264.ISVCEncoderVtbl.InitializeProc Initialize;
-        private Interop.H264.ISVCEncoderVtbl.GetDefaultParamsProc GetDefaultParams;
-        private Interop.H264.ISVCEncoderVtbl.UninitializeProc Uninitialize;
-        private Interop.H264.ISVCEncoderVtbl.EncodeFrameProc EncodeFrame;
-        private Interop.H264.ISVCEncoderVtbl.EncodeParameterSetsProc EncodeParameterSets;
-        private Interop.H264.ISVCEncoderVtbl.ForceIntraFrameProc ForceIntraFrame;
-        private Interop.H264.ISVCEncoderVtbl.SetOptionProc SetOption;
-        private Interop.H264.ISVCEncoderVtbl.GetOptionProc GetOption;
+        private ISVCEncoderVtbl.InitializeProc Initialize;
+        private ISVCEncoderVtbl.GetDefaultParamsProc GetDefaultParams;
+        private ISVCEncoderVtbl.UninitializeProc Uninitialize;
+        private ISVCEncoderVtbl.EncodeFrameProc EncodeFrame;
+        private ISVCEncoderVtbl.EncodeParameterSetsProc EncodeParameterSets;
+        private ISVCEncoderVtbl.ForceIntraFrameProc ForceIntraFrame;
+        private ISVCEncoderVtbl.SetOptionProc SetOption;
+        private ISVCEncoderVtbl.GetOptionProc GetOption;
 
         public H264Encoder(
             int picWidth,
@@ -74,7 +75,7 @@ namespace Momiji.Core.H264
 
             {
                 IntPtr handle = IntPtr.Zero;
-                var result = Interop.H264.WelsCreateSVCEncoder(out handle);
+                var result = Encoder.WelsCreateSVCEncoder(out handle);
                 if (result != 0)
                 {
                     throw new H264Exception($"WelsCreateSVCEncoder failed {result}");
@@ -83,55 +84,55 @@ namespace Momiji.Core.H264
             }
 
             var temp = Marshal.PtrToStructure<IntPtr>(ISVCEncoderVtblPtr);
-            var vtbl = Marshal.PtrToStructure<Interop.H264.ISVCEncoderVtbl>(temp);
+            var vtbl = Marshal.PtrToStructure<ISVCEncoderVtbl>(temp);
             if (vtbl.Initialize != IntPtr.Zero)
             {
                 Initialize =
-                    Marshal.GetDelegateForFunctionPointer<Interop.H264.ISVCEncoderVtbl.InitializeProc>(vtbl.Initialize);
+                    Marshal.GetDelegateForFunctionPointer<ISVCEncoderVtbl.InitializeProc>(vtbl.Initialize);
             }
             if (vtbl.GetDefaultParams != IntPtr.Zero)
             {
                 GetDefaultParams =
-                    Marshal.GetDelegateForFunctionPointer<Interop.H264.ISVCEncoderVtbl.GetDefaultParamsProc>(vtbl.GetDefaultParams);
+                    Marshal.GetDelegateForFunctionPointer<ISVCEncoderVtbl.GetDefaultParamsProc>(vtbl.GetDefaultParams);
             }
             if (vtbl.Uninitialize != IntPtr.Zero)
             {
                 Uninitialize =
-                    Marshal.GetDelegateForFunctionPointer<Interop.H264.ISVCEncoderVtbl.UninitializeProc>(vtbl.Uninitialize);
+                    Marshal.GetDelegateForFunctionPointer<ISVCEncoderVtbl.UninitializeProc>(vtbl.Uninitialize);
             }
             if (vtbl.EncodeFrame != IntPtr.Zero)
             {
                 EncodeFrame =
-                    Marshal.GetDelegateForFunctionPointer<Interop.H264.ISVCEncoderVtbl.EncodeFrameProc>(vtbl.EncodeFrame);
+                    Marshal.GetDelegateForFunctionPointer<ISVCEncoderVtbl.EncodeFrameProc>(vtbl.EncodeFrame);
             }
             if (vtbl.EncodeParameterSets != IntPtr.Zero)
             {
                 EncodeParameterSets =
-                    Marshal.GetDelegateForFunctionPointer<Interop.H264.ISVCEncoderVtbl.EncodeParameterSetsProc>(vtbl.EncodeParameterSets);
+                    Marshal.GetDelegateForFunctionPointer<ISVCEncoderVtbl.EncodeParameterSetsProc>(vtbl.EncodeParameterSets);
             }
             if (vtbl.ForceIntraFrame != IntPtr.Zero)
             {
                 ForceIntraFrame =
-                    Marshal.GetDelegateForFunctionPointer<Interop.H264.ISVCEncoderVtbl.ForceIntraFrameProc>(vtbl.ForceIntraFrame);
+                    Marshal.GetDelegateForFunctionPointer<ISVCEncoderVtbl.ForceIntraFrameProc>(vtbl.ForceIntraFrame);
             }
             if (vtbl.SetOption != IntPtr.Zero)
             {
                 SetOption =
-                    Marshal.GetDelegateForFunctionPointer<Interop.H264.ISVCEncoderVtbl.SetOptionProc>(vtbl.SetOption);
+                    Marshal.GetDelegateForFunctionPointer<ISVCEncoderVtbl.SetOptionProc>(vtbl.SetOption);
             }
             if (vtbl.GetOption != IntPtr.Zero)
             {
                 GetOption =
-                    Marshal.GetDelegateForFunctionPointer<Interop.H264.ISVCEncoderVtbl.GetOptionProc>(vtbl.GetOption);
+                    Marshal.GetDelegateForFunctionPointer<ISVCEncoderVtbl.GetOptionProc>(vtbl.GetOption);
             }
 
-            using (var param = new PinnedBuffer<Interop.H264.SEncParamBase>(new Interop.H264.SEncParamBase()))
+            using (var param = new PinnedBuffer<SEncParamBase>(new SEncParamBase()))
             {
-                param.Target.iUsageType = Interop.H264.EUsageType.CAMERA_VIDEO_REAL_TIME;
+                param.Target.iUsageType = EUsageType.CAMERA_VIDEO_REAL_TIME;
                 param.Target.iPicWidth = PicWidth;
                 param.Target.iPicHeight = PicHeight;
                 param.Target.iTargetBitrate = TargetBitrate;
-                param.Target.iRCMode = Interop.H264.RC_MODES.RC_QUALITY_MODE;
+                param.Target.iRCMode = RC_MODES.RC_QUALITY_MODE;
                 param.Target.fMaxFrameRate = MaxFrameRate;
 
                 var result = Initialize(ISVCEncoderVtblPtr, param.AddrOfPinnedObject);
@@ -160,7 +161,7 @@ namespace Momiji.Core.H264
                 {
                     Uninitialize(ISVCEncoderVtblPtr);
 
-                    Interop.H264.WelsDestroySVCEncoder(ISVCEncoderVtblPtr);
+                    Encoder.WelsDestroySVCEncoder(ISVCEncoderVtblPtr);
                     ISVCEncoderVtblPtr = IntPtr.Zero;
                 }
             }
@@ -175,10 +176,10 @@ namespace Momiji.Core.H264
         {
             var frameSize = PicWidth * PicHeight * 3 / 2;
             using (var buffer = new PinnedBuffer<byte[]>(new byte[frameSize]))
-            using (var SSourcePictureBuffer = new PinnedBuffer<Interop.H264.SSourcePicture>(new Interop.H264.SSourcePicture()))
-            using (var SFrameBSInfoBuffer = new PinnedBuffer<Interop.H264.SFrameBSInfo>(new Interop.H264.SFrameBSInfo()))
+            using (var SSourcePictureBuffer = new PinnedBuffer<SSourcePicture>(new SSourcePicture()))
+            using (var SFrameBSInfoBuffer = new PinnedBuffer<SFrameBSInfo>(new SFrameBSInfo()))
             {
-                SSourcePictureBuffer.Target.iColorFormat = Interop.H264.EVideoFormatType.videoFormatI420;
+                SSourcePictureBuffer.Target.iColorFormat = EVideoFormatType.videoFormatI420;
                 SSourcePictureBuffer.Target.iStride0 = PicWidth;
                 SSourcePictureBuffer.Target.iStride1 = PicWidth >> 1;
                 SSourcePictureBuffer.Target.iStride2 = PicWidth >> 1;
@@ -193,7 +194,7 @@ namespace Momiji.Core.H264
                 var layerInfoList = new List<FieldInfo>();
                 for (var idx = 0; idx < 128; idx++)
                 {
-                    layerInfoList.Add(typeof(Interop.H264.SFrameBSInfo).GetField($"sLayerInfo{idx:000}"));
+                    layerInfoList.Add(typeof(SFrameBSInfo).GetField($"sLayerInfo{idx:000}"));
                 }
 
                 await Task.Run(() =>
@@ -255,7 +256,7 @@ namespace Momiji.Core.H264
 
                                 for (var idx = 0; idx < SFrameBSInfoBuffer.Target.iLayerNum; idx++)
                                 {
-                                    var layer = (Interop.H264.SLayerBSInfo)layerInfoList[idx].GetValue(SFrameBSInfoBuffer.Target);
+                                    var layer = (SLayerBSInfo)layerInfoList[idx].GetValue(SFrameBSInfoBuffer.Target);
                                     var bsBuf = layer.pBsBuf;
 
                                     for (var nalIdx = 0; nalIdx < layer.iNalCount; nalIdx++)

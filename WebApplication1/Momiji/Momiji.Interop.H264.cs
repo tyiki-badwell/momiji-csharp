@@ -1,10 +1,8 @@
 ﻿using System;
 using System.Runtime.InteropServices;
 
-namespace Momiji.Interop
+namespace Momiji.Interop.H264
 {
-    public class H264
-    {
         /**
         * @brief Option types introduced in SVC encoder application
         */
@@ -615,12 +613,14 @@ namespace Momiji.Interop
             );
         }
 
-        //typedef void (*WelsTraceCallback) (void* ctx, int level, const char* string);
+    //typedef void (*WelsTraceCallback) (void* ctx, int level, const char* string);
 
+    public class Encoder
+    {
         /** @brief   Create encoder
-         *  @param   ppEncoder encoder
-         *  @return  0 - success; otherwise - failed;
-        */
+          *  @param   ppEncoder encoder
+          *  @return  0 - success; otherwise - failed;
+         */
         //int WelsCreateSVCEncoder(ISVCEncoder** ppEncoder);
         [DllImport("openH264.dll", CallingConvention = CallingConvention.Cdecl)]
         internal static extern int WelsCreateSVCEncoder(
@@ -669,10 +669,5 @@ namespace Momiji.Interop
          *  @param   pVersion  struct to fill in with the version
         */
         //void WelsGetCodecVersionEx(OpenH264Version* pVersion);
-
-
-
-
-
     }
 }
