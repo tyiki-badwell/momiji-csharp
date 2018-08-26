@@ -134,7 +134,7 @@ namespace Momiji.Core.H264
                 param.Target.iRCMode = Interop.H264.RC_MODES.RC_QUALITY_MODE;
                 param.Target.fMaxFrameRate = MaxFrameRate;
 
-                var result = Initialize(ISVCEncoderVtblPtr, param.AddrOfPinnedObject());
+                var result = Initialize(ISVCEncoderVtblPtr, param.AddrOfPinnedObject);
                 if (result != 0)
                 {
                     throw new H264Exception($"WelsCreateSVCEncoder Initialize failed {result}");
@@ -183,7 +183,7 @@ namespace Momiji.Core.H264
                 SSourcePictureBuffer.Target.iStride1 = PicWidth >> 1;
                 SSourcePictureBuffer.Target.iStride2 = PicWidth >> 1;
                 SSourcePictureBuffer.Target.iStride3 = 0;
-                SSourcePictureBuffer.Target.pData0 = buffer.AddrOfPinnedObject();
+                SSourcePictureBuffer.Target.pData0 = buffer.AddrOfPinnedObject;
                 SSourcePictureBuffer.Target.pData1 = SSourcePictureBuffer.Target.pData0 + (PicWidth * PicHeight);
                 SSourcePictureBuffer.Target.pData2 = SSourcePictureBuffer.Target.pData1 + (PicWidth * PicHeight >> 2);
                 SSourcePictureBuffer.Target.pData3 = IntPtr.Zero;
@@ -246,7 +246,7 @@ namespace Momiji.Core.H264
 
                                 {
                                     SSourcePictureBuffer.Target.uiTimeStamp = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
-                                    var result = EncodeFrame(ISVCEncoderVtblPtr, SSourcePictureBuffer.AddrOfPinnedObject(), SFrameBSInfoBuffer.AddrOfPinnedObject());
+                                    var result = EncodeFrame(ISVCEncoderVtblPtr, SSourcePictureBuffer.AddrOfPinnedObject, SFrameBSInfoBuffer.AddrOfPinnedObject);
                                     if (result != 0)
                                     {
                                         throw new H264Exception($"WelsCreateSVCEncoder EncodeFrame failed {result}");
@@ -262,7 +262,7 @@ namespace Momiji.Core.H264
                                     {
                                         var data = bufferQueue.Receive(new TimeSpan(20_000_000), ct);
                                         var length = Marshal.ReadInt32(layer.pNalLengthInByte, nalIdx * Marshal.SizeOf<Int32>());
-                                        CopyMemory(data.AddrOfPinnedObject(), bsBuf+4, length-4);
+                                        CopyMemory(data.AddrOfPinnedObject, bsBuf+4, length-4);
                                         bsBuf += length;
                                         data.Wrote = length-4;
                                         data.EndOfFrame = (nalIdx == layer.iNalCount-1);

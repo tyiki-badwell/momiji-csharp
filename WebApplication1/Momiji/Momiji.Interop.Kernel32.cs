@@ -7,6 +7,10 @@ namespace Momiji.Interop
 {
     public class Kernel32
     {
+        private Kernel32()
+        {
+        }
+
         public enum ACCESS_TYPES : UInt32
         {
             //  The following are masks for the predefined standard access types
@@ -151,13 +155,5 @@ namespace Momiji.Interop
         internal static extern Boolean SetDllDirectory(
             [In]   string lpPathName
         );
-        /*
-        [DllImport("kernel32.dll", CallingConvention = CallingConvention.Cdecl, CharSet = CharSet.Unicode, SetLastError = true)]
-        internal static extern void RtlCopyMemory(
-            [In]   IntPtr Destination,
-            [In]   IntPtr Source,
-            [In]   long Length
-        );
-        */
     }
 }

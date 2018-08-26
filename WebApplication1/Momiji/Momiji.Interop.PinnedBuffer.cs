@@ -34,9 +34,11 @@ namespace Momiji.Interop
             disposed = true;
         }
 
-        public IntPtr AddrOfPinnedObject()
-        {
-            return handle.AddrOfPinnedObject();
+        public IntPtr AddrOfPinnedObject {
+            get
+            {
+                return handle.AddrOfPinnedObject();
+            }
         }
 
         public T Target

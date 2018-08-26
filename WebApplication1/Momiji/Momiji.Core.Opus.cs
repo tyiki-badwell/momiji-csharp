@@ -1,5 +1,6 @@
 ﻿using Microsoft.Extensions.Logging;
 using Momiji.Interop;
+using Momiji.Interop.Opus;
 using System;
 using System.Threading;
 using System.Threading.Tasks;
@@ -22,25 +23,25 @@ namespace Momiji.Core.Opus
         private ILogger Logger { get; }
 
         private bool disposed = false;
-        private Interop.Opus.OpusEncoder encoder;
+        private Encoder encoder;
 
         public OpusEncoder(
-            Interop.Opus.SamplingRate Fs,
-            Interop.Opus.Channels channels, 
+            SamplingRate Fs,
+            Channels channels, 
             ILoggerFactory loggerFactory
         )
         {
             LoggerFactory = loggerFactory;
             Logger = LoggerFactory.CreateLogger<OpusEncoder>();
 
-            var error = Interop.Opus.OpusStatusCode.Unimplemented;
+            var error = OpusStatusCode.Unimplemented;
 
             encoder =
-                Interop.Opus.opus_encoder_create(
-                    Fs, channels, Interop.Opus.OpusApplicationType.Audio, out error
+                Encoder.opus_encoder_create(
+                    Fs, channels, OpusApplicationType.Audio, out error
                 );
 
-            if (error != Interop.Opus.OpusStatusCode.OK)
+            if (error != OpusStatusCode.OK)
             {
                 throw new Exception($"[opus] opus_encoder_create error:{error}");
             }
@@ -94,11 +95,11 @@ namespace Momiji.Core.Opus
                         var data = bufferQueue.Receive(new TimeSpan(20_000_000), ct);
                         //Logger.LogInformation("[opus] get data");
 
-                        data.Wrote = Interop.Opus.opus_encode_float(
+                        data.Wrote = Encoder.opus_encode_float(
                             encoder,
-                            pcm.AddrOfPinnedObject(),
+                            pcm.AddrOfPinnedObject,
                             pcm.Target.Length / 2,
-                            data.AddrOfPinnedObject(),
+                            data.AddrOfPinnedObject,
                             data.Target.Length
                             );
 

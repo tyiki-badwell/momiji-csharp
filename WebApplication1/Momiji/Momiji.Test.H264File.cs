@@ -105,7 +105,7 @@ namespace Momiji.Test.H264File
                             idx++;
                         }
 
-                        Marshal.Copy(current, 0, data.AddrOfPinnedObject(), currentLen);
+                        Marshal.Copy(current, 0, data.AddrOfPinnedObject, currentLen);
                         data.Wrote = currentLen;
                         // 仮コード
                         data.EndOfFrame = (nal_unit_type == 1 || nal_unit_type == 5);

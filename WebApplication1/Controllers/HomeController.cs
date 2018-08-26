@@ -9,6 +9,8 @@ using Momiji.Core.Vst;
 using Momiji.Core.Wave;
 using Momiji.Core.WebMidi;
 using Momiji.Interop;
+using Momiji.Interop.Opus;
+using Momiji.Interop.Vst;
 using Momiji.Test.H264File;
 using System;
 using System.Collections.Generic;
@@ -29,7 +31,7 @@ namespace WebApplication1.Controllers
         private ILoggerFactory LoggerFactory { get; }
         private ILogger Logger { get; }
 
-        private static BufferBlock<Vst.VstMidiEvent> midiEventInput = new BufferBlock<Vst.VstMidiEvent>();
+        private static BufferBlock<VstMidiEvent> midiEventInput = new BufferBlock<VstMidiEvent>();
 
         public HomeController(IConfiguration configuration, ILoggerFactory loggerFactory)
         {
@@ -80,7 +82,7 @@ namespace WebApplication1.Controllers
                     using (var opusPool = new BufferPool<OpusOutputBuffer>(2, () => { return new OpusOutputBuffer(5000); }))
                     using (var videoPool = new BufferPool<H264OutputBuffer>(3, () => { return new H264OutputBuffer(10000000); }))
                     using (var vst = new AudioMaster<float>(samplingRate, blockSize, LoggerFactory, timer))
-                    using (var encoder = new OpusEncoder(Opus.SamplingRate.Sampling48000, Opus.Channels.Stereo, LoggerFactory))
+                    using (var encoder = new OpusEncoder(SamplingRate.Sampling48000, Channels.Stereo, LoggerFactory))
                     using (var h264 = new H264Encoder(1280, 720, 5_000_000, 60.0f, 1000, LoggerFactory, timer))
                     //using (var h264 = new H264File(LoggerFactory))
                     {
@@ -375,7 +377,7 @@ namespace WebApplication1.Controllers
 
                         using (var timer = new Momiji.Core.Timer())
                         using (var vst = new AudioMaster<float>(samplingRate, blockSize, LoggerFactory, timer))
-                        using (var encoder = new OpusEncoder(Opus.SamplingRate.Sampling48000, Opus.Channels.Stereo, LoggerFactory))
+                        using (var encoder = new OpusEncoder(SamplingRate.Sampling48000, Channels.Stereo, LoggerFactory))
                         {
                             var effect = vst.AddEffect("Synth1 VST.dll");
 
@@ -429,12 +431,12 @@ namespace WebApplication1.Controllers
             {
                 Logger.LogInformation($"note {DateTimeOffset.FromUnixTimeMilliseconds((long)item.receivedTime).ToUniversalTime()}");
 
-                var vstEvent = new Vst.VstMidiEvent
+                var vstEvent = new VstMidiEvent
                 {
-                    type = Vst.VstEvent.VstEventTypes.kVstMidiType,
-                    byteSize = Marshal.SizeOf<Vst.VstMidiEvent>(),
+                    type = VstEvent.VstEventTypes.kVstMidiType,
+                    byteSize = Marshal.SizeOf<VstMidiEvent>(),
                     deltaFrames = 0,
-                    flags = Vst.VstMidiEvent.VstMidiEventFlags.kVstMidiEventIsRealtime,
+                    flags = VstMidiEvent.VstMidiEventFlags.kVstMidiEventIsRealtime,
 
                     midiData0 = item.data[0],
                     midiData1 = item.data[1],

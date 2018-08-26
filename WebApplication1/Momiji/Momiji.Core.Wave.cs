@@ -206,7 +206,7 @@ namespace Momiji.Core.Wave
             var header = headerQueue.Receive(ct);
             {
                 var waveHeader = header.Target;
-                waveHeader.data = data.AddrOfPinnedObject();
+                waveHeader.data = data.AddrOfPinnedObject;
                 waveHeader.bufferLength = (uint)(data.Target.Length * SIZE_OF_T);
                 waveHeader.flags = 0;
                 waveHeader.loops = 1;
@@ -220,7 +220,7 @@ namespace Momiji.Core.Wave
             var mmResult =
                 Interop.Wave.waveOutPrepareHeader(
                     handle,
-                    header.AddrOfPinnedObject(),
+                    header.AddrOfPinnedObject,
                     SIZE_OF_WAVEHEADER
                 );
             if (mmResult != Interop.Wave.MMRESULT.NOERROR)
@@ -228,9 +228,9 @@ namespace Momiji.Core.Wave
                 headerQueue.Post(header);
                 throw new WaveException(mmResult);
             }
-            headerBusyPool.Add(header.AddrOfPinnedObject(), header);
-            dataBusyPool.Add(data.AddrOfPinnedObject(), data);
-            return header.AddrOfPinnedObject();
+            headerBusyPool.Add(header.AddrOfPinnedObject, header);
+            dataBusyPool.Add(data.AddrOfPinnedObject, data);
+            return header.AddrOfPinnedObject;
         }
 
         private PcmBuffer<T> Unprepare(IntPtr headerPtr)

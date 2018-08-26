@@ -1,5 +1,6 @@
 ﻿using Microsoft.Extensions.Logging;
 using Momiji.Interop;
+using Momiji.Interop.Vst;
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
@@ -7,8 +8,6 @@ using System.Runtime.InteropServices;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Threading.Tasks.Dataflow;
-using static Momiji.Interop.Vst;
-using static Momiji.Interop.Vst.VstTimeInfo;
 
 namespace Momiji.Core.Vst
 {
@@ -31,7 +30,7 @@ namespace Momiji.Core.Vst
             {
                 var buffer = new PinnedBuffer<T[]>(new T[blockSize]);
                 list.Add(buffer);
-                Target[i] = buffer.AddrOfPinnedObject();
+                Target[i] = buffer.AddrOfPinnedObject;
             }
         }
 
@@ -92,9 +91,9 @@ namespace Momiji.Core.Vst
             timeInfo.timeSigNumerator = 4;
             timeInfo.timeSigDenominator = 4;
             timeInfo.smpteOffset = 0;
-            timeInfo.smpteFrameRate = VstSmpteFrameRate.kVstSmpte24fps;
+            timeInfo.smpteFrameRate = VstTimeInfo.VstSmpteFrameRate.kVstSmpte24fps;
             timeInfo.samplesToNextClock = 0;
-            timeInfo.flags = VstTimeInfoFlags.kVstTempoValid | VstTimeInfoFlags.kVstNanosValid;
+            timeInfo.flags = VstTimeInfo.VstTimeInfoFlags.kVstTempoValid | VstTimeInfo.VstTimeInfoFlags.kVstNanosValid;
         }
 
         public Effect<T> AddEffect(string library)
@@ -131,7 +130,7 @@ namespace Momiji.Core.Vst
 
         internal IntPtr AudioMasterCallBackProc(
             IntPtr/*AEffect^*/		aeffectPtr,
-            AudioMasterOpcodes opcode,
+            AudioMaster.Opcodes opcode,
             Int32 index,
             IntPtr value,
             IntPtr ptr,
@@ -140,20 +139,20 @@ namespace Momiji.Core.Vst
         {
             switch (opcode)
             {
-                case AudioMasterOpcodes.audioMasterVersion:
+                case AudioMaster.Opcodes.audioMasterVersion:
                     {
                         return new IntPtr(2400);
                     }
-                case AudioMasterOpcodes.audioMasterGetTime:
+                case AudioMaster.Opcodes.audioMasterGetTime:
                     {
                         vstTimeInfo.Target.nanoSeconds = Timer.USec * 1000;
 
-                        return vstTimeInfo.AddrOfPinnedObject();
+                        return vstTimeInfo.AddrOfPinnedObject;
                     }
-                case AudioMasterOpcodes.audioMasterGetSampleRate:
+                case AudioMaster.Opcodes.audioMasterGetSampleRate:
                     return new IntPtr(SamplingRate);
 
-                case AudioMasterOpcodes.audioMasterGetBlockSize:
+                case AudioMaster.Opcodes.audioMasterGetBlockSize:
                     return new IntPtr(BlockSize);
 
                 default:
@@ -174,11 +173,11 @@ namespace Momiji.Core.Vst
         private Kernel32.DynamicLinkLibrary dll;
         public IntPtr AeffectPtr { get; private set; }
 
-        private AEffectDispatcherProc dispatcher;
-        private AEffectSetParameterProc setParameter;
-        private AEffectGetParameterProc getParameter;
-        private AEffectProcessProc processReplacing;
-        private AEffectProcessDoubleProc processDoubleReplacing;
+        private AEffect.DispatcherProc dispatcher;
+        private AEffect.SetParameterProc setParameter;
+        private AEffect.GetParameterProc getParameter;
+        private AEffect.ProcessProc processReplacing;
+        private AEffect.ProcessDoubleProc processDoubleReplacing;
 
         int numOutputs;
         private AudioMaster<T> audioMaster;
@@ -213,7 +212,7 @@ namespace Momiji.Core.Vst
             }
 
             var vstPluginMain =
-                Marshal.GetDelegateForFunctionPointer<VSTPluginMain>(proc);
+                Marshal.GetDelegateForFunctionPointer<AudioMaster.VSTPluginMain>(proc);
 
             AeffectPtr = vstPluginMain(audioMaster.AudioMasterCallBackProc);
             var aeffect = Marshal.PtrToStructure<AEffect>(AeffectPtr);
@@ -251,25 +250,25 @@ namespace Momiji.Core.Vst
             if (aeffect.dispatcher != IntPtr.Zero)
             {
                 dispatcher =
-                    Marshal.GetDelegateForFunctionPointer<AEffectDispatcherProc>(aeffect.dispatcher);
+                    Marshal.GetDelegateForFunctionPointer<AEffect.DispatcherProc>(aeffect.dispatcher);
             }
 
             if (aeffect.setParameter != IntPtr.Zero)
             {
                 setParameter =
-                    Marshal.GetDelegateForFunctionPointer<AEffectSetParameterProc>(aeffect.setParameter);
+                    Marshal.GetDelegateForFunctionPointer<AEffect.SetParameterProc>(aeffect.setParameter);
             }
 
             if (aeffect.getParameter != IntPtr.Zero)
             {
                 getParameter =
-                    Marshal.GetDelegateForFunctionPointer<AEffectGetParameterProc>(aeffect.getParameter);
+                    Marshal.GetDelegateForFunctionPointer<AEffect.GetParameterProc>(aeffect.getParameter);
             }
 
             if (aeffect.processReplacing != IntPtr.Zero)
             {
                 processReplacing =
-                    Marshal.GetDelegateForFunctionPointer<AEffectProcessProc>(aeffect.processReplacing);
+                    Marshal.GetDelegateForFunctionPointer<AEffect.ProcessProc>(aeffect.processReplacing);
             }
             else
             {
@@ -279,7 +278,7 @@ namespace Momiji.Core.Vst
             if (aeffect.processDoubleReplacing != IntPtr.Zero)
             {
                 processDoubleReplacing =
-                    Marshal.GetDelegateForFunctionPointer<AEffectProcessDoubleProc>(aeffect.processDoubleReplacing);
+                    Marshal.GetDelegateForFunctionPointer<AEffect.ProcessDoubleProc>(aeffect.processDoubleReplacing);
             }
 
             Open(audioMaster);
@@ -316,8 +315,8 @@ namespace Momiji.Core.Vst
                                 break;
                             }
 
-                            var eventsPtr = events.AddrOfPinnedObject();
-                            var eventListPtr = eventList.AddrOfPinnedObject();
+                            var eventsPtr = events.AddrOfPinnedObject;
+                            var eventListPtr = eventList.AddrOfPinnedObject;
 
                             try
                             {
@@ -367,10 +366,10 @@ namespace Momiji.Core.Vst
                                     var processEventsResult =
                                         dispatcher(
                                             AeffectPtr,
-                                            AEffectOpcodes.effProcessEvents,
+                                            AEffect.Opcodes.effProcessEvents,
                                             0,
                                             IntPtr.Zero,
-                                            events.AddrOfPinnedObject(),
+                                            events.AddrOfPinnedObject,
                                             0
                                         );
                                 //    Logger.LogInformation($"effProcessEvents:{processEventsResult}");
@@ -379,7 +378,7 @@ namespace Momiji.Core.Vst
                                 processReplacing(
                                     AeffectPtr,
                                     IntPtr.Zero,
-                                    buffer.AddrOfPinnedObject(),
+                                    buffer.AddrOfPinnedObject,
                                     blockSize
                                 );
 
@@ -415,7 +414,7 @@ namespace Momiji.Core.Vst
             var openResult =
                 dispatcher(
                     AeffectPtr,
-                    AEffectOpcodes.effOpen,
+                    AEffect.Opcodes.effOpen,
                     0,
                     IntPtr.Zero,
                     IntPtr.Zero,
@@ -426,7 +425,7 @@ namespace Momiji.Core.Vst
             var setSampleRateResult =
                 dispatcher(
                     AeffectPtr,
-                    AEffectOpcodes.effSetSampleRate,
+                    AEffect.Opcodes.effSetSampleRate,
                     0,
                     IntPtr.Zero,
                     IntPtr.Zero,
@@ -436,7 +435,7 @@ namespace Momiji.Core.Vst
             var setBlockSizeResult =
                 dispatcher(
                     AeffectPtr,
-                    AEffectOpcodes.effSetBlockSize,
+                    AEffect.Opcodes.effSetBlockSize,
                     0,
                     new IntPtr(audioMaster.BlockSize),
                     IntPtr.Zero,
@@ -447,7 +446,7 @@ namespace Momiji.Core.Vst
             var resumeResult =
                 dispatcher(
                     AeffectPtr,
-                    AEffectOpcodes.effMainsChanged,
+                    AEffect.Opcodes.effMainsChanged,
                     0,
                     new IntPtr(1),
                     IntPtr.Zero,
@@ -458,7 +457,7 @@ namespace Momiji.Core.Vst
             var startProcessResult =
                 dispatcher(
                     AeffectPtr,
-                    AEffectOpcodes.effStartProcess,
+                    AEffect.Opcodes.effStartProcess,
                     0,
                     IntPtr.Zero,
                     IntPtr.Zero,
@@ -473,7 +472,7 @@ namespace Momiji.Core.Vst
             var stopProcessResult =
                 dispatcher(
                     AeffectPtr,
-                    AEffectOpcodes.effStopProcess,
+                    AEffect.Opcodes.effStopProcess,
                     0,
                     IntPtr.Zero,
                     IntPtr.Zero,
@@ -484,7 +483,7 @@ namespace Momiji.Core.Vst
             var suspendResult =
                 dispatcher(
                     AeffectPtr,
-                    AEffectOpcodes.effMainsChanged,
+                    AEffect.Opcodes.effMainsChanged,
                     0,
                     IntPtr.Zero,
                     IntPtr.Zero,
@@ -495,7 +494,7 @@ namespace Momiji.Core.Vst
             var closeResult =
                 dispatcher(
                     AeffectPtr,
-                    AEffectOpcodes.effClose,
+                    AEffect.Opcodes.effClose,
                     0,
                     IntPtr.Zero,
                     IntPtr.Zero,
