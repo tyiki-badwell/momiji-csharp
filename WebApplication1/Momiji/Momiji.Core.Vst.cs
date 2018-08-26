@@ -3,7 +3,6 @@ using Momiji.Interop;
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
-using System.Diagnostics;
 using System.Runtime.InteropServices;
 using System.Threading;
 using System.Threading.Tasks;
@@ -13,6 +12,14 @@ using static Momiji.Interop.Vst.VstTimeInfo;
 
 namespace Momiji.Core.Vst
 {
+    public class VstException : Exception
+    {
+        public VstException(string message) : base(message)
+        {
+        }
+
+    }
+
     public class VstBuffer<T> : PinnedBuffer<IntPtr[]> where T : struct
     {
         private bool disposed = false;
@@ -52,6 +59,7 @@ namespace Momiji.Core.Vst
     {
         private ILoggerFactory LoggerFactory { get; }
         private ILogger Logger { get; }
+        private Timer Timer { get; }
 
         private bool disposed = false;
         private IDictionary<IntPtr, Effect<T>> effectMap = new ConcurrentDictionary<IntPtr, Effect<T>>();
@@ -61,10 +69,11 @@ namespace Momiji.Core.Vst
         public Int32 SamplingRate { get; }
         public Int32 BlockSize { get; }
 
-        public AudioMaster(Int32 samplingRate, Int32 blockSize, ILoggerFactory loggerFactory)
+        public AudioMaster(Int32 samplingRate, Int32 blockSize, ILoggerFactory loggerFactory, Timer timer)
         {
             LoggerFactory = loggerFactory;
             Logger = LoggerFactory.CreateLogger<AudioMaster<T>>();
+            Timer = timer;
 
             SamplingRate = samplingRate;
             BlockSize = blockSize;
@@ -90,7 +99,7 @@ namespace Momiji.Core.Vst
 
         public Effect<T> AddEffect(string library)
         {
-            var effect = new Effect<T>(library, this, LoggerFactory);
+            var effect = new Effect<T>(library, this, LoggerFactory, Timer);
             effectMap.Add(effect.AeffectPtr, effect);
             return effect;
         }
@@ -137,7 +146,7 @@ namespace Momiji.Core.Vst
                     }
                 case AudioMasterOpcodes.audioMasterGetTime:
                     {
-                        vstTimeInfo.Target.nanoSeconds = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds() * 1000000;
+                        vstTimeInfo.Target.nanoSeconds = Timer.USec * 1000;
 
                         return vstTimeInfo.AddrOfPinnedObject();
                     }
@@ -159,6 +168,7 @@ namespace Momiji.Core.Vst
     {
         private ILoggerFactory LoggerFactory { get; }
         private ILogger Logger { get; }
+        private Timer Timer { get; }
 
         private bool disposed = false;
         private Kernel32.DynamicLinkLibrary dll;
@@ -173,10 +183,11 @@ namespace Momiji.Core.Vst
         int numOutputs;
         private AudioMaster<T> audioMaster;
 
-        public Effect(string library, AudioMaster<T> audioMaster, ILoggerFactory loggerFactory)
+        public Effect(string library, AudioMaster<T> audioMaster, ILoggerFactory loggerFactory, Timer timer)
         {
             LoggerFactory = loggerFactory;
             Logger = LoggerFactory.CreateLogger<Effect<T>>();
+            Timer = timer;
 
             this.audioMaster = audioMaster;
 
@@ -260,6 +271,10 @@ namespace Momiji.Core.Vst
                 processReplacing =
                     Marshal.GetDelegateForFunctionPointer<AEffectProcessProc>(aeffect.processReplacing);
             }
+            else
+            {
+                throw new VstException("processReplacing が無い");
+            }
 
             if (aeffect.processDoubleReplacing != IntPtr.Zero)
             {
@@ -289,9 +304,8 @@ namespace Momiji.Core.Vst
                     var sizeVstMidiEvent = Marshal.SizeOf<VstMidiEvent>();
                     var sizeIntPtr = Marshal.SizeOf<IntPtr>();
 
-                    var stopwatch = Stopwatch.StartNew();
-                    var before = stopwatch.ElapsedMilliseconds;
-                    var interval = (long)(audioMaster.BlockSize / (float)audioMaster.SamplingRate * 1000.0);
+                    var before = Timer.USecDouble;
+                    var interval = (((double)audioMaster.BlockSize / audioMaster.SamplingRate) * 1000000.0);
 
                     using (var s = new SemaphoreSlim(1))
                     {
@@ -310,16 +324,16 @@ namespace Momiji.Core.Vst
                                 //Logger.LogInformation("[vst] get data TRY");
                                 var data = bufferQueue.Receive(new TimeSpan(20_000_000), ct);
                                 {
-                                    var after = stopwatch.ElapsedMilliseconds;
+                                    var after = Timer.USecDouble;
                                     var diff = after - before;
                                     var left = interval - diff;
                                     if (left > 0)
                                     {
                                         //セマフォで時間調整を行う
-                                        s.Wait((int)left, ct);
-                                        after = stopwatch.ElapsedMilliseconds;
+                                        s.Wait((int)(left / 1000), ct);
+                                        after = Timer.USecDouble;
                                     }
-                                //    Logger.LogInformation($"[vst] get data OK [{diff}+{left}]ms [{interval}]ms ");
+                                    //Logger.LogInformation($"[vst] get data OK [{diff}+{left}]us [{interval}]us");
                                     before = after;
                                 }
 
@@ -383,10 +397,6 @@ namespace Momiji.Core.Vst
                                 }
 
                                 outputQueue.Post(data);
-
-                                var finish = stopwatch.ElapsedMilliseconds;
-
-                            //    Logger.LogInformation($"[vst] post data:[{finish - before}]ms");
                             }
                             catch (TimeoutException te)
                             {

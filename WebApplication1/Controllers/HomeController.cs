@@ -75,12 +75,13 @@ namespace WebApplication1.Controllers
                     0.12
                      */
 
+                    using (var timer = new Momiji.Core.Timer())
                     using (var pcmPool = new BufferPool<PcmBuffer<float>>(2, () => { return new PcmBuffer<float>(blockSize, 2); }))
                     using (var opusPool = new BufferPool<OpusOutputBuffer>(2, () => { return new OpusOutputBuffer(5000); }))
                     using (var videoPool = new BufferPool<H264OutputBuffer>(3, () => { return new H264OutputBuffer(10000000); }))
-                    using (var vst = new AudioMaster<float>(samplingRate, blockSize, LoggerFactory))
+                    using (var vst = new AudioMaster<float>(samplingRate, blockSize, LoggerFactory, timer))
                     using (var encoder = new OpusEncoder(Opus.SamplingRate.Sampling48000, Opus.Channels.Stereo, LoggerFactory))
-                    using (var h264 = new H264Encoder(1280, 720, 5_000_000, 30.0f, LoggerFactory))
+                    using (var h264 = new H264Encoder(1280, 720, 5_000_000, 60.0f, 1000, LoggerFactory, timer))
                     //using (var h264 = new H264File(LoggerFactory))
                     {
                         var vstToOpusInput = pcmPool.makeEmptyBufferBlock();
@@ -92,7 +93,7 @@ namespace WebApplication1.Controllers
 
                         var effect = vst.AddEffect("Synth1 VST.dll");
 
-                        using (var ftl = new FtlIngest($"{Configuration["MIXER_STREAM_KEY"]}", LoggerFactory))
+                        using (var ftl = new FtlIngest($"{Configuration["MIXER_STREAM_KEY"]}", LoggerFactory, timer))
                         {
                             var taskSet = new HashSet<Task>();
 
@@ -176,7 +177,8 @@ namespace WebApplication1.Controllers
                         var vstToOpusInput = pcmPool.makeBufferBlock();
                         var vstToOpusOutput = new BufferBlock<PcmBuffer<float>>();
 
-                        using (var vst = new AudioMaster<float>(samplingRate, blockSize, LoggerFactory))
+                        using (var timer = new Momiji.Core.Timer())
+                        using (var vst = new AudioMaster<float>(samplingRate, blockSize, LoggerFactory, timer))
                         using (var wave = new WaveOutFloat(
                             0,
                             2,
@@ -328,7 +330,8 @@ namespace WebApplication1.Controllers
                     {
                         var videoToFtlInput = videoPool.makeBufferBlock();
 
-                        using (var h264 = new H264Encoder(100, 100, 5_000_000, 30.0f, LoggerFactory))
+                        using (var timer = new Momiji.Core.Timer())
+                        using (var h264 = new H264Encoder(100, 100, 5_000_000, 30.0f, 1000, LoggerFactory, timer))
                         {
                         }
                     }
@@ -370,7 +373,8 @@ namespace WebApplication1.Controllers
                         opusToFtlInput.Post(out1);
                         opusToFtlInput.Post(out2);
 
-                        using (var vst = new AudioMaster<float>(samplingRate, blockSize, LoggerFactory))
+                        using (var timer = new Momiji.Core.Timer())
+                        using (var vst = new AudioMaster<float>(samplingRate, blockSize, LoggerFactory, timer))
                         using (var encoder = new OpusEncoder(Opus.SamplingRate.Sampling48000, Opus.Channels.Stereo, LoggerFactory))
                         {
                             var effect = vst.AddEffect("Synth1 VST.dll");

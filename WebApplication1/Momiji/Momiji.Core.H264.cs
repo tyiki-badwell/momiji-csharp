@@ -2,7 +2,6 @@
 using Momiji.Interop;
 using System;
 using System.Collections.Generic;
-using System.Diagnostics;
 using System.Reflection;
 using System.Runtime.InteropServices;
 using System.Threading;
@@ -33,6 +32,7 @@ namespace Momiji.Core.H264
     {
         private ILoggerFactory LoggerFactory { get; }
         private ILogger Logger { get; }
+        private Timer Timer { get; }
 
         private bool disposed = false;
         private IntPtr ISVCEncoderVtblPtr { get; set; }
@@ -41,6 +41,7 @@ namespace Momiji.Core.H264
         private int PicHeight { get; }
         private int TargetBitrate { get; }
         private float MaxFrameRate { get; }
+        private double IntraFrameIntervalUs { get; }
 
         private Interop.H264.ISVCEncoderVtbl.InitializeProc Initialize;
         private Interop.H264.ISVCEncoderVtbl.GetDefaultParamsProc GetDefaultParams;
@@ -56,16 +57,21 @@ namespace Momiji.Core.H264
             int picHeight,
             int targetBitrate,
             float maxFrameRate, 
-            ILoggerFactory loggerFactory
+            int intraFrameIntervalMs,
+            ILoggerFactory loggerFactory, 
+            Timer timer
         )
         {
             LoggerFactory = loggerFactory;
             Logger = LoggerFactory.CreateLogger<H264Encoder>();
+            Timer = timer;
 
             PicWidth = picWidth;
             PicHeight = picHeight;
             TargetBitrate = targetBitrate;
             MaxFrameRate = maxFrameRate;
+            IntraFrameIntervalUs = intraFrameIntervalMs * 1000;
+
             {
                 IntPtr handle = IntPtr.Zero;
                 var result = Interop.H264.WelsCreateSVCEncoder(out handle);
@@ -194,10 +200,9 @@ namespace Momiji.Core.H264
                 {
                     ct.ThrowIfCancellationRequested();
 
-                    var stopwatch = Stopwatch.StartNew();
-                    var before = stopwatch.ElapsedMilliseconds;
-                    var interval = 1000 / MaxFrameRate;
-                    var intraFrameCount = 0f;
+                    var before = Timer.USecDouble;
+                    var interval = 1000000.0 / MaxFrameRate;
+                    var intraFrameCount = 0.0;
 
                     using (var s = new SemaphoreSlim(1))
                     {
@@ -214,23 +219,23 @@ namespace Momiji.Core.H264
                                 
                                 //var data = bufferQueue.Receive(new TimeSpan(20_000_000), ct);
                                 {
-                                    var after = stopwatch.ElapsedMilliseconds;
+                                    var after = Timer.USecDouble;
                                     var diff = after - before;
                                     var left = interval - diff;
                                     if (left > 0)
                                     {
                                         //セマフォで時間調整を行う
-                                        s.Wait((int)left, ct);
-                                        after = stopwatch.ElapsedMilliseconds;
+                                        s.Wait((int)(left / 1000), ct);
+                                        after = Timer.USecDouble;
                                     }
-                                    //Logger.LogInformation($"[h264] start [{diff}+{left}]ms [{interval}]ms ");
+                                    //Logger.LogInformation($"[h264] start [{diff}+{left}]us [{interval}]us");
                                     before = after;
                                 }
 
                                 if (intraFrameCount <= 0)
                                 {
-                                    intraFrameCount = 2000f;
-                                    Logger.LogInformation($"[h264] ForceIntraFrame");
+                                    intraFrameCount = IntraFrameIntervalUs;
+                                    //Logger.LogInformation($"[h264] ForceIntraFrame");
                                     var result = ForceIntraFrame(ISVCEncoderVtblPtr, true);
                                     if (result != 0)
                                     {
@@ -265,8 +270,6 @@ namespace Momiji.Core.H264
                                         outputQueue.Post(data);
                                     }
                                 }
-                                var finish = stopwatch.ElapsedMilliseconds;
-                                //    Logger.LogInformation($"[h264] post data:[{finish - before}]ms");
                             }
                             catch (TimeoutException te)
                             {

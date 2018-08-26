@@ -14,16 +14,18 @@ namespace Momiji.Core.Ftl
     {
         private ILoggerFactory LoggerFactory { get; }
         private ILogger Logger { get; }
+        private Timer Timer { get; }
 
         private bool disposed = false;
         private PinnedBuffer<Interop.Ftl.Handle> handle;
         private CancellationTokenSource logCancel = new CancellationTokenSource();
         private Task logTask;
 
-        public FtlIngest(string streamKey, ILoggerFactory loggerFactory)
+        public FtlIngest(string streamKey, ILoggerFactory loggerFactory, Timer timer)
         {
             LoggerFactory = loggerFactory;
             Logger = LoggerFactory.CreateLogger<FtlIngest>();
+            Timer = timer;
 
             Interop.Ftl.IngestParams param;
             param.stream_key = streamKey;
@@ -104,11 +106,6 @@ namespace Momiji.Core.Ftl
             disposed = true;
         }
 
-        private long getUsec()
-        {
-            return DateTimeOffset.UtcNow.ToUnixTimeMilliseconds() * 1000;
-        }
-
         public async Task Run(
             ISourceBlock<OpusOutputBuffer> inputQueue,
             ITargetBlock<OpusOutputBuffer> inputReleaseQueue,
@@ -129,7 +126,7 @@ namespace Momiji.Core.Ftl
                         var sent = Interop.Ftl.ftl_ingest_send_media_dts(
                             handle.AddrOfPinnedObject(),
                             Interop.Ftl.MediaType.FTL_AUDIO_DATA,
-                            getUsec(),
+                            Timer.USec,
                             buffer.AddrOfPinnedObject(),
                             buffer.Wrote,
                             0
@@ -166,7 +163,7 @@ namespace Momiji.Core.Ftl
                         var sent = Interop.Ftl.ftl_ingest_send_media_dts(
                             handle.AddrOfPinnedObject(),
                             Interop.Ftl.MediaType.FTL_VIDEO_DATA,
-                            getUsec(),
+                            Timer.USec,
                             buffer.AddrOfPinnedObject(),
                             buffer.Wrote,
                             buffer.EndOfFrame ? 1 : 0
