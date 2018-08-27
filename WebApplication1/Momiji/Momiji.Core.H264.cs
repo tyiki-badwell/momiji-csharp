@@ -214,68 +214,58 @@ namespace Momiji.Core.H264
                                 break;
                             }
 
-                            try
+                            //Logger.LogInformation("[h264] get data TRY");
+
                             {
-                                //Logger.LogInformation("[h264] get data TRY");
-                                
-                                //var data = bufferQueue.Receive(new TimeSpan(20_000_000), ct);
+                                var after = Timer.USecDouble;
+                                var diff = after - before;
+                                var left = interval - diff;
+                                if (left > 0)
                                 {
-                                    var after = Timer.USecDouble;
-                                    var diff = after - before;
-                                    var left = interval - diff;
-                                    if (left > 0)
-                                    {
-                                        //セマフォで時間調整を行う
-                                        s.Wait((int)(left / 1000), ct);
-                                        after = Timer.USecDouble;
-                                    }
-                                    //Logger.LogInformation($"[h264] start [{diff}+{left}]us [{interval}]us");
-                                    before = after;
+                                    //セマフォで時間調整を行う
+                                    s.Wait((int)(left / 1000), ct);
+                                    after = Timer.USecDouble;
                                 }
+                                //Logger.LogInformation($"[h264] start [{diff}+{left}]us [{interval}]us");
+                                before = after;
+                            }
 
-                                if (intraFrameCount <= 0)
+                            if (intraFrameCount <= 0)
+                            {
+                                intraFrameCount = IntraFrameIntervalUs;
+                                var result = ForceIntraFrame(ISVCEncoderVtblPtr, true);
+                                if (result != 0)
                                 {
-                                    intraFrameCount = IntraFrameIntervalUs;
-                                    //Logger.LogInformation($"[h264] ForceIntraFrame");
-                                    var result = ForceIntraFrame(ISVCEncoderVtblPtr, true);
-                                    if (result != 0)
-                                    {
-                                        throw new H264Exception($"WelsCreateSVCEncoder ForceIntraFrame failed {result}");
-                                    }
-                                }
-                                intraFrameCount -= interval;
-
-                                {
-                                    SSourcePictureBuffer.Target.uiTimeStamp = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
-                                    var result = EncodeFrame(ISVCEncoderVtblPtr, SSourcePictureBuffer.AddrOfPinnedObject, SFrameBSInfoBuffer.AddrOfPinnedObject);
-                                    if (result != 0)
-                                    {
-                                        throw new H264Exception($"WelsCreateSVCEncoder EncodeFrame failed {result}");
-                                    }
-                                }
-
-                                for (var idx = 0; idx < SFrameBSInfoBuffer.Target.iLayerNum; idx++)
-                                {
-                                    var layer = (SLayerBSInfo)layerInfoList[idx].GetValue(SFrameBSInfoBuffer.Target);
-                                    var bsBuf = layer.pBsBuf;
-
-                                    for (var nalIdx = 0; nalIdx < layer.iNalCount; nalIdx++)
-                                    {
-                                        var data = bufferQueue.Receive(new TimeSpan(20_000_000), ct);
-                                        var length = Marshal.ReadInt32(layer.pNalLengthInByte, nalIdx * Marshal.SizeOf<Int32>());
-                                        CopyMemory(data.AddrOfPinnedObject, bsBuf+4, length-4);
-                                        bsBuf += length;
-                                        data.Wrote = length-4;
-                                        data.EndOfFrame = (nalIdx == layer.iNalCount-1);
-                                        //Logger.LogInformation($"[h264] post data:buffer:{SFrameBSInfoBuffer.Target.eFrameType}, layer:{layer.eFrameType}");
-                                        outputQueue.Post(data);
-                                    }
+                                    throw new H264Exception($"WelsCreateSVCEncoder ForceIntraFrame failed {result}");
                                 }
                             }
-                            catch (TimeoutException te)
+                            intraFrameCount -= interval;
+
                             {
-                                Logger.LogInformation("[h264] timeout");
-                                continue;
+                                SSourcePictureBuffer.Target.uiTimeStamp = (long)(Timer.USecDouble / 1000);
+                                var result = EncodeFrame(ISVCEncoderVtblPtr, SSourcePictureBuffer.AddrOfPinnedObject, SFrameBSInfoBuffer.AddrOfPinnedObject);
+                                if (result != 0)
+                                {
+                                    throw new H264Exception($"WelsCreateSVCEncoder EncodeFrame failed {result}");
+                                }
+                            }
+
+                            for (var idx = 0; idx < SFrameBSInfoBuffer.Target.iLayerNum; idx++)
+                            {
+                                var layer = (SLayerBSInfo)layerInfoList[idx].GetValue(SFrameBSInfoBuffer.Target);
+                                var bsBuf = layer.pBsBuf;
+
+                                for (var nalIdx = 0; nalIdx < layer.iNalCount; nalIdx++)
+                                {
+                                    var data = bufferQueue.Receive(ct);
+                                    var length = Marshal.ReadInt32(layer.pNalLengthInByte, nalIdx * Marshal.SizeOf<Int32>());
+                                    CopyMemory(data.AddrOfPinnedObject, bsBuf + 4, length - 4);
+                                    bsBuf += length;
+                                    data.Wrote = length - 4;
+                                    data.EndOfFrame = (nalIdx == layer.iNalCount - 1);
+                                    //Logger.LogInformation($"[h264] post data:buffer:{SFrameBSInfoBuffer.Target.eFrameType}, layer:{layer.eFrameType}");
+                                    outputQueue.Post(data);
+                                }
                             }
                         }
                     }

@@ -278,8 +278,10 @@ namespace Momiji.Interop.H264
 
             public int iTemporalLayerNum;         ///< temporal layer number, max temporal layer = 4
             public int iSpatialLayerNum;          ///< spatial layer number,1<= iSpatialLayerNum <= MAX_SPATIAL_LAYER_NUM, MAX_SPATIAL_LAYER_NUM = 4
-            [MarshalAs(UnmanagedType.ByValArray, SizeConst = 4)]
-            public SSpatialLayerConfig[] sSpatialLayers;
+            public SSpatialLayerConfig sSpatialLayers1;
+            public SSpatialLayerConfig sSpatialLayers2;
+            public SSpatialLayerConfig sSpatialLayers3;
+            public SSpatialLayerConfig sSpatialLayers4;
 
             public ECOMPLEXITY_MODE iComplexityMode;
             public uint uiIntraPeriod;     ///< period of Intra frame
@@ -336,9 +338,7 @@ namespace Momiji.Interop.H264
             */
             public int iSubSeqId;                ///< refer to D.2.11 Sub-sequence information SEI message semantics
             public int iNalCount;              ///< count number of NAL coded already
-            //public int* pNalLengthInByte;       ///< length of NAL size in byte from 0 to iNalCount-1
             public IntPtr pNalLengthInByte;       ///< length of NAL size in byte from 0 to iNalCount-1
-            //public unsigned char* pBsBuf;       ///< buffer of bitstream contained
             public IntPtr pBsBuf;       ///< buffer of bitstream contained
         }
         /**
@@ -476,7 +476,6 @@ namespace Momiji.Interop.H264
             public SLayerBSInfo sLayerInfo125;
             public SLayerBSInfo sLayerInfo126;
             public SLayerBSInfo sLayerInfo127;
-            //public SLayerBSInfo sLayerInfo128;
             public EVideoFrameType eFrameType;
             public int iFrameSizeInBytes;
             public long uiTimeStamp;
@@ -503,7 +502,7 @@ namespace Momiji.Interop.H264
         }
 
         [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Ansi)]
-        public struct ISVCEncoderVtbl
+        internal struct ISVCEncoderVtbl
         {
             public IntPtr Initialize; //int (* Initialize) (ISVCEncoder*, const SEncParamBase* pParam);
             public IntPtr InitializeExt; //int (* InitializeExt) (ISVCEncoder*, const SEncParamExt* pParam);

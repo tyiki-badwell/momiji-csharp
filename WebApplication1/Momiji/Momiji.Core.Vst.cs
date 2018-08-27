@@ -318,90 +318,82 @@ namespace Momiji.Core.Vst
                             var eventsPtr = events.AddrOfPinnedObject;
                             var eventListPtr = eventList.AddrOfPinnedObject;
 
-                            try
+                            //Logger.LogInformation("[vst] get data TRY");
+                            var data = bufferQueue.Receive(ct);
                             {
-                                //Logger.LogInformation("[vst] get data TRY");
-                                var data = bufferQueue.Receive(new TimeSpan(20_000_000), ct);
+                                var after = Timer.USecDouble;
+                                var diff = after - before;
+                                var left = interval - diff;
+                                if (left > 0)
                                 {
-                                    var after = Timer.USecDouble;
-                                    var diff = after - before;
-                                    var left = interval - diff;
-                                    if (left > 0)
-                                    {
-                                        //セマフォで時間調整を行う
-                                        s.Wait((int)(left / 1000), ct);
-                                        after = Timer.USecDouble;
-                                    }
-                                    //Logger.LogInformation($"[vst] get data OK [{diff}+{left}]us [{interval}]us");
-                                    before = after;
+                                    //セマフォで時間調整を行う
+                                    s.Wait((int)(left / 1000), ct);
+                                    after = Timer.USecDouble;
                                 }
+                                //Logger.LogInformation($"[vst] get data OK [{diff}+{left}]us [{interval}]us");
+                                before = after;
+                            }
 
-                                var list = new List<VstMidiEvent>();
+                            var list = new List<VstMidiEvent>();
+                            {
+                                VstMidiEvent midiEvent;
+                                while (midiEventQueue.TryReceive(out midiEvent))
                                 {
-                                    VstMidiEvent midiEvent;
-                                    while (midiEventQueue.TryReceive(out midiEvent))
-                                    {
-                                        list.Add(midiEvent);
-                                    }
+                                    list.Add(midiEvent);
                                 }
+                            }
 
-                                if (list.Count > 0)
+                            if (list.Count > 0)
+                            {
+                                var vstEvents = new VstEvents();
+                                vstEvents.numEvents = list.Count;
+
+                                //TODO 境界チェック
+                                Marshal.StructureToPtr(vstEvents, eventsPtr, false);
+                                eventsPtr += sizeVstEvents;
+
+                                list.ForEach(midiEvent =>
                                 {
-                                    var vstEvents = new VstEvents();
-                                    vstEvents.numEvents = list.Count;
-
-                                    //TODO 境界チェック
-                                    Marshal.StructureToPtr(vstEvents, eventsPtr, false);
-                                    eventsPtr += sizeVstEvents;
-
-                                    list.ForEach(midiEvent =>
-                                    {
                                         //TODO 境界チェック
                                         Marshal.StructureToPtr(midiEvent, eventListPtr, false);
-                                        Marshal.WriteIntPtr(eventsPtr, eventListPtr);
-                                        eventListPtr += sizeVstMidiEvent;
-                                        eventsPtr += sizeIntPtr;
-                                    });
+                                    Marshal.WriteIntPtr(eventsPtr, eventListPtr);
+                                    eventListPtr += sizeVstMidiEvent;
+                                    eventsPtr += sizeIntPtr;
+                                });
 
-                                    var processEventsResult =
-                                        dispatcher(
-                                            AeffectPtr,
-                                            AEffect.Opcodes.effProcessEvents,
-                                            0,
-                                            IntPtr.Zero,
-                                            events.AddrOfPinnedObject,
-                                            0
-                                        );
+                                var processEventsResult =
+                                    dispatcher(
+                                        AeffectPtr,
+                                        AEffect.Opcodes.effProcessEvents,
+                                        0,
+                                        IntPtr.Zero,
+                                        events.AddrOfPinnedObject,
+                                        0
+                                    );
                                 //    Logger.LogInformation($"effProcessEvents:{processEventsResult}");
-                                }
-
-                                processReplacing(
-                                    AeffectPtr,
-                                    IntPtr.Zero,
-                                    buffer.AddrOfPinnedObject,
-                                    blockSize
-                                );
-
-                                {
-                                    var target = data.Target;
-                                    var targetIdx = 0;
-                                    var left = buffer.Get(0);
-                                    var right = buffer.Get(1);
-
-                                    for (var idx = 0; idx < blockSize; idx++)
-                                    {
-                                        target[targetIdx++] = left[idx];
-                                        target[targetIdx++] = right[idx];
-                                    }
-                                }
-
-                                outputQueue.Post(data);
                             }
-                            catch (TimeoutException te)
+
+                            processReplacing(
+                                AeffectPtr,
+                                IntPtr.Zero,
+                                buffer.AddrOfPinnedObject,
+                                blockSize
+                            );
+
                             {
-                                Logger.LogInformation("[vst] timeout");
-                                continue;
+                                var target = data.Target;
+                                var targetIdx = 0;
+                                var left = buffer.Get(0);
+                                var right = buffer.Get(1);
+
+                                for (var idx = 0; idx < blockSize; idx++)
+                                {
+                                    target[targetIdx++] = left[idx];
+                                    target[targetIdx++] = right[idx];
+                                }
                             }
+
+                            outputQueue.Post(data);
                         }
                     }
                     Logger.LogInformation("[vst] loop end");

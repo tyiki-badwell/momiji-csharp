@@ -158,7 +158,7 @@ namespace WebApplication1.Controllers
             }
         }
 
-
+        /*
         private async Task Loop2()
         {
             var ct = processCancel.Token;
@@ -172,7 +172,7 @@ namespace WebApplication1.Controllers
                     ct.ThrowIfCancellationRequested();
 
                     Int32 samplingRate = 48000;
-                    Int32 blockSize = (Int32)(samplingRate * 0.05/*0.05*/);
+                    Int32 blockSize = (Int32)(samplingRate * 0.05);
 
                     using (var pcmPool = new BufferPool<PcmBuffer<float>>(2, () => { return new PcmBuffer<float>(blockSize, 2); }))
                     {
@@ -358,7 +358,7 @@ namespace WebApplication1.Controllers
                     ct.ThrowIfCancellationRequested();
 
                     Int32 samplingRate = 48000;
-                    Int32 blockSize = (Int32)(samplingRate * 0.05/*0.05*/);
+                    Int32 blockSize = (Int32)(samplingRate * 0.05);
 
                     using (var pcm1 = new PcmBuffer<float>(blockSize, 2))
                     using (var pcm2 = new PcmBuffer<float>(blockSize, 2))
@@ -368,7 +368,6 @@ namespace WebApplication1.Controllers
                         var vstToOpusInput = new BufferBlock<PcmBuffer<float>>();
                         var vstToOpusOutput = new BufferBlock<PcmBuffer<float>>();
                         var opusToFtlInput = new BufferBlock<OpusOutputBuffer>();
-                        //var midiEventInput = new BufferBlock<Vst.VstMidiEvent>();
 
                         vstToOpusOutput.Post(pcm1);
                         vstToOpusOutput.Post(pcm2);
@@ -423,6 +422,7 @@ namespace WebApplication1.Controllers
                 Logger.LogInformation("main loop end");
             }
         }
+        */
 
         [HttpPost]
         public IActionResult Note([FromBody]MIDIMessageEvent[] midiMessage)
@@ -461,6 +461,7 @@ namespace WebApplication1.Controllers
             return View();
         }
 
+        /*
         public IActionResult Start2()
         {
             ViewData["Message"] = "Start.";
@@ -508,6 +509,7 @@ namespace WebApplication1.Controllers
 
             return View();
         }
+        */
 
         public IActionResult Stop()
         {
@@ -539,7 +541,7 @@ namespace WebApplication1.Controllers
         {
             return View();
         }
-
+        /*
         public IActionResult WaveCaps()
         {
             var n = WaveOut<float>.GetNumDevices();
@@ -551,7 +553,7 @@ namespace WebApplication1.Controllers
 
             return View();
         }
-
+        */
         public IActionResult Error()
         {
             return View(new ErrorViewModel { RequestId = Activity.Current?.Id ?? HttpContext.TraceIdentifier });

@@ -333,18 +333,9 @@ namespace Momiji.Core.Wave
                     {
                         break;
                     }
-
-                    try
-                    {
-                        var data = inputQueue.Receive(new TimeSpan(20_000_000), ct);
-                        var headerPtr = Prepare(data, ct);
-                        Send(headerPtr);
-                    }
-                    catch (TimeoutException te)
-                    {
-                        Logger.LogInformation("[wave] process loop timeout");
-                        continue;
-                    }
+                    var data = inputQueue.Receive(ct);
+                    var headerPtr = Prepare(data, ct);
+                    Send(headerPtr);
                 }
                 Logger.LogInformation("[wave] process loop end");
             });
@@ -364,18 +355,9 @@ namespace Momiji.Core.Wave
                     {
                         break;
                     }
-
-                    try
-                    {
-                        var headerPtr = releaseQueue.Receive(new TimeSpan(20_000_000), ct);
-                        var data = Unprepare(headerPtr);
-                        inputReleaseQueue.Post(data);
-                    }
-                    catch (TimeoutException te)
-                    {
-                        Logger.LogInformation("[wave] release loop timeout");
-                        continue;
-                    }
+                    var headerPtr = releaseQueue.Receive(ct);
+                    var data = Unprepare(headerPtr);
+                    inputReleaseQueue.Post(data);
                 }
                 Logger.LogInformation("[wave] release loop end");
             });

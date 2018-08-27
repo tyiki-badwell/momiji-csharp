@@ -85,43 +85,35 @@ namespace Momiji.Core.Opus
                         break;
                     }
 
-                    try
+                    if (pcm == null)
                     {
-                        if (pcm == null)
-                        {
-                            pcm = inputQueue.Receive(new TimeSpan(20_000_000), ct);
-                            //Logger.LogInformation("[opus] receive pcm");
-                        }
-                        var data = bufferQueue.Receive(new TimeSpan(20_000_000), ct);
-                        //Logger.LogInformation("[opus] get data");
-
-                        data.Wrote = Encoder.opus_encode_float(
-                            encoder,
-                            pcm.AddrOfPinnedObject,
-                            pcm.Target.Length / 2,
-                            data.AddrOfPinnedObject,
-                            data.Target.Length
-                            );
-
-                        inputReleaseQueue.Post(pcm);
-                        pcm = null;
-                        //Logger.LogInformation("[opus] release pcm");
-                        if (data.Wrote < 0)
-                        {
-                            throw new Exception($"[opus] opus_encode_float error:{data.Wrote}");
-                        }
-                        else
-                        {
-                            //Logger.LogInformation($"[opus] post data: wrote {data.Wrote}");
-                        }
-
-                        outputQueue.Post(data);
+                        pcm = inputQueue.Receive(ct);
+                        //Logger.LogInformation("[opus] receive pcm");
                     }
-                    catch (TimeoutException te)
+                    var data = bufferQueue.Receive(ct);
+                    //Logger.LogInformation("[opus] get data");
+
+                    data.Wrote = Encoder.opus_encode_float(
+                        encoder,
+                        pcm.AddrOfPinnedObject,
+                        pcm.Target.Length / 2,
+                        data.AddrOfPinnedObject,
+                        data.Target.Length
+                        );
+
+                    //Logger.LogInformation("[opus] release pcm");
+                    inputReleaseQueue.Post(pcm);
+                    pcm = null;
+                    if (data.Wrote < 0)
                     {
-                        Logger.LogInformation("[opus] timeout");
-                        continue;
+                        throw new Exception($"[opus] opus_encode_float error:{data.Wrote}");
                     }
+                    else
+                    {
+                        //Logger.LogInformation($"[opus] post data: wrote {data.Wrote}");
+                    }
+
+                    outputQueue.Post(data);
                 }
             }, ct);
         }

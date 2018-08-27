@@ -1,3 +1,42 @@
 ﻿@{
     ViewData["Title"] = "Home Page";
 }
+
+<iframe allowfullscreen="true" src="https://mixer.com/embed/player/tyiki?disableLowLatency=1" width="620" height="349"> </iframe>
+
+<input type="button" value="ON" data-short-message1="0x90" data-short-message2="0x40" data-short-message3="0x40" />
+<input type="button" value="OFF" data-short-message1="0x80" data-short-message2="0x40" data-short-message3="0x40" />
+
+@section Scripts {
+    <script type="text/javascript">
+        "use strict";
+
+        var pool = [];
+
+        $(function () {
+            window.setInterval(function () {
+                if (pool.length > 0) {
+                    var temp = pool;
+                    pool = [];
+
+                    $.ajax({
+                        type: "POST",
+                        url: 'Home/Note',
+                        contentType: "application/json; charset=utf-8",
+                        dataType: "json",
+                        data: JSON.stringify(temp)
+                    });
+                }
+             }, 1);
+
+            $("input").on("click", function () {
+                pool.push(
+                    {
+                        "receivedTime": window.performance.timing.navigationStart + window.performance.now(),
+                        "data": [Number(this.dataset.shortMessage1), Number(this.dataset.shortMessage2), Number(this.dataset.shortMessage3)]
+                    }
+                );
+            });
+        });
+    </script>
+}

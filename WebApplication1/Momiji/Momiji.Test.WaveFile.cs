@@ -135,22 +135,13 @@ namespace Momiji.Test.WaveFile
                     {
                         break;
                     }
-
-                    try
+                    var data = inputQueue.Receive(ct);
+                    size += (uint)(data.Target.Length * Marshal.SizeOf<float>());
+                    for (var idx = 0; idx < data.Target.Length; idx++)
                     {
-                        var data = inputQueue.Receive(new TimeSpan(20_000_000), ct);
-                        size += (uint)(data.Target.Length * Marshal.SizeOf<float>());
-                        for (var idx = 0; idx < data.Target.Length; idx++)
-                        {
-                            writer.Write(data.Target[idx]);
-                        }
-                        inputReleaseQueue.Post(data);
+                        writer.Write(data.Target[idx]);
                     }
-                    catch (TimeoutException te)
-                    {
-                        Logger.LogInformation("[wave] timeout");
-                        continue;
-                    }
+                    inputReleaseQueue.Post(data);
                 }
                 Logger.LogInformation("[wave] loop end");
             });
