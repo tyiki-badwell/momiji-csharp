@@ -145,7 +145,7 @@ namespace Momiji.Core.Vst
                     }
                 case AudioMaster.Opcodes.audioMasterGetTime:
                     {
-                        vstTimeInfo.Target.nanoSeconds = Timer.USec * 1000;
+                        vstTimeInfo.Target.nanoSeconds = Timer.USecDouble * 1000;
 
                         return vstTimeInfo.AddrOfPinnedObject;
                     }
@@ -182,7 +182,7 @@ namespace Momiji.Core.Vst
         int numOutputs;
         private AudioMaster<T> audioMaster;
 
-        public Effect(string library, AudioMaster<T> audioMaster, ILoggerFactory loggerFactory, Timer timer)
+        internal Effect(string library, AudioMaster<T> audioMaster, ILoggerFactory loggerFactory, Timer timer)
         {
             LoggerFactory = loggerFactory;
             Logger = LoggerFactory.CreateLogger<Effect<T>>();
@@ -212,7 +212,7 @@ namespace Momiji.Core.Vst
             }
 
             var vstPluginMain =
-                Marshal.GetDelegateForFunctionPointer<AudioMaster.VSTPluginMain>(proc);
+                Marshal.GetDelegateForFunctionPointer<AEffect.VSTPluginMain>(proc);
 
             AeffectPtr = vstPluginMain(audioMaster.AudioMasterCallBackProc);
             var aeffect = Marshal.PtrToStructure<AEffect>(AeffectPtr);

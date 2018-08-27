@@ -106,19 +106,13 @@ namespace Momiji.Interop.Vst
             //-------------------------------------------------------------------------------------------------------
         };
         [UnmanagedFunctionPointer(CallingConvention.Cdecl, CharSet = CharSet.Ansi, SetLastError = false)]
-        internal delegate IntPtr AudioMasterCallBack(
+        internal delegate IntPtr CallBack(
             [In]IntPtr/*AEffect^*/		effect,
             [In]Opcodes opcode,
             [In]Int32 index,
             [In]IntPtr value,
             [In]IntPtr ptr,
             [In]Single opt
-        );
-
-        [UnmanagedFunctionPointer(CallingConvention.Cdecl, CharSet = CharSet.Ansi, SetLastError = false)]
-        internal delegate IntPtr VSTPluginMain(
-            [In][MarshalAs(UnmanagedType.FunctionPtr)]
-                        AudioMasterCallBack audioMaster
         );
 
     }
@@ -314,6 +308,11 @@ namespace Momiji.Interop.Vst
         [MarshalAs(UnmanagedType.ByValArray, SizeConst = 56)]
         char[] future;  //< reserved for future use (please zero)
                         //-------------------------------------------------------------------------------------------------------
+
+        [UnmanagedFunctionPointer(CallingConvention.Cdecl, CharSet = CharSet.Ansi, SetLastError = false)]
+        internal delegate IntPtr VSTPluginMain(
+            [In][MarshalAs(UnmanagedType.FunctionPtr)]AudioMaster.CallBack audioMaster
+        );
 
         [UnmanagedFunctionPointer(CallingConvention.Cdecl, CharSet = CharSet.Ansi, SetLastError = false)]
         internal delegate IntPtr DispatcherProc(
