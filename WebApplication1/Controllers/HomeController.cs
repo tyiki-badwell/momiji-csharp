@@ -52,8 +52,17 @@ namespace WebApplication1.Controllers
                 {
                     ct.ThrowIfCancellationRequested();
 
-                    Int32 samplingRate = 48000;
-                    Int32 blockSize = (Int32)(samplingRate * 0.06);
+                    var width = 1280;
+                    var height = 720;
+                    var targetBitrate = 5_000_000;
+                    var maxFrameRate = 60.0f;
+                    var intraFrameIntervalMs = 1000;
+
+                    var samplingRate = 48000;
+                    var blockSize = (int)(samplingRate * 0.06);
+
+                    var streamKey = Configuration["MIXER_STREAM_KEY"];
+
                     /*
                      この式を満たさないとダメ
                      new_size = blockSize
@@ -79,23 +88,26 @@ namespace WebApplication1.Controllers
 
                     using (var timer = new Momiji.Core.Timer())
                     using (var pcmPool = new BufferPool<PcmBuffer<float>>(2, () => { return new PcmBuffer<float>(blockSize, 2); }))
-                    using (var opusPool = new BufferPool<OpusOutputBuffer>(2, () => { return new OpusOutputBuffer(5000); }))
-                    using (var videoPool = new BufferPool<H264OutputBuffer>(3, () => { return new H264OutputBuffer(10000000); }))
+                    using (var audioPool = new BufferPool<OpusOutputBuffer>(2, () => { return new OpusOutputBuffer(5000); }))
+                    using (var bmpPool = new BufferPool<H264InputBuffer>(2, () => { return new H264InputBuffer(width, height); }))
+                    using (var videoPool = new BufferPool<H264OutputBuffer>(2, () => { return new H264OutputBuffer(100000); }))
                     using (var vst = new AudioMaster<float>(samplingRate, blockSize, LoggerFactory, timer))
-                    using (var encoder = new OpusEncoder(SamplingRate.Sampling48000, Channels.Stereo, LoggerFactory))
-                    using (var h264 = new H264Encoder(1280, 720, 5_000_000, 60.0f, 1000, LoggerFactory, timer))
+                    using (var opus = new OpusEncoder(SamplingRate.Sampling48000, Channels.Stereo, LoggerFactory))
+                    using (var h264 = new H264Encoder(width, height, targetBitrate, maxFrameRate, intraFrameIntervalMs, LoggerFactory, timer))
                     //using (var h264 = new H264File(LoggerFactory))
                     {
                         var vstToOpusInput = pcmPool.makeEmptyBufferBlock();
                         var vstToOpusOutput = pcmPool.makeBufferBlock();
-                        var opusToFtlInput = opusPool.makeBufferBlock();
-                        var opusToFtlOutput = opusPool.makeEmptyBufferBlock();
+                        var audioToFtlInput = audioPool.makeBufferBlock();
+                        var audioToFtlOutput = audioPool.makeEmptyBufferBlock();
+                        var bmpToVideoInput = bmpPool.makeBufferBlock();
+                        var bmpToVideoOutput = bmpPool.makeEmptyBufferBlock();
                         var videoToFtlInput = videoPool.makeBufferBlock();
                         var videoToFtlOutput = videoPool.makeEmptyBufferBlock();
 
                         var effect = vst.AddEffect("Synth1 VST.dll");
 
-                        using (var ftl = new FtlIngest($"{Configuration["MIXER_STREAM_KEY"]}", LoggerFactory, timer))
+                        using (var ftl = new FtlIngest(streamKey, LoggerFactory, timer))
                         {
                             var taskSet = new HashSet<Task>();
 
@@ -106,23 +118,26 @@ namespace WebApplication1.Controllers
                                 ct
                             ));
 
-                            taskSet.Add(encoder.Run(
+                            taskSet.Add(opus.Run(
                                 vstToOpusInput,
                                 vstToOpusOutput,
-                                opusToFtlInput,
-                                opusToFtlOutput,
+                                audioToFtlInput,
+                                audioToFtlOutput,
                                 ct
                             ));
 
                             taskSet.Add(h264.Run(
+                                bmpToVideoInput,
+                                bmpToVideoInput,
+                                //bmpToVideoOutput,
                                 videoToFtlInput,
                                 videoToFtlOutput,
                                 ct
                             ));
 
                             taskSet.Add(ftl.Run(
-                                opusToFtlOutput,
-                                opusToFtlInput,
+                                audioToFtlOutput,
+                                audioToFtlInput,
                                 ct
                             ));
 

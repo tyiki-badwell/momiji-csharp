@@ -354,8 +354,8 @@ namespace Momiji.Core.Vst
 
                                 list.ForEach(midiEvent =>
                                 {
-                                        //TODO 境界チェック
-                                        Marshal.StructureToPtr(midiEvent, eventListPtr, false);
+                                    //TODO 境界チェック
+                                    Marshal.StructureToPtr(midiEvent, eventListPtr, false);
                                     Marshal.WriteIntPtr(eventsPtr, eventListPtr);
                                     eventListPtr += sizeVstMidiEvent;
                                     eventsPtr += sizeIntPtr;

@@ -76,8 +76,6 @@ namespace Momiji.Core.Opus
             {
                 ct.ThrowIfCancellationRequested();
 
-                Wave.PcmBuffer<float> pcm = null;
-
                 while (true)
                 {
                     if (ct.IsCancellationRequested)
@@ -85,11 +83,8 @@ namespace Momiji.Core.Opus
                         break;
                     }
 
-                    if (pcm == null)
-                    {
-                        pcm = inputQueue.Receive(ct);
-                        //Logger.LogInformation("[opus] receive pcm");
-                    }
+                    var pcm = inputQueue.Receive(ct);
+                    //Logger.LogInformation("[opus] receive pcm");
                     var data = bufferQueue.Receive(ct);
                     //Logger.LogInformation("[opus] get data");
 
@@ -103,7 +98,6 @@ namespace Momiji.Core.Opus
 
                     //Logger.LogInformation("[opus] release pcm");
                     inputReleaseQueue.Post(pcm);
-                    pcm = null;
                     if (data.Wrote < 0)
                     {
                         throw new Exception($"[opus] opus_encode_float error:{data.Wrote}");
