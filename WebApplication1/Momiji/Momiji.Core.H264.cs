@@ -226,11 +226,10 @@ namespace Momiji.Core.H264
                 {
                     ct.ThrowIfCancellationRequested();
 
-                    var before = Timer.USecDouble;
                     var interval = 1000000.0 / MaxFrameRate;
                     var intraFrameCount = 0.0;
 
-                    using (var s = new SemaphoreSlim(1))
+                    using (var w = new Waiter(Timer, interval, ct))
                     {
                         while (true)
                         {
@@ -242,19 +241,7 @@ namespace Momiji.Core.H264
                             //Logger.LogInformation("[h264] get data TRY");
 
                             var sourcePictureBuffer = inputQueue.Receive(ct);
-                            {
-                                var after = Timer.USecDouble;
-                                var diff = after - before;
-                                var left = interval - diff;
-                                if (left > 0)
-                                {
-                                    //セマフォで時間調整を行う
-                                    s.Wait((int)(left / 1000), ct);
-                                    after = Timer.USecDouble;
-                                }
-                                //Logger.LogInformation($"[h264] start [{diff}+{left}]us [{interval}]us");
-                                before = after;
-                            }
+                            w.Wait();
 
                             if (intraFrameCount <= 0)
                             {

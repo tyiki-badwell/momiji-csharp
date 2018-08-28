@@ -473,7 +473,7 @@ namespace WebApplication1.Controllers
                 processTask = Loop();
             }
 
-            return View();
+            return View("Start");
         }
 
         /*

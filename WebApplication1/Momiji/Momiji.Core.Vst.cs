@@ -284,6 +284,31 @@ namespace Momiji.Core.Vst
             Open(audioMaster);
         }
 
+        private IntPtr Dispatcher(
+            AEffect.Opcodes opcode,
+            Int32 index,
+            IntPtr value,
+            IntPtr ptr,
+            Single opt,
+            bool needResult = false
+        )
+        {
+            var result = dispatcher(
+                    AeffectPtr,
+                    opcode,
+                    index,
+                    value,
+                    ptr,
+                    opt
+                );
+            Logger.LogInformation($"[vst] dispatcher {opcode} {result}");
+            if (!needResult && (result != IntPtr.Zero))
+            {
+                throw new VstException($"dispatcher {opcode} 失敗 {result}");
+            }
+            return result;
+        }
+
         public async Task Run(
             ISourceBlock<Wave.PcmBuffer<T>> bufferQueue,
             ITargetBlock<Wave.PcmBuffer<T>> outputQueue,
@@ -303,10 +328,9 @@ namespace Momiji.Core.Vst
                     var sizeVstMidiEvent = Marshal.SizeOf<VstMidiEvent>();
                     var sizeIntPtr = Marshal.SizeOf<IntPtr>();
 
-                    var before = Timer.USecDouble;
                     var interval = (((double)audioMaster.BlockSize / audioMaster.SamplingRate) * 1000000.0);
 
-                    using (var s = new SemaphoreSlim(1))
+                    using (var w = new Waiter(Timer, interval, ct))
                     {
                         while (true)
                         {
@@ -315,62 +339,50 @@ namespace Momiji.Core.Vst
                                 break;
                             }
 
-                            var eventsPtr = events.AddrOfPinnedObject;
-                            var eventListPtr = eventList.AddrOfPinnedObject;
-
                             //Logger.LogInformation("[vst] get data TRY");
                             var data = bufferQueue.Receive(ct);
+                            w.Wait();
+
                             {
-                                var after = Timer.USecDouble;
-                                var diff = after - before;
-                                var left = interval - diff;
-                                if (left > 0)
+                                var list = new List<VstMidiEvent>();
                                 {
-                                    //セマフォで時間調整を行う
-                                    s.Wait((int)(left / 1000), ct);
-                                    after = Timer.USecDouble;
+                                    VstMidiEvent midiEvent;
+                                    while (midiEventQueue.TryReceive(out midiEvent))
+                                    {
+                                        list.Add(midiEvent);
+                                    }
                                 }
-                                //Logger.LogInformation($"[vst] get data OK [{diff}+{left}]us [{interval}]us");
-                                before = after;
-                            }
 
-                            var list = new List<VstMidiEvent>();
-                            {
-                                VstMidiEvent midiEvent;
-                                while (midiEventQueue.TryReceive(out midiEvent))
+                                if (list.Count > 0)
                                 {
-                                    list.Add(midiEvent);
-                                }
-                            }
+                                    var eventsPtr = events.AddrOfPinnedObject;
+                                    var eventListPtr = eventList.AddrOfPinnedObject;
 
-                            if (list.Count > 0)
-                            {
-                                var vstEvents = new VstEvents();
-                                vstEvents.numEvents = list.Count;
+                                    var vstEvents = new VstEvents();
+                                    vstEvents.numEvents = list.Count;
 
-                                //TODO 境界チェック
-                                Marshal.StructureToPtr(vstEvents, eventsPtr, false);
-                                eventsPtr += sizeVstEvents;
-
-                                list.ForEach(midiEvent =>
-                                {
                                     //TODO 境界チェック
-                                    Marshal.StructureToPtr(midiEvent, eventListPtr, false);
-                                    Marshal.WriteIntPtr(eventsPtr, eventListPtr);
-                                    eventListPtr += sizeVstMidiEvent;
-                                    eventsPtr += sizeIntPtr;
-                                });
+                                    Marshal.StructureToPtr(vstEvents, eventsPtr, false);
+                                    eventsPtr += sizeVstEvents;
 
-                                var processEventsResult =
-                                    dispatcher(
-                                        AeffectPtr,
+                                    list.ForEach(midiEvent =>
+                                    {
+                                        //TODO 境界チェック
+                                        Marshal.StructureToPtr(midiEvent, eventListPtr, false);
+                                        Marshal.WriteIntPtr(eventsPtr, eventListPtr);
+                                        eventListPtr += sizeVstMidiEvent;
+                                        eventsPtr += sizeIntPtr;
+                                    });
+
+                                    var result = Dispatcher(
                                         AEffect.Opcodes.effProcessEvents,
                                         0,
                                         IntPtr.Zero,
                                         events.AddrOfPinnedObject,
-                                        0
+                                        0,
+                                        true
                                     );
-                                //    Logger.LogInformation($"effProcessEvents:{processEventsResult}");
+                                }
                             }
 
                             processReplacing(
@@ -403,96 +415,73 @@ namespace Momiji.Core.Vst
 
         private void Open(AudioMaster<T> audioMaster)
         {
-            var openResult =
-                dispatcher(
-                    AeffectPtr,
-                    AEffect.Opcodes.effOpen,
-                    0,
-                    IntPtr.Zero,
-                    IntPtr.Zero,
-                    0
-                );
-            Logger.LogInformation($"effOpen:{openResult}");
+            Dispatcher(
+                AEffect.Opcodes.effOpen,
+                0,
+                IntPtr.Zero,
+                IntPtr.Zero,
+                0
+            );
 
-            var setSampleRateResult =
-                dispatcher(
-                    AeffectPtr,
-                    AEffect.Opcodes.effSetSampleRate,
-                    0,
-                    IntPtr.Zero,
-                    IntPtr.Zero,
-                    audioMaster.SamplingRate
-                );
-            Logger.LogInformation($"effSetSampleRate:{setSampleRateResult}");
-            var setBlockSizeResult =
-                dispatcher(
-                    AeffectPtr,
-                    AEffect.Opcodes.effSetBlockSize,
-                    0,
-                    new IntPtr(audioMaster.BlockSize),
-                    IntPtr.Zero,
-                    0
-                );
-            Logger.LogInformation($"effSetBlockSize:{setBlockSizeResult}");
+            Dispatcher(
+                AEffect.Opcodes.effSetSampleRate,
+                0,
+                IntPtr.Zero,
+                IntPtr.Zero,
+                audioMaster.SamplingRate
+            );
+            Dispatcher(
+                AEffect.Opcodes.effSetBlockSize,
+                0,
+                new IntPtr(audioMaster.BlockSize),
+                IntPtr.Zero,
+                0
+            );
             //resume
-            var resumeResult =
-                dispatcher(
-                    AeffectPtr,
-                    AEffect.Opcodes.effMainsChanged,
-                    0,
-                    new IntPtr(1),
-                    IntPtr.Zero,
-                    0
-                );
-            Logger.LogInformation($"effMainsChanged:{resumeResult}");
+            Dispatcher(
+                AEffect.Opcodes.effMainsChanged,
+                0,
+                new IntPtr(1),
+                IntPtr.Zero,
+                0
+            );
             //start
-            var startProcessResult =
-                dispatcher(
-                    AeffectPtr,
-                    AEffect.Opcodes.effStartProcess,
-                    0,
-                    IntPtr.Zero,
-                    IntPtr.Zero,
-                    0
-                );
-            Logger.LogInformation($"effStartProcess:{startProcessResult}");
+            Dispatcher(
+                AEffect.Opcodes.effStartProcess,
+                0,
+                IntPtr.Zero,
+                IntPtr.Zero,
+                0
+            );
         }
 
         private void Close()
         {
             //stop
-            var stopProcessResult =
-                dispatcher(
-                    AeffectPtr,
-                    AEffect.Opcodes.effStopProcess,
-                    0,
-                    IntPtr.Zero,
-                    IntPtr.Zero,
-                    0
-                );
-            Logger.LogInformation($"effStopProcess:{stopProcessResult}");
+            Dispatcher(
+                AEffect.Opcodes.effStopProcess,
+                0,
+                IntPtr.Zero,
+                IntPtr.Zero,
+                0
+            );
             //suspend
-            var suspendResult =
-                dispatcher(
-                    AeffectPtr,
-                    AEffect.Opcodes.effMainsChanged,
-                    0,
-                    IntPtr.Zero,
-                    IntPtr.Zero,
-                    0
-                );
-            Logger.LogInformation($"effMainsChanged:{suspendResult}");
+            Dispatcher(
+                AEffect.Opcodes.effMainsChanged,
+                0,
+                IntPtr.Zero,
+                IntPtr.Zero,
+                0
+            );
             //close
-            var closeResult =
-                dispatcher(
-                    AeffectPtr,
-                    AEffect.Opcodes.effClose,
-                    0,
-                    IntPtr.Zero,
-                    IntPtr.Zero,
-                    0
-                );
-            Logger.LogInformation($"effClose:{closeResult}");
+            Dispatcher(
+                AEffect.Opcodes.effClose,
+                0,
+                IntPtr.Zero,
+                IntPtr.Zero,
+                0,
+                true
+            );
 
             AeffectPtr = IntPtr.Zero;
         }

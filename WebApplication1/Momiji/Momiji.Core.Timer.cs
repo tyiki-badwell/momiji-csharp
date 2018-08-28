@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Diagnostics;
+using System.Threading;
 
 namespace Momiji.Core
 {
@@ -52,4 +53,61 @@ namespace Momiji.Core
             disposed = true;
         }
     }
+
+    public class Waiter : IDisposable
+    {
+        private bool disposed = false;
+
+        private Timer Timer { get; }
+        private double Interval { get; }
+        private CancellationToken Ct { get; }
+        private double Before;
+        private SemaphoreSlim S { get; }
+
+        public Waiter(Timer timer, double interval, CancellationToken ct)
+        {
+            Timer = timer;
+            Interval = interval;
+            Ct = ct;
+            Before = Timer.USecDouble;
+            S = new SemaphoreSlim(1);
+        }
+
+        public void Dispose()
+        {
+            Dispose(true);
+            GC.SuppressFinalize(this);
+        }
+
+        protected virtual void Dispose(bool disposing)
+        {
+            if (disposed) return;
+
+            if (disposing)
+            {
+                S.Dispose();
+            }
+
+            disposed = true;
+        }
+
+        public void Wait()
+        {
+            var after = Timer.USecDouble;
+            var diff = after - Before;
+            var left = Interval - diff;
+            if (left > 0)
+            {
+                //セマフォで時間調整を行う
+                S.Wait((int)(left / 1000), Ct);
+                //Logger.LogInformation($"[vst] get data OK [{diff}+{left}]us [{interval}]us");
+            }
+            else
+            {
+                //TODO マイナスだった場合はそのままスルー
+            }
+            Before = Timer.USecDouble;
+        }
+    }
+
 }
