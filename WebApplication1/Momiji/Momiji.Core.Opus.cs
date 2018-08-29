@@ -59,7 +59,11 @@ namespace Momiji.Core.Opus
 
             if (disposing)
             {
-                encoder.Close();
+                if (encoder != null && !encoder.IsInvalid)
+                {
+                    encoder.Close();
+                    encoder = null;
+                }
             }
 
             disposed = true;

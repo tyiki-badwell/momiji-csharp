@@ -123,7 +123,7 @@ namespace Momiji.Interop
         [SecurityPermission(SecurityAction.Demand, UnmanagedCode = true)]
         internal class DynamicLinkLibrary : Microsoft.Win32.SafeHandles.SafeHandleZeroOrMinusOneIsInvalid
         {
-            public DynamicLinkLibrary() : base(true)
+            private DynamicLinkLibrary() : base(true)
             {
             }
 

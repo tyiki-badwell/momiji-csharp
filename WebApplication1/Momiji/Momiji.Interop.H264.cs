@@ -1,5 +1,8 @@
 ﻿using System;
+using System.Diagnostics;
+using System.Runtime.ConstrainedExecution;
 using System.Runtime.InteropServices;
+using System.Security.Permissions;
 
 namespace Momiji.Interop.H264
 {
@@ -521,7 +524,7 @@ namespace Momiji.Interop.H264
             */
             [UnmanagedFunctionPointer(CallingConvention.Cdecl, CharSet = CharSet.Ansi, SetLastError = false)]
             internal delegate int InitializeProc(
-                [In]IntPtr/*ISVCEncoder^*/	encoder,
+                [In]Encoder/*ISVCEncoder^*/	encoder,
                 [In]IntPtr/* SEncParamBase^*/ pParam
             );
             /**
@@ -531,7 +534,7 @@ namespace Momiji.Interop.H264
             */
             [UnmanagedFunctionPointer(CallingConvention.Cdecl, CharSet = CharSet.Ansi, SetLastError = false)]
             internal delegate int InitializeExtProc(
-                [In]IntPtr/*ISVCEncoder^*/	encoder,
+                [In]Encoder/*ISVCEncoder^*/	encoder,
                 [In]IntPtr/* SEncParamExt^*/ pParam
             );
             /**
@@ -543,14 +546,14 @@ namespace Momiji.Interop.H264
             * */
             [UnmanagedFunctionPointer(CallingConvention.Cdecl, CharSet = CharSet.Ansi, SetLastError = false)]
             internal delegate int GetDefaultParamsProc(
-                [In]IntPtr/*ISVCEncoder^*/	encoder,
+                [In]Encoder/*ISVCEncoder^*/	encoder,
                 [In]IntPtr/* SEncParamExt^*/ pParam
             );
 
             /// uninitialize the encoder
             [UnmanagedFunctionPointer(CallingConvention.Cdecl, CharSet = CharSet.Ansi, SetLastError = false)]
             internal delegate int UninitializeProc(
-                [In]IntPtr/*ISVCEncoder^*/	encoder
+                [In]Encoder/*ISVCEncoder^*/	encoder
             );
             /**
             * @brief Encode one frame
@@ -564,7 +567,7 @@ namespace Momiji.Interop.H264
             */
             [UnmanagedFunctionPointer(CallingConvention.Cdecl, CharSet = CharSet.Ansi, SetLastError = false)]
             internal delegate int EncodeFrameProc(
-                [In]IntPtr/*ISVCEncoder^*/	encoder,
+                [In]Encoder/*ISVCEncoder^*/	encoder,
                 [In]IntPtr/* SSourcePicture^*/ kpSrcPic,
                 [In]IntPtr/* SFrameBSInfo^*/ pBsInfo
             );
@@ -575,7 +578,7 @@ namespace Momiji.Interop.H264
             */
             [UnmanagedFunctionPointer(CallingConvention.Cdecl, CharSet = CharSet.Ansi, SetLastError = false)]
             internal delegate int EncodeParameterSetsProc(
-                [In]IntPtr/*ISVCEncoder^*/	encoder,
+                [In]Encoder/*ISVCEncoder^*/	encoder,
                 [In]IntPtr/* SFrameBSInfo^*/ pBsInfo
             );
             /**
@@ -585,7 +588,7 @@ namespace Momiji.Interop.H264
             */
             [UnmanagedFunctionPointer(CallingConvention.Cdecl, CharSet = CharSet.Ansi, SetLastError = false)]
             internal delegate int ForceIntraFrameProc(
-                [In]IntPtr/*ISVCEncoder^*/	encoder,
+                [In]Encoder/*ISVCEncoder^*/	encoder,
                 [In]bool bIDR
             );
             /**
@@ -595,7 +598,7 @@ namespace Momiji.Interop.H264
             */
             [UnmanagedFunctionPointer(CallingConvention.Cdecl, CharSet = CharSet.Ansi, SetLastError = false)]
             internal delegate int SetOptionProc(
-                [In]IntPtr/*ISVCEncoder^*/	encoder,
+                [In]Encoder/*ISVCEncoder^*/	encoder,
                 [In]ENCODER_OPTION eOptionId,
                 [In]IntPtr	pOption
             );
@@ -606,7 +609,7 @@ namespace Momiji.Interop.H264
             */
             [UnmanagedFunctionPointer(CallingConvention.Cdecl, CharSet = CharSet.Ansi, SetLastError = false)]
             internal delegate int GetOptionProc(
-                [In]IntPtr/*ISVCEncoder^*/	encoder,
+                [In]Encoder/*ISVCEncoder^*/	encoder,
                 [In]ENCODER_OPTION eOptionId,
                 [In]IntPtr pOption
             );
@@ -614,8 +617,22 @@ namespace Momiji.Interop.H264
 
     //typedef void (*WelsTraceCallback) (void* ctx, int level, const char* string);
 
-    public class Encoder
+    [SecurityPermission(SecurityAction.InheritanceDemand, UnmanagedCode = true)]
+    [SecurityPermission(SecurityAction.Demand, UnmanagedCode = true)]
+    public sealed class Encoder : Microsoft.Win32.SafeHandles.SafeHandleZeroOrMinusOneIsInvalid
     {
+        private Encoder() : base(true)
+        {
+        }
+
+        [ReliabilityContract(Consistency.WillNotCorruptState, Cer.MayFail)]
+        override protected bool ReleaseHandle()
+        {
+            Trace.WriteLine("WelsDestroySVCEncoder");
+            WelsDestroySVCEncoder(handle);
+            return true;
+        }
+        
         /** @brief   Create encoder
           *  @param   ppEncoder encoder
           *  @return  0 - success; otherwise - failed;
@@ -623,7 +640,7 @@ namespace Momiji.Interop.H264
         //int WelsCreateSVCEncoder(ISVCEncoder** ppEncoder);
         [DllImport("openH264.dll", CallingConvention = CallingConvention.Cdecl)]
         internal static extern int WelsCreateSVCEncoder(
-            [Out] out IntPtr ppEncoder
+            [Out] out Encoder ppEncoder
         );
 
         /** @brief   Destroy encoder

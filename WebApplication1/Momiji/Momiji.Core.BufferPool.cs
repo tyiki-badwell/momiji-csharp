@@ -25,6 +25,8 @@ namespace Momiji.Core
                 {
                     item.Dispose();
                 }
+                list.Clear();
+                list = null;
             }
 
             disposed = true;

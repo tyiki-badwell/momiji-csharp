@@ -54,7 +54,6 @@ namespace Momiji.Core.Ftl
                 throw new Exception($"ftl_ingest_create error:{status}");
             }
 
-            logCancel = new CancellationTokenSource();
             logTask = PrintTrace(logCancel, handle);
 
             status = Handle.ftl_ingest_connect(handle.AddrOfPinnedObject);

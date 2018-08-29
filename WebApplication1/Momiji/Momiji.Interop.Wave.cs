@@ -310,7 +310,7 @@ namespace Momiji.Interop
         [SecurityPermission(SecurityAction.Demand, UnmanagedCode = true)]
         internal class WaveOut : Microsoft.Win32.SafeHandles.SafeHandleZeroOrMinusOneIsInvalid
         {
-            public WaveOut() : base(true)
+            private WaveOut() : base(true)
             {
             }
 

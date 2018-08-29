@@ -74,7 +74,7 @@ namespace Momiji.Core.H264
         private Timer Timer { get; }
 
         private bool disposed = false;
-        private IntPtr ISVCEncoderVtblPtr { get; set; }
+        private Encoder encoder { get; set; }
 
         private int PicWidth { get; }
         private int PicHeight { get; }
@@ -112,16 +112,16 @@ namespace Momiji.Core.H264
             IntraFrameIntervalUs = intraFrameIntervalMs * 1000;
 
             {
-                IntPtr handle = IntPtr.Zero;
+                Encoder handle = null;
                 var result = Encoder.WelsCreateSVCEncoder(out handle);
                 if (result != 0)
                 {
                     throw new H264Exception($"WelsCreateSVCEncoder failed {result}");
                 }
-                ISVCEncoderVtblPtr = handle;
+                encoder = handle;
             }
 
-            var temp = Marshal.PtrToStructure<IntPtr>(ISVCEncoderVtblPtr);
+            var temp = Marshal.PtrToStructure<IntPtr>(encoder.DangerousGetHandle());
             var vtbl = Marshal.PtrToStructure<ISVCEncoderVtbl>(temp);
             if (vtbl.Initialize != IntPtr.Zero)
             {
@@ -173,7 +173,7 @@ namespace Momiji.Core.H264
                 param.Target.iRCMode = RC_MODES.RC_QUALITY_MODE;
                 param.Target.fMaxFrameRate = MaxFrameRate;
 
-                var result = Initialize(ISVCEncoderVtblPtr, param.AddrOfPinnedObject);
+                var result = Initialize(encoder, param.AddrOfPinnedObject);
                 if (result != 0)
                 {
                     throw new H264Exception($"WelsCreateSVCEncoder Initialize failed {result}");
@@ -195,12 +195,12 @@ namespace Momiji.Core.H264
             {
                 Logger.LogInformation("[h264] stop");
 
-                if (ISVCEncoderVtblPtr != IntPtr.Zero)
+                if (encoder != null && !encoder.IsInvalid)
                 {
-                    Uninitialize(ISVCEncoderVtblPtr);
+                    Uninitialize(encoder);
 
-                    Encoder.WelsDestroySVCEncoder(ISVCEncoderVtblPtr);
-                    ISVCEncoderVtblPtr = IntPtr.Zero;
+                    encoder.Close();
+                    encoder = null;
                 }
             }
 
@@ -246,7 +246,7 @@ namespace Momiji.Core.H264
                             if (intraFrameCount <= 0)
                             {
                                 intraFrameCount = IntraFrameIntervalUs;
-                                var result = ForceIntraFrame(ISVCEncoderVtblPtr, true);
+                                var result = ForceIntraFrame(encoder, true);
                                 if (result != 0)
                                 {
                                     throw new H264Exception($"WelsCreateSVCEncoder ForceIntraFrame failed {result}");
@@ -256,7 +256,7 @@ namespace Momiji.Core.H264
 
                             {
                                 sourcePictureBuffer.Target.uiTimeStamp = (long)(Timer.USecDouble / 1000);
-                                var result = EncodeFrame(ISVCEncoderVtblPtr, sourcePictureBuffer.AddrOfPinnedObject, frameBSInfoBuffer.AddrOfPinnedObject);
+                                var result = EncodeFrame(encoder, sourcePictureBuffer.AddrOfPinnedObject, frameBSInfoBuffer.AddrOfPinnedObject);
                                 if (result != 0)
                                 {
                                     throw new H264Exception($"WelsCreateSVCEncoder EncodeFrame failed {result}");
