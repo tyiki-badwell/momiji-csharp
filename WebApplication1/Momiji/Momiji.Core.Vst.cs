@@ -1,5 +1,6 @@
 ﻿using Microsoft.Extensions.Logging;
 using Momiji.Interop;
+using Momiji.Interop.Kernel32;
 using Momiji.Interop.Vst;
 using System;
 using System.Collections.Concurrent;
@@ -170,7 +171,7 @@ namespace Momiji.Core.Vst
         private Timer Timer { get; }
 
         private bool disposed = false;
-        private Kernel32.DynamicLinkLibrary dll;
+        private DLL dll;
         public IntPtr AeffectPtr { get; private set; }
 
         private AEffect.DispatcherProc dispatcher;
@@ -190,7 +191,7 @@ namespace Momiji.Core.Vst
 
             this.audioMaster = audioMaster;
 
-            dll = Kernel32.LoadLibrary(library);
+            dll = DLL.LoadLibrary(library);
             if (dll.IsInvalid)
             {
                 var error = Marshal.GetHRForLastWin32Error();
@@ -198,10 +199,10 @@ namespace Momiji.Core.Vst
                 Marshal.ThrowExceptionForHR(error);
             }
 
-            var proc = Kernel32.GetProcAddress(dll, "VSTPluginMain");
+            var proc = dll.GetProcAddress("VSTPluginMain");
             if (proc == IntPtr.Zero)
             {
-                proc = Kernel32.GetProcAddress(dll, "main");
+                proc = dll.GetProcAddress("main");
             }
 
             if (proc == IntPtr.Zero)

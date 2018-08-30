@@ -1,5 +1,6 @@
 ﻿using Microsoft.Extensions.Logging;
 using Momiji.Interop;
+using Momiji.Interop.Wave;
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
@@ -12,14 +13,14 @@ namespace Momiji.Core.Wave
 {
     public class WaveException : Exception
     {
-        public WaveException(Interop.Wave.MMRESULT mmResult) : base(makeMessage(mmResult))
+        public WaveException(MMRESULT mmResult) : base(makeMessage(mmResult))
         {
         }
 
-        static private string makeMessage(Interop.Wave.MMRESULT mmResult)
+        static private string makeMessage(MMRESULT mmResult)
         {
             var text = new System.Text.StringBuilder(256);
-            Interop.Wave.waveOutGetErrorText(mmResult, text, (uint)text.Capacity);
+            WaveOutMethod.waveOutGetErrorText(mmResult, text, (uint)text.Capacity);
             return text.ToString();
         }
     }
@@ -37,7 +38,7 @@ namespace Momiji.Core.Wave
             UInt32 deviceID,
             UInt16 channels,
             UInt32 samplesPerSecond,
-            Interop.Wave.WaveFormatExtensiblePart.SPEAKER channelMask,
+            WaveFormatExtensiblePart.SPEAKER channelMask,
             ILoggerFactory loggerFactory
         ) : base(
             deviceID,
@@ -56,7 +57,7 @@ namespace Momiji.Core.Wave
             UInt32 deviceID,
             UInt16 channels,
             UInt32 samplesPerSecond,
-            Interop.Wave.WaveFormatExtensiblePart.SPEAKER channelMask,
+            WaveFormatExtensiblePart.SPEAKER channelMask,
             ILoggerFactory loggerFactory
         ) : base(
             deviceID,
@@ -76,28 +77,28 @@ namespace Momiji.Core.Wave
 
         private bool disposed = false;
 
-        private BufferPool<PinnedBuffer<Interop.Wave.WaveHeader>> headerPool = 
-            new BufferPool<PinnedBuffer<Interop.Wave.WaveHeader>>(2, () => { return new PinnedBuffer<Interop.Wave.WaveHeader>(new Interop.Wave.WaveHeader()); });
-        private BufferBlock<PinnedBuffer<Interop.Wave.WaveHeader>> headerQueue = null;
+        private BufferPool<PinnedBuffer<WaveHeader>> headerPool = 
+            new BufferPool<PinnedBuffer<WaveHeader>>(2, () => { return new PinnedBuffer<WaveHeader>(new WaveHeader()); });
+        private BufferBlock<PinnedBuffer<WaveHeader>> headerQueue = null;
         private BufferBlock<IntPtr> releaseQueue = new BufferBlock<IntPtr>();
 
-        private IDictionary<IntPtr, PinnedBuffer<Interop.Wave.WaveHeader>> headerBusyPool = new ConcurrentDictionary<IntPtr, PinnedBuffer<Interop.Wave.WaveHeader>>();
+        private IDictionary<IntPtr, PinnedBuffer<WaveHeader>> headerBusyPool = new ConcurrentDictionary<IntPtr, PinnedBuffer<WaveHeader>>();
         private IDictionary<IntPtr, PcmBuffer<T>> dataBusyPool = new ConcurrentDictionary<IntPtr, PcmBuffer<T>>();
 
-        private Interop.Wave.WaveOut handle;
+        private WaveOut handle;
 
         private int SIZE_OF_T { get; }
         private uint SIZE_OF_WAVEHEADER { get; }
 
         private void DriverCallBackProc(
             IntPtr hdrvr,
-            Interop.Wave.DriverCallBack.MM_EXT_WINDOW_MESSAGE uMsg,
+            DriverCallBack.MM_EXT_WINDOW_MESSAGE uMsg,
             IntPtr dwUser,
             IntPtr dw1,
             IntPtr dw2
         )
         {
-            if (uMsg == Interop.Wave.DriverCallBack.MM_EXT_WINDOW_MESSAGE.WOM_DONE)
+            if (uMsg == DriverCallBack.MM_EXT_WINDOW_MESSAGE.WOM_DONE)
             {
                 releaseQueue.Post(dw1);
             }
@@ -107,7 +108,7 @@ namespace Momiji.Core.Wave
             UInt32 deviceID,
             UInt16 channels,
             UInt32 samplesPerSecond,
-            Interop.Wave.WaveFormatExtensiblePart.SPEAKER channelMask,
+            WaveFormatExtensiblePart.SPEAKER channelMask,
             Guid formatSubType, 
             ILoggerFactory loggerFactory
         )
@@ -116,16 +117,16 @@ namespace Momiji.Core.Wave
             Logger = LoggerFactory.CreateLogger<WaveOut<T>>();
 
             SIZE_OF_T = Marshal.SizeOf<T>();
-            SIZE_OF_WAVEHEADER = (uint)Marshal.SizeOf<Interop.Wave.WaveHeader>();
+            SIZE_OF_WAVEHEADER = (uint)Marshal.SizeOf<WaveHeader>();
 
-            var format = new Interop.Wave.WaveFormatExtensible();
-            format.wfe.formatType = Interop.Wave.WaveFormatEx.FORMAT.EXTENSIBLE;
+            var format = new WaveFormatExtensible();
+            format.wfe.formatType = WaveFormatEx.FORMAT.EXTENSIBLE;
             format.wfe.channels = channels;
             format.wfe.samplesPerSecond = samplesPerSecond;
             format.wfe.bitsPerSample = (ushort)(SIZE_OF_T * 8);
             format.wfe.blockAlign = (ushort)(format.wfe.channels * format.wfe.bitsPerSample / 8);
             format.wfe.averageBytesPerSecond = format.wfe.samplesPerSecond * format.wfe.blockAlign;
-            format.wfe.size = (ushort)(Marshal.SizeOf<Interop.Wave.WaveFormatExtensiblePart>());
+            format.wfe.size = (ushort)(Marshal.SizeOf<WaveFormatExtensiblePart>());
 
             format.exp.validBitsPerSample = format.wfe.bitsPerSample;
             format.exp.channelMask = channelMask;
@@ -134,19 +135,19 @@ namespace Momiji.Core.Wave
             headerQueue = headerPool.makeBufferBlock();
 
             var mmResult =
-                Interop.Wave.waveOutOpen(
+                WaveOut.waveOutOpen(
                     out handle,
                     deviceID,
                     ref format,
                     DriverCallBackProc,
                     IntPtr.Zero,
                     (
-                            Interop.Wave.DriverCallBack.TYPE.FUNCTION
-                        | Interop.Wave.DriverCallBack.TYPE.WAVE_FORMAT_DIRECT
-                    //	|	Interop.Wave.DriverCallBack.TYPE.WAVE_ALLOWSYNC
+                          DriverCallBack.TYPE.FUNCTION
+                        | DriverCallBack.TYPE.WAVE_FORMAT_DIRECT
+                    //	| DriverCallBack.TYPE.WAVE_ALLOWSYNC
                     )
                 );
-            if (mmResult != Interop.Wave.MMRESULT.NOERROR)
+            if (mmResult != MMRESULT.NOERROR)
             {
                 throw new WaveException(mmResult);
             }
@@ -218,12 +219,11 @@ namespace Momiji.Core.Wave
             }
 
             var mmResult =
-                Interop.Wave.waveOutPrepareHeader(
-                    handle,
+                handle.waveOutPrepareHeader(
                     header.AddrOfPinnedObject,
                     SIZE_OF_WAVEHEADER
                 );
-            if (mmResult != Interop.Wave.MMRESULT.NOERROR)
+            if (mmResult != MMRESULT.NOERROR)
             {
                 headerQueue.Post(header);
                 throw new WaveException(mmResult);
@@ -235,16 +235,15 @@ namespace Momiji.Core.Wave
 
         private PcmBuffer<T> Unprepare(IntPtr headerPtr)
         {
-            PinnedBuffer<Interop.Wave.WaveHeader> header;
+            PinnedBuffer<WaveHeader> header;
             headerBusyPool.Remove(headerPtr, out header);
 
             var mmResult =
-                Interop.Wave.waveOutUnprepareHeader(
-                    handle,
+                handle.waveOutUnprepareHeader(
                     headerPtr,
                     SIZE_OF_WAVEHEADER
                 );
-            if (mmResult != Interop.Wave.MMRESULT.NOERROR)
+            if (mmResult != MMRESULT.NOERROR)
             {
                 throw new WaveException(mmResult);
             }
@@ -258,21 +257,21 @@ namespace Momiji.Core.Wave
 
         static public UInt32 GetNumDevices()
         {
-            return Interop.Wave.waveOutGetNumDevs();
+            return WaveOutMethod.waveOutGetNumDevs();
         }
 
-        static public Interop.Wave.WaveOutCapabilities GetCapabilities(
+        static public WaveOutCapabilities GetCapabilities(
             System.UInt32 deviceID
         )
         {
-            var caps = new Interop.Wave.WaveOutCapabilities();
+            var caps = new WaveOutCapabilities();
             var mmResult =
-                Interop.Wave.waveOutGetDevCaps(
+                WaveOutMethod.waveOutGetDevCaps(
                     deviceID,
                     ref caps,
-                    (uint)Marshal.SizeOf<Interop.Wave.WaveOutCapabilities>()
+                    (uint)Marshal.SizeOf<WaveOutCapabilities>()
                 );
-            if (mmResult != Interop.Wave.MMRESULT.NOERROR)
+            if (mmResult != MMRESULT.NOERROR)
             {
                 throw new WaveException(mmResult);
             }
@@ -290,12 +289,11 @@ namespace Momiji.Core.Wave
             }
 
             var mmResult =
-                Interop.Wave.waveOutWrite(
-                    handle,
+                handle.waveOutWrite(
                     headerPtr,
                     SIZE_OF_WAVEHEADER
                 );
-            if (mmResult != Interop.Wave.MMRESULT.NOERROR)
+            if (mmResult != MMRESULT.NOERROR)
             {
                 Unprepare(headerPtr);
                 throw new WaveException(mmResult);
@@ -312,8 +310,8 @@ namespace Momiji.Core.Wave
                 return;
             }
 
-            var mmResult = Interop.Wave.waveOutReset(handle);
-            if (mmResult != Interop.Wave.MMRESULT.NOERROR)
+            var mmResult = handle.waveOutReset();
+            if (mmResult != MMRESULT.NOERROR)
             {
                 throw new WaveException(mmResult);
             }

@@ -92,8 +92,7 @@ namespace Momiji.Core.Opus
                     var data = bufferQueue.Receive(ct);
                     //Logger.LogInformation("[opus] get data");
 
-                    data.Wrote = Encoder.opus_encode_float(
-                        encoder,
+                    data.Wrote = encoder.opus_encode_float(
                         pcm.AddrOfPinnedObject,
                         pcm.Target.Length / 2,
                         data.AddrOfPinnedObject,

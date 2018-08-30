@@ -1,5 +1,6 @@
 ﻿using Microsoft.Extensions.Logging;
 using Momiji.Interop;
+using Momiji.Interop.Wave;
 using System;
 using System.IO;
 using System.Runtime.InteropServices;
@@ -31,7 +32,7 @@ namespace Momiji.Test.WaveFile
             UInt16 channels,
             UInt32 samplesPerSecond,
             UInt16 bitsPerSample,
-            Wave.WaveFormatExtensiblePart.SPEAKER channelMask,
+            WaveFormatExtensiblePart.SPEAKER channelMask,
             Guid formatSubType,
             UInt32 samplesPerBuffer,
             ILoggerFactory loggerFactory
@@ -52,7 +53,7 @@ namespace Momiji.Test.WaveFile
             writer.Write(Encoding.ASCII.GetBytes("WAVE"));
             writer.Write(Encoding.ASCII.GetBytes("fmt "));
             writer.Write(16U);
-            writer.Write((ushort)Wave.WaveFormatEx.FORMAT.IEEE_FLOAT);
+            writer.Write((ushort)WaveFormatEx.FORMAT.IEEE_FLOAT);
             writer.Write(channels);
             writer.Write(samplesPerSecond);
             writer.Write((uint)(channels * bitsPerSample / 8 * samplesPerSecond));

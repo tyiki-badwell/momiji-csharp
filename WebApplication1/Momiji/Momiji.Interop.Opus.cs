@@ -209,10 +209,14 @@ namespace Momiji.Interop.Opus
             );
 
         [DllImport("opus.dll", CallingConvention = CallingConvention.StdCall)]
-        internal static extern void opus_encoder_destroy(
+        private static extern void opus_encoder_destroy(
             [In] IntPtr st
         );
 
+    }
+
+    public static class EncoderMethod
+    {
         [DllImport("opus.dll", CallingConvention = CallingConvention.StdCall)]
         internal static extern int opus_encoder_get_size(
             [In] Channels channels
@@ -220,7 +224,7 @@ namespace Momiji.Interop.Opus
 
         [DllImport("opus.dll", CallingConvention = CallingConvention.StdCall)]
         internal static extern OpusStatusCode opus_encoder_init(
-            [In] Encoder st,
+            [In] this Encoder st,
             [In] SamplingRate Fs,
             [In] Channels channels,
             [In] OpusApplicationType application
@@ -228,7 +232,7 @@ namespace Momiji.Interop.Opus
 
         [DllImport("opus.dll", CallingConvention = CallingConvention.StdCall)]
         internal static extern int opus_encode(
-            [In] Encoder st,
+            [In] this Encoder st,
             [In] IntPtr pcm,
             [In] int frame_size,
             [In] IntPtr data,
@@ -237,7 +241,7 @@ namespace Momiji.Interop.Opus
 
         [DllImport("opus.dll", CallingConvention = CallingConvention.StdCall)]
         internal static extern int opus_encode_float(
-            [In] Encoder st,
+            [In] this Encoder st,
             [In] IntPtr pcm,
             [In] int frame_size,
             [In] IntPtr data,
@@ -246,14 +250,14 @@ namespace Momiji.Interop.Opus
 
         [DllImport("opus.dll", CallingConvention = CallingConvention.StdCall)]
         internal static extern int opus_encoder_ctl(
-            [In] Encoder st,
+            [In] this Encoder st,
             [In] OpusCtlSetRequest request,
             [In] int value
         );
 
         [DllImport("opus.dll", CallingConvention = CallingConvention.StdCall)]
         internal static extern int opus_encoder_ctl(
-            [In] Encoder st,
+            [In] this Encoder st,
             [In] OpusCtlGetRequest request,
             [In, Out] ref int value
         );

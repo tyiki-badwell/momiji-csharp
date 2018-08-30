@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Hosting;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Momiji.Interop;
+using Momiji.Interop.Kernel32;
 using System;
 using System.IO;
 using System.Reflection;
@@ -33,7 +34,7 @@ namespace WebApplication1
                     "lib",
                     Environment.Is64BitProcess ? "64" : "32"
                 );
-            Kernel32.SetDllDirectory(dllPathBase);
+            DLLMethod.SetDllDirectory(dllPathBase);
 
             if (env.IsDevelopment())
             {
