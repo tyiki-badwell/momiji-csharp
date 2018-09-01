@@ -11,6 +11,7 @@ using Momiji.Core.WebMidi;
 using Momiji.Interop;
 using Momiji.Interop.Opus;
 using Momiji.Interop.Vst;
+using Momiji.Interop.Wave;
 using Momiji.Test.H264File;
 using System;
 using System.Collections.Generic;
@@ -59,7 +60,8 @@ namespace WebApplication1.Controllers
                     var intraFrameIntervalMs = 1000;
 
                     var samplingRate = 48000;
-                    var blockSize = (int)(samplingRate * 0.06);
+                    var sampleLength = 0.01;// 0.06;
+                    var blockSize = (int)(samplingRate * sampleLength);
 
                     var streamKey = Configuration["MIXER_STREAM_KEY"];
 
@@ -105,7 +107,8 @@ namespace WebApplication1.Controllers
                         var videoToFtlInput = videoPool.makeBufferBlock();
                         var videoToFtlOutput = videoPool.makeEmptyBufferBlock();
 
-                        var effect = vst.AddEffect("Synth1 VST.dll");
+                        //var effect = vst.AddEffect("Synth1 VST.dll");
+                        var effect = vst.AddEffect("Dexed.dll");
 
                         using (var ftl = new FtlIngest(streamKey, LoggerFactory, timer))
                         {
@@ -173,7 +176,6 @@ namespace WebApplication1.Controllers
             }
         }
 
-        /*
         private async Task Loop2()
         {
             var ct = processCancel.Token;
@@ -200,10 +202,11 @@ namespace WebApplication1.Controllers
                             0,
                             2,
                             (uint)samplingRate,
-                            Wave.WaveFormatExtensiblePart.SPEAKER.FRONT_LEFT | Wave.WaveFormatExtensiblePart.SPEAKER.FRONT_RIGHT, 
+                            WaveFormatExtensiblePart.SPEAKER.FRONT_LEFT | WaveFormatExtensiblePart.SPEAKER.FRONT_RIGHT, 
                             LoggerFactory))
                         {
-                            var effect = vst.AddEffect("Synth1 VST.dll");
+                            //var effect = vst.AddEffect("Synth1 VST.dll");
+                            var effect = vst.AddEffect("Dexed.dll");
 
                             var taskSet = new HashSet<Task>();
 
@@ -249,7 +252,7 @@ namespace WebApplication1.Controllers
                 Logger.LogInformation("main loop end");
             }
         }
-
+        /*
         private async Task Loop3()
         {
             var ct = processCancel.Token;
@@ -476,7 +479,7 @@ namespace WebApplication1.Controllers
             return View("Start");
         }
 
-        /*
+        
         public IActionResult Start2()
         {
             ViewData["Message"] = "Start.";
@@ -488,7 +491,7 @@ namespace WebApplication1.Controllers
 
             return View();
         }
-
+        /*
         public IActionResult Start3()
         {
             ViewData["Message"] = "Start.";
