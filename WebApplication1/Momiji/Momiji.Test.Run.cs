@@ -107,8 +107,8 @@ namespace Momiji.Test.Run
                         var videoToFtlInput = videoPool.makeBufferBlock();
                         var videoToFtlOutput = videoPool.makeEmptyBufferBlock();
 
-                        //var effect = vst.AddEffect("Synth1 VST.dll");
-                        var effect = vst.AddEffect("Dexed.dll");
+                        var effect = vst.AddEffect("Synth1 VST.dll");
+                        //var effect = vst.AddEffect("Dexed.dll");
 
                         using (var ftl = new FtlIngest(streamKey, LoggerFactory, timer))
                         {
