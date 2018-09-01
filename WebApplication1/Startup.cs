@@ -2,8 +2,10 @@
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
 using Momiji.Interop;
 using Momiji.Interop.Kernel32;
+using Momiji.Test.Run;
 using System;
 using System.IO;
 using System.Reflection;
@@ -12,7 +14,7 @@ namespace WebApplication1
 {
     public class Startup
     {
-        public Startup(IConfiguration configuration)
+        public Startup(IHostingEnvironment env, IConfiguration configuration, ILoggerFactory loggerFactory)
         {
             Configuration = configuration;
         }
@@ -23,6 +25,7 @@ namespace WebApplication1
         public void ConfigureServices(IServiceCollection services)
         {
             services.AddMvc();
+            services.AddSingleton<IRunner, Runner>();
         }
 
         // This method gets called by the runtime. Use this method to configure the HTTP request pipeline.
