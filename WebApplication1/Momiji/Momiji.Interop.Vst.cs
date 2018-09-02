@@ -118,7 +118,7 @@ namespace Momiji.Interop.Vst
     }
 
     [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Ansi)]
-    public struct AEffect
+    public class AEffect
     {
         //-------------------------------------------------------------------------------------------------------
         /** Basic dispatcher Opcodes (Host to Plug-in) */
@@ -657,4 +657,19 @@ namespace Momiji.Interop.Vst
         public IntPtr numSamplesOutputProcessed;   //< Int32* number of samples actually processed of output
                                                    //-------------------------------------------------------------------------------------------------------
     };
+
+    //-------------------------------------------------------------------------------------------------------
+    /** Structure used for #effEditGetRect. */
+    //-------------------------------------------------------------------------------------------------------
+    [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Ansi)]
+    public struct ERect
+    {
+        //-------------------------------------------------------------------------------------------------------
+        public Int16 top;       ///< top coordinate
+        public Int16 left;      ///< left coordinate
+        public Int16 bottom;    ///< bottom coordinate
+        public Int16 right;     ///< right coordinate
+        //-------------------------------------------------------------------------------------------------------
+    };
+
 }

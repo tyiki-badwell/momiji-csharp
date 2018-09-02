@@ -1,39 +1,18 @@
 ﻿using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
-using Momiji.Core;
-using Momiji.Core.Ftl;
-using Momiji.Core.H264;
-using Momiji.Core.Opus;
-using Momiji.Core.Vst;
-using Momiji.Core.Wave;
 using Momiji.Core.WebMidi;
-using Momiji.Interop;
-using Momiji.Interop.Opus;
-using Momiji.Interop.Vst;
-using Momiji.Interop.Wave;
-using Momiji.Test.H264File;
 using Momiji.Test.Run;
-using System;
-using System.Collections.Generic;
 using System.Diagnostics;
-using System.Runtime.InteropServices;
-using System.Threading;
-using System.Threading.Tasks;
-using System.Threading.Tasks.Dataflow;
 using WebApplication1.Models;
 
 namespace WebApplication1.Controllers
 {
     public class HomeController : Controller
     {
-        private static CancellationTokenSource processCancel;
-        private static Task processTask;
         private IConfiguration Configuration { get; }
         private ILoggerFactory LoggerFactory { get; }
         private ILogger Logger { get; }
-
-        private static BufferBlock<VstMidiEvent> midiEventInput = new BufferBlock<VstMidiEvent>();
 
         public HomeController(IConfiguration configuration, ILoggerFactory loggerFactory)
         {
@@ -51,58 +30,48 @@ namespace WebApplication1.Controllers
 
         public IActionResult Start([FromServices]IRunner runner)
         {
-            ViewData["Message"] = "Start.";
-            if (processCancel == null)
+            if (runner.Start())
             {
-                processCancel = new CancellationTokenSource();
-                processTask = runner.Loop(processCancel);
+                ViewData["Message"] = "OK.";
             }
-
+            else
+            {
+                ViewData["Message"] = "Failed.";
+            }
             return View("Start");
         }
 
         
         public IActionResult Start2([FromServices]IRunner runner)
         {
-            ViewData["Message"] = "Start2.";
-            if (processCancel == null)
+            if (runner.Start2())
             {
-                processCancel = new CancellationTokenSource();
-                processTask = runner.Loop2(processCancel);
+                ViewData["Message"] = "OK.";
             }
-
-            return View();
+            else
+            {
+                ViewData["Message"] = "Failed.";
+            }
+            return View("Start2");
         }
 
-        public IActionResult Stop()
+        public IActionResult Stop([FromServices]IRunner runner)
         {
             ViewData["Message"] = "Stop.";
-            if (processCancel != null)
+            if (runner.Stop())
             {
-                processCancel.Cancel();
-                try
-                {
-                    processTask.Wait();
-                }
-                catch (AggregateException e)
-                {
-                    foreach (var v in e.InnerExceptions)
-                    {
-                        Logger.LogInformation($"[home] Process Exception:{e.Message} {v.Message}");
-                    }
-                }
-                finally
-                {
-                    processCancel.Dispose();
-                    processCancel = null;
-                }
+                ViewData["Message"] = "OK.";
             }
-            return View();
+            else
+            {
+                ViewData["Message"] = "Failed.";
+            }
+            return View("Stop");
         }
         
         public IActionResult Index()
         {
-            return View();
+            return View("Index");
         }
 
         public IActionResult Error()

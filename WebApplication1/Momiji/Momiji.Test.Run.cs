@@ -21,8 +21,10 @@ namespace Momiji.Test.Run
 {
     public interface IRunner
     {
-        Task Loop(CancellationTokenSource processCancel);
-        Task Loop2(CancellationTokenSource processCancel);
+        bool Start();
+        bool Stop();
+
+        bool Start2();
         void Note(MIDIMessageEvent[] midiMessage);
     }
 
@@ -32,7 +34,9 @@ namespace Momiji.Test.Run
         private ILoggerFactory LoggerFactory { get; }
         private ILogger Logger { get; }
 
-        private static BufferBlock<VstMidiEvent> midiEventInput = new BufferBlock<VstMidiEvent>();
+        private CancellationTokenSource processCancel;
+        private Task processTask;
+        private BufferBlock<VstMidiEvent> midiEventInput = new BufferBlock<VstMidiEvent>();
 
         public Runner(IConfiguration configuration, ILoggerFactory loggerFactory)
         {
@@ -41,7 +45,50 @@ namespace Momiji.Test.Run
             Logger = LoggerFactory.CreateLogger<Runner>();
         }
 
-        public async Task Loop(CancellationTokenSource processCancel)
+        public bool Start()
+        {
+            if (processCancel != null)
+            {
+                return false;
+            }
+            processCancel = new CancellationTokenSource();
+            processTask = Loop(processCancel);
+            return true;
+        }
+
+
+        public bool Stop()
+        {
+            if (processCancel == null)
+            {
+                return false;
+            }
+
+            if (processCancel != null)
+            {
+                processCancel.Cancel();
+                try
+                {
+                    processTask.Wait();
+                }
+                catch (AggregateException e)
+                {
+                    foreach (var v in e.InnerExceptions)
+                    {
+                        Logger.LogInformation($"[home] Process Exception:{e.Message} {v.Message}");
+                    }
+                }
+                finally
+                {
+                    processTask = null;
+                    processCancel.Dispose();
+                    processCancel = null;
+                }
+            }
+            return true;
+        }
+
+        private async Task Loop(CancellationTokenSource processCancel)
         {
             var ct = processCancel.Token;
 
@@ -88,7 +135,7 @@ namespace Momiji.Test.Run
                     0.12
                      */
 
-                    using (var timer = new Momiji.Core.Timer())
+                    using (var timer = new Core.Timer())
                     using (var pcmPool = new BufferPool<PcmBuffer<float>>(2, () => { return new PcmBuffer<float>(blockSize, 2); }))
                     using (var audioPool = new BufferPool<OpusOutputBuffer>(2, () => { return new OpusOutputBuffer(5000); }))
                     using (var bmpPool = new BufferPool<H264InputBuffer>(2, () => { return new H264InputBuffer(width, height); }))
@@ -112,6 +159,8 @@ namespace Momiji.Test.Run
 
                         using (var ftl = new FtlIngest(streamKey, LoggerFactory, timer))
                         {
+                            ftl.Connect();
+
                             var taskSet = new HashSet<Task>();
 
                             taskSet.Add(effect.Run(
@@ -176,7 +225,18 @@ namespace Momiji.Test.Run
             }
         }
 
-        public async Task Loop2(CancellationTokenSource processCancel)
+        public bool Start2()
+        {
+            if (processCancel != null)
+            {
+                return false;
+            }
+            processCancel = new CancellationTokenSource();
+            processTask = Loop2(processCancel);
+            return true;
+        }
+
+        private async Task Loop2(CancellationTokenSource processCancel)
         {
             var ct = processCancel.Token;
 
@@ -205,8 +265,8 @@ namespace Momiji.Test.Run
                             WaveFormatExtensiblePart.SPEAKER.FRONT_LEFT | WaveFormatExtensiblePart.SPEAKER.FRONT_RIGHT,
                             LoggerFactory))
                         {
-                            //var effect = vst.AddEffect("Synth1 VST.dll");
-                            var effect = vst.AddEffect("Dexed.dll");
+                            var effect = vst.AddEffect("Synth1 VST.dll");
+                            //var effect = vst.AddEffect("Dexed.dll");
 
                             var taskSet = new HashSet<Task>();
 

@@ -53,11 +53,6 @@ namespace Momiji.Core.Ftl
                 handle = null;
                 throw new Exception($"ftl_ingest_create error:{status}");
             }
-
-            logTask = PrintTrace(logCancel, handle);
-
-            status = Handle.ftl_ingest_connect(handle.AddrOfPinnedObject);
-            Logger.LogInformation($"ftl_ingest_connect:{status}");
         }
 
         public void Dispose()
@@ -104,6 +99,18 @@ namespace Momiji.Core.Ftl
             }
 
             disposed = true;
+        }
+
+        public void Connect()
+        {
+            logTask = PrintTrace(logCancel, handle);
+
+            var status = Handle.ftl_ingest_connect(handle.AddrOfPinnedObject);
+            Logger.LogInformation($"ftl_ingest_connect:{status}");
+            if (status != Status.FTL_SUCCESS)
+            {
+                throw new Exception($"ftl_ingest_connect error:{status}");
+            }
         }
 
         public async Task Run(

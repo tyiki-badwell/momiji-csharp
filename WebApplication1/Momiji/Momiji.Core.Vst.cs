@@ -5,6 +5,7 @@ using Momiji.Interop.Vst;
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
+using System.Runtime.ConstrainedExecution;
 using System.Runtime.InteropServices;
 using System.Threading;
 using System.Threading.Tasks;
@@ -100,7 +101,8 @@ namespace Momiji.Core.Vst
         public Effect<T> AddEffect(string library)
         {
             var effect = new Effect<T>(library, this, LoggerFactory, Timer);
-            effectMap.Add(effect.AeffectPtr, effect);
+            effectMap.Add(effect.AEffectPtr, effect);
+            effect.Open();
             return effect;
         }
 
@@ -172,7 +174,8 @@ namespace Momiji.Core.Vst
 
         private bool disposed = false;
         private DLL dll;
-        public IntPtr AeffectPtr { get; private set; }
+        internal IntPtr AEffectPtr { get; private set; }
+        internal ERect EditorRect { get; private set; }
 
         private AEffect.DispatcherProc dispatcher;
         private AEffect.SetParameterProc setParameter;
@@ -180,8 +183,11 @@ namespace Momiji.Core.Vst
         private AEffect.ProcessProc processReplacing;
         private AEffect.ProcessDoubleProc processDoubleReplacing;
 
-        int numOutputs;
+        private int numOutputs;
+        private AEffect.VstAEffectFlags flags;
         private AudioMaster<T> audioMaster;
+
+        private System.Windows.Input.ICommand window;
 
         internal Effect(string library, AudioMaster<T> audioMaster, ILoggerFactory loggerFactory, Timer timer)
         {
@@ -215,9 +221,14 @@ namespace Momiji.Core.Vst
             var vstPluginMain =
                 Marshal.GetDelegateForFunctionPointer<AEffect.VSTPluginMain>(proc);
 
-            AeffectPtr = vstPluginMain(audioMaster.AudioMasterCallBackProc);
-            var aeffect = Marshal.PtrToStructure<AEffect>(AeffectPtr);
+            AEffectPtr = vstPluginMain(audioMaster.AudioMasterCallBackProc);
+            if (AEffectPtr == IntPtr.Zero)
+            {
+                throw new VstException("vstPluginMain で失敗");
+            }
+            var aeffect = Marshal.PtrToStructure<AEffect>(AEffectPtr);
             numOutputs = aeffect.numOutputs;
+            flags = aeffect.flags;
 
             Logger.LogInformation($"magic:{aeffect.magic}");
             Logger.LogInformation($"dispatcher:{aeffect.dispatcher}");
@@ -282,7 +293,6 @@ namespace Momiji.Core.Vst
                     Marshal.GetDelegateForFunctionPointer<AEffect.ProcessDoubleProc>(aeffect.processDoubleReplacing);
             }
 
-            Open(audioMaster);
         }
 
         private IntPtr Dispatcher(
@@ -290,12 +300,11 @@ namespace Momiji.Core.Vst
             Int32 index,
             IntPtr value,
             IntPtr ptr,
-            Single opt,
-            bool needResult = false
+            Single opt
         )
         {
             var result = dispatcher(
-                    AeffectPtr,
+                    AEffectPtr,
                     opcode,
                     index,
                     value,
@@ -303,10 +312,6 @@ namespace Momiji.Core.Vst
                     opt
                 );
             Logger.LogInformation($"[vst] dispatcher {opcode} {result}");
-            if (!needResult && (result != IntPtr.Zero))
-            {
-                throw new VstException($"dispatcher {opcode} 失敗 {result}");
-            }
             return result;
         }
 
@@ -375,19 +380,18 @@ namespace Momiji.Core.Vst
                                         eventsPtr += sizeIntPtr;
                                     });
 
-                                    var result = Dispatcher(
+                                    Dispatcher(
                                         AEffect.Opcodes.effProcessEvents,
                                         0,
                                         IntPtr.Zero,
                                         events.AddrOfPinnedObject,
-                                        0,
-                                        true
+                                        0
                                     );
                                 }
                             }
 
                             processReplacing(
-                                AeffectPtr,
+                                AEffectPtr,
                                 IntPtr.Zero,
                                 buffer.AddrOfPinnedObject,
                                 blockSize
@@ -414,8 +418,17 @@ namespace Momiji.Core.Vst
             }
         }
 
-        private void Open(AudioMaster<T> audioMaster)
+        internal void Open()
         {
+            if (!flags.HasFlag(AEffect.VstAEffectFlags.effFlagsIsSynth))
+            {
+                throw new VstException("effFlagsIsSynth ではない");
+            }
+            if (!flags.HasFlag(AEffect.VstAEffectFlags.effFlagsHasEditor))
+            {
+                throw new VstException("effFlagsHasEditor ではない");
+            }
+
             Dispatcher(
                 AEffect.Opcodes.effOpen,
                 0,
@@ -454,10 +467,40 @@ namespace Momiji.Core.Vst
                 IntPtr.Zero,
                 0
             );
+
+            /*
+            Dispatcher(
+                AEffect.Opcodes.effEditOpen,
+                0,
+                IntPtr.Zero,
+                IntPtr.Zero, // TODO hWnd
+                0
+            );
+            using (var buffer = new PinnedBuffer<IntPtr[]>(new IntPtr[1]))
+            { 
+                Dispatcher(
+                    AEffect.Opcodes.effEditGetRect,
+                    0,
+                    IntPtr.Zero,
+                    buffer.AddrOfPinnedObject, // TODO out ERect
+                    0
+                );
+
+                EditorRect = Marshal.PtrToStructure<ERect>(buffer.AddrOfPinnedObject);
+            }*/
         }
 
         private void Close()
         {
+            /*
+            Dispatcher(
+                AEffect.Opcodes.effEditClose,
+                0,
+                IntPtr.Zero,
+                IntPtr.Zero,
+                0
+            );*/
+            
             //stop
             Dispatcher(
                 AEffect.Opcodes.effStopProcess,
@@ -480,11 +523,10 @@ namespace Momiji.Core.Vst
                 0,
                 IntPtr.Zero,
                 IntPtr.Zero,
-                0,
-                true
+                0
             );
 
-            AeffectPtr = IntPtr.Zero;
+            AEffectPtr = IntPtr.Zero;
         }
 
         public void Dispose()
