@@ -4,6 +4,7 @@ using Momiji.Core;
 using Momiji.Core.Ftl;
 using Momiji.Core.H264;
 using Momiji.Core.Opus;
+using Momiji.Core.FFT;
 using Momiji.Core.Vst;
 using Momiji.Core.Wave;
 using Momiji.Core.WebMidi;
@@ -16,6 +17,7 @@ using System.Runtime.InteropServices;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Threading.Tasks.Dataflow;
+using Momiji.Core.Trans;
 
 namespace Momiji.Test.Run
 {
@@ -136,17 +138,22 @@ namespace Momiji.Test.Run
                      */
 
                     using (var timer = new Core.Timer())
+                    using (var vstBufferPool = new BufferPool<VstBuffer<float>>(2, () => { return new VstBuffer<float>(blockSize, 2); }))
                     using (var pcmPool = new BufferPool<PcmBuffer<float>>(2, () => { return new PcmBuffer<float>(blockSize, 2); }))
                     using (var audioPool = new BufferPool<OpusOutputBuffer>(2, () => { return new OpusOutputBuffer(5000); }))
                     using (var bmpPool = new BufferPool<H264InputBuffer>(2, () => { return new H264InputBuffer(width, height); }))
                     using (var videoPool = new BufferPool<H264OutputBuffer>(2, () => { return new H264OutputBuffer(100000); }))
                     using (var vst = new AudioMaster<float>(samplingRate, blockSize, LoggerFactory, timer))
+                    using (var toPcm = new ToPcm<float>(LoggerFactory))
                     using (var opus = new OpusEncoder(SamplingRate.Sampling48000, Channels.Stereo, LoggerFactory))
+                    using (var fft = new FFTEncoder(LoggerFactory))
                     using (var h264 = new H264Encoder(width, height, targetBitrate, maxFrameRate, intraFrameIntervalMs, LoggerFactory, timer))
                     //using (var h264 = new H264File(LoggerFactory))
                     {
-                        var vstToOpusInput = pcmPool.makeEmptyBufferBlock();
-                        var vstToOpusOutput = pcmPool.makeBufferBlock();
+                        var vstToPcmInput = vstBufferPool.makeBufferBlock();
+                        var vstToPcmOutput = vstBufferPool.makeEmptyBufferBlock();
+                        var pcmToOpusInput = pcmPool.makeEmptyBufferBlock();
+                        var pcmToOpusOutput = pcmPool.makeBufferBlock();
                         var audioToFtlInput = audioPool.makeBufferBlock();
                         var audioToFtlOutput = audioPool.makeEmptyBufferBlock();
                         var bmpToVideoInput = bmpPool.makeBufferBlock();
@@ -164,24 +171,40 @@ namespace Momiji.Test.Run
                             var taskSet = new HashSet<Task>();
 
                             taskSet.Add(effect.Run(
-                                vstToOpusOutput,
-                                vstToOpusInput,
+                                vstToPcmOutput,
+                                vstToPcmInput,
                                 midiEventInput,
                                 ct
                             ));
 
+                            taskSet.Add(toPcm.Run(
+                                vstToPcmInput,
+                                vstToPcmOutput,
+                                pcmToOpusInput,
+                                pcmToOpusOutput,
+                                ct
+                            ));
+
                             taskSet.Add(opus.Run(
-                                vstToOpusInput,
-                                vstToOpusOutput,
+                                pcmToOpusInput,
+                                pcmToOpusOutput,
                                 audioToFtlInput,
                                 audioToFtlOutput,
                                 ct
                             ));
+                            /*
+                            taskSet.Add(fft.Run(
+                                vstToOpusInput,
+                                vstToOpusOutput,
+                                bmpToVideoInput,
+                                bmpToVideoOutput,
+                                ct
+                            ));
+                            */
 
                             taskSet.Add(h264.Run(
                                 bmpToVideoInput,
-                                bmpToVideoInput,
-                                //bmpToVideoOutput,
+                                bmpToVideoOutput,
                                 videoToFtlInput,
                                 videoToFtlOutput,
                                 ct
@@ -251,13 +274,18 @@ namespace Momiji.Test.Run
                     Int32 samplingRate = 48000;
                     Int32 blockSize = (Int32)(samplingRate * 0.05);
 
+                    using (var vstBufferPool = new BufferPool<VstBuffer<float>>(2, () => { return new VstBuffer<float>(blockSize, 2); }))
                     using (var pcmPool = new BufferPool<PcmBuffer<float>>(2, () => { return new PcmBuffer<float>(blockSize, 2); }))
                     {
-                        var vstToOpusInput = pcmPool.makeBufferBlock();
-                        var vstToOpusOutput = new BufferBlock<PcmBuffer<float>>();
+                        var vstToPcmInput = vstBufferPool.makeBufferBlock();
+                        var vstToPcmOutput = vstBufferPool.makeEmptyBufferBlock();
 
-                        using (var timer = new Momiji.Core.Timer())
+                        var pcmToWaveInput = pcmPool.makeEmptyBufferBlock();
+                        var pcmToWaveOutput = pcmPool.makeBufferBlock();
+
+                        using (var timer = new Core.Timer())
                         using (var vst = new AudioMaster<float>(samplingRate, blockSize, LoggerFactory, timer))
+                        using (var toPcm = new ToPcm<float>(LoggerFactory))
                         using (var wave = new WaveOutFloat(
                             0,
                             2,
@@ -271,19 +299,27 @@ namespace Momiji.Test.Run
                             var taskSet = new HashSet<Task>();
 
                             taskSet.Add(effect.Run(
-                                vstToOpusOutput,
-                                vstToOpusInput,
+                                vstToPcmOutput,
+                                vstToPcmInput,
                                 midiEventInput,
                                 ct
                             ));
 
+                            taskSet.Add(toPcm.Run(
+                                vstToPcmInput,
+                                vstToPcmOutput,
+                                pcmToWaveInput,
+                                pcmToWaveOutput,
+                                ct
+                            ));
+
                             taskSet.Add(wave.Run(
-                                vstToOpusInput,
+                                pcmToWaveOutput,
                                 ct
                             ));
 
                             taskSet.Add(wave.Release(
-                                vstToOpusOutput,
+                                pcmToWaveInput,
                                 ct
                             ));
 

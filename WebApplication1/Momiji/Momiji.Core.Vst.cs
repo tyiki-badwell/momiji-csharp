@@ -5,7 +5,6 @@ using Momiji.Interop.Vst;
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
-using System.Runtime.ConstrainedExecution;
 using System.Runtime.InteropServices;
 using System.Threading;
 using System.Threading.Tasks;
@@ -316,15 +315,14 @@ namespace Momiji.Core.Vst
         }
 
         public async Task Run(
-            ISourceBlock<Wave.PcmBuffer<T>> bufferQueue,
-            ITargetBlock<Wave.PcmBuffer<T>> outputQueue,
+            ISourceBlock<VstBuffer<T>> bufferQueue,
+            ITargetBlock<VstBuffer<T>> outputQueue,
             IReceivableSourceBlock<VstMidiEvent> midiEventQueue,
             CancellationToken ct)
         {
             var blockSize = audioMaster.BlockSize;
             using (var events = new PinnedBuffer<byte[]>(new byte[4000]))
             using (var eventList = new PinnedBuffer<byte[]>(new byte[4000]))
-            using (var buffer = new VstBuffer<T>(blockSize, numOutputs))
             {
                 await Task.Run(() =>
                 {
@@ -346,7 +344,7 @@ namespace Momiji.Core.Vst
                             }
 
                             //Logger.LogInformation("[vst] get data TRY");
-                            var data = bufferQueue.Receive(ct);
+                            var buffer = bufferQueue.Receive(ct);
                             w.Wait();
 
                             {
@@ -397,20 +395,7 @@ namespace Momiji.Core.Vst
                                 blockSize
                             );
 
-                            {
-                                var target = data.Target;
-                                var targetIdx = 0;
-                                var left = buffer.Get(0);
-                                var right = buffer.Get(1);
-
-                                for (var idx = 0; idx < blockSize; idx++)
-                                {
-                                    target[targetIdx++] = left[idx];
-                                    target[targetIdx++] = right[idx];
-                                }
-                            }
-
-                            outputQueue.Post(data);
+                            outputQueue.Post(buffer);
                         }
                     }
                     Logger.LogInformation("[vst] loop end");
