@@ -69,7 +69,12 @@ namespace Momiji.Core.Vst
         public Int32 SamplingRate { get; }
         public Int32 BlockSize { get; }
 
-        public AudioMaster(Int32 samplingRate, Int32 blockSize, ILoggerFactory loggerFactory, Timer timer)
+        public AudioMaster(
+            Int32 samplingRate,
+            Int32 blockSize,
+            ILoggerFactory loggerFactory,
+            Timer timer
+        )
         {
             LoggerFactory = loggerFactory;
             Logger = LoggerFactory.CreateLogger<AudioMaster<T>>();
@@ -343,9 +348,11 @@ namespace Momiji.Core.Vst
                                 break;
                             }
 
-                            //Logger.LogInformation("[vst] get data TRY");
                             var buffer = bufferQueue.Receive(ct);
+                            buffer.Log.Clear();
+                            buffer.Log.Add("[vst] receive buffer", Timer.USecDouble);
                             w.Wait();
+                            buffer.Log.Add("[vst] start", Timer.USecDouble);
 
                             {
                                 var list = new List<VstMidiEvent>();
@@ -378,6 +385,7 @@ namespace Momiji.Core.Vst
                                         eventsPtr += sizeIntPtr;
                                     });
 
+                                    buffer.Log.Add("[vst] start effProcessEvents", Timer.USecDouble);
                                     Dispatcher(
                                         AEffect.Opcodes.effProcessEvents,
                                         0,
@@ -385,15 +393,18 @@ namespace Momiji.Core.Vst
                                         events.AddrOfPinnedObject,
                                         0
                                     );
+                                    buffer.Log.Add("[vst] end effProcessEvents", Timer.USecDouble);
                                 }
                             }
 
+                            buffer.Log.Add("[vst] start processReplacing", Timer.USecDouble);
                             processReplacing(
                                 AEffectPtr,
                                 IntPtr.Zero,
                                 buffer.AddrOfPinnedObject,
                                 blockSize
                             );
+                            buffer.Log.Add("[vst] end processReplacing", Timer.USecDouble);
 
                             outputQueue.Post(buffer);
                         }

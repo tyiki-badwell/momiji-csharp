@@ -129,6 +129,7 @@ namespace Momiji.Core.Ftl
                     }
 
                     var buffer = inputQueue.Receive(ct);
+                    buffer.Log.Add("[ftl] start ftl_ingest_send_media_dts AUDIO", Timer.USecDouble);
                     var sent = Handle.ftl_ingest_send_media_dts(
                         handle.AddrOfPinnedObject,
                         MediaType.FTL_AUDIO_DATA,
@@ -137,7 +138,16 @@ namespace Momiji.Core.Ftl
                         buffer.Wrote,
                         0
                     );
-                    //Logger.LogInformation($"[ftl] ftl_ingest_send_media_dts AUDIO {buffer.Wrote}->{sent}");
+                    buffer.Log.Add("[ftl] end ftl_ingest_send_media_dts AUDIO", Timer.USecDouble);
+                    {
+                        var log = "AUDIO ";
+                        double temp = 0;
+                        buffer.Log.Copy().ForEach((a) => {
+                            log += $"{a.Item1}:{(a.Item2-temp)},";
+                            temp = a.Item2;
+                        });
+                        Logger.LogInformation($"[ftl] {log}");
+                    }
                     inputReleaseQueue.Post(buffer);
                 }
             }, ct);
@@ -158,6 +168,7 @@ namespace Momiji.Core.Ftl
                         break;
                     }
                     var buffer = inputQueue.Receive(ct);
+                    buffer.Log.Add("[ftl] start ftl_ingest_send_media_dts VIDEO", Timer.USecDouble);
                     var sent = Handle.ftl_ingest_send_media_dts(
                         handle.AddrOfPinnedObject,
                         MediaType.FTL_VIDEO_DATA,
@@ -166,7 +177,16 @@ namespace Momiji.Core.Ftl
                         buffer.Wrote,
                         buffer.EndOfFrame ? 1 : 0
                     );
-                    //Logger.LogInformation($"[ftl] ftl_ingest_send_media_dts VIDEO {buffer.Wrote}->{sent}");
+                    buffer.Log.Add("[ftl] end ftl_ingest_send_media_dts VIDEO", Timer.USecDouble);
+                    {
+                        var log = "VIDEO ";
+                        double temp = 0;
+                        buffer.Log.Copy().ForEach((a) => {
+                            log += $"{a.Item1}:{(a.Item2 - temp)},";
+                            temp = a.Item2;
+                        });
+                        Logger.LogInformation($"[ftl] {log}");
+                    }
                     inputReleaseQueue.Post(buffer);
                 }
             }, ct);

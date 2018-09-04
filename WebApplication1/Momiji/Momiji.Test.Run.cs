@@ -144,20 +144,20 @@ namespace Momiji.Test.Run
                     using (var bmpPool = new BufferPool<H264InputBuffer>(2, () => { return new H264InputBuffer(width, height); }))
                     using (var videoPool = new BufferPool<H264OutputBuffer>(2, () => { return new H264OutputBuffer(100000); }))
                     using (var vst = new AudioMaster<float>(samplingRate, blockSize, LoggerFactory, timer))
-                    using (var toPcm = new ToPcm<float>(LoggerFactory))
-                    using (var opus = new OpusEncoder(SamplingRate.Sampling48000, Channels.Stereo, LoggerFactory))
+                    using (var toPcm = new ToPcm<float>(LoggerFactory, timer))
+                    using (var opus = new OpusEncoder(SamplingRate.Sampling48000, Channels.Stereo, LoggerFactory, timer))
                     using (var fft = new FFTEncoder(LoggerFactory))
                     using (var h264 = new H264Encoder(width, height, targetBitrate, maxFrameRate, intraFrameIntervalMs, LoggerFactory, timer))
                     //using (var h264 = new H264File(LoggerFactory))
                     {
-                        var vstToPcmInput = vstBufferPool.makeBufferBlock();
-                        var vstToPcmOutput = vstBufferPool.makeEmptyBufferBlock();
+                        var vstToPcmInput = vstBufferPool.makeEmptyBufferBlock();
+                        var vstToPcmOutput = vstBufferPool.makeBufferBlock();
                         var pcmToOpusInput = pcmPool.makeEmptyBufferBlock();
                         var pcmToOpusOutput = pcmPool.makeBufferBlock();
                         var audioToFtlInput = audioPool.makeBufferBlock();
                         var audioToFtlOutput = audioPool.makeEmptyBufferBlock();
-                        var bmpToVideoInput = bmpPool.makeBufferBlock();
-                        var bmpToVideoOutput = bmpPool.makeEmptyBufferBlock();
+                        var bmpToVideoInput = bmpPool.makeEmptyBufferBlock();
+                        var bmpToVideoOutput = bmpPool.makeBufferBlock(); 
                         var videoToFtlInput = videoPool.makeBufferBlock();
                         var videoToFtlOutput = videoPool.makeEmptyBufferBlock();
 
@@ -180,8 +180,8 @@ namespace Momiji.Test.Run
                             taskSet.Add(toPcm.Run(
                                 vstToPcmInput,
                                 vstToPcmOutput,
-                                pcmToOpusInput,
                                 pcmToOpusOutput,
+                                pcmToOpusInput,
                                 ct
                             ));
 
@@ -192,15 +192,14 @@ namespace Momiji.Test.Run
                                 audioToFtlOutput,
                                 ct
                             ));
-                            /*
+                            
                             taskSet.Add(fft.Run(
-                                vstToOpusInput,
-                                vstToOpusOutput,
-                                bmpToVideoInput,
+                                //vstToOpusInput,
+                                //vstToOpusOutput,
                                 bmpToVideoOutput,
+                                bmpToVideoInput,
                                 ct
                             ));
-                            */
 
                             taskSet.Add(h264.Run(
                                 bmpToVideoInput,
@@ -285,7 +284,7 @@ namespace Momiji.Test.Run
 
                         using (var timer = new Core.Timer())
                         using (var vst = new AudioMaster<float>(samplingRate, blockSize, LoggerFactory, timer))
-                        using (var toPcm = new ToPcm<float>(LoggerFactory))
+                        using (var toPcm = new ToPcm<float>(LoggerFactory, timer))
                         using (var wave = new WaveOutFloat(
                             0,
                             2,

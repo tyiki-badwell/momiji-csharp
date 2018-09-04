@@ -1,16 +1,55 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.Runtime.InteropServices;
 
 namespace Momiji.Interop
 {
+    public class BufferLog
+    {
+        private List<Tuple<string, double>> Log { get; }
+
+        public BufferLog()
+        {
+            Log = new List<Tuple<string, double>>();
+        }
+
+        public void Clear()
+        {
+            Log.Clear();
+        }
+
+        public void Add(string label, double time)
+        {
+            Log.Add(new Tuple<string, double>(label, time));
+        }
+
+        public void Marge(BufferLog source)
+        {
+            Marge(source.Log);
+        }
+
+        public void Marge(List<Tuple<string, double>> source)
+        {
+            Clear();
+            Log.InsertRange(0, source);
+        }
+
+        public List<Tuple<string, double>> Copy()
+        {
+            return new List<Tuple<string, double>>(Log);
+        }
+    }
+
     public class PinnedBuffer<T> : IDisposable where T : class
     {
         private bool disposed = false;
         private GCHandle handle;
+        public BufferLog Log { get; }
 
         public PinnedBuffer(T buffer)
         {
             handle = GCHandle.Alloc(buffer, GCHandleType.Pinned);
+            Log = new BufferLog();
         }
 
         public void Dispose()
@@ -48,5 +87,6 @@ namespace Momiji.Interop
                 return (T)handle.Target;
             }
         }
+
     }
 }

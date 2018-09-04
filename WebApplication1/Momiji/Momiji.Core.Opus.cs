@@ -21,6 +21,7 @@ namespace Momiji.Core.Opus
     {
         private ILoggerFactory LoggerFactory { get; }
         private ILogger Logger { get; }
+        private Timer Timer { get; }
 
         private bool disposed = false;
         private Encoder encoder;
@@ -28,11 +29,13 @@ namespace Momiji.Core.Opus
         public OpusEncoder(
             SamplingRate Fs,
             Channels channels, 
-            ILoggerFactory loggerFactory
+            ILoggerFactory loggerFactory,
+            Timer timer
         )
         {
             LoggerFactory = loggerFactory;
             Logger = LoggerFactory.CreateLogger<OpusEncoder>();
+            Timer = timer;
 
             var error = OpusStatusCode.Unimplemented;
 
@@ -88,26 +91,22 @@ namespace Momiji.Core.Opus
                     }
 
                     var pcm = inputQueue.Receive(ct);
-                    //Logger.LogInformation("[opus] receive pcm");
                     var data = bufferQueue.Receive(ct);
-                    //Logger.LogInformation("[opus] get data");
+                    data.Log.Marge(pcm.Log);
 
+                    data.Log.Add("[opus] start opus_encode_float", Timer.USecDouble);
                     data.Wrote = encoder.opus_encode_float(
                         pcm.AddrOfPinnedObject,
                         pcm.Target.Length / 2,
                         data.AddrOfPinnedObject,
                         data.Target.Length
                         );
+                    data.Log.Add($"[opus] end opus_encode_float {data.Wrote}", Timer.USecDouble);
 
-                    //Logger.LogInformation("[opus] release pcm");
                     inputReleaseQueue.Post(pcm);
                     if (data.Wrote < 0)
                     {
                         throw new Exception($"[opus] opus_encode_float error:{data.Wrote}");
-                    }
-                    else
-                    {
-                        //Logger.LogInformation($"[opus] post data: wrote {data.Wrote}");
                     }
 
                     outputQueue.Post(data);
