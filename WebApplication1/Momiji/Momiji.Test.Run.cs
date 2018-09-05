@@ -383,7 +383,7 @@ namespace Momiji.Test.Run
                             pcm1.Target[idx++] = (float)(d/2);
                         }
 
-                        vstToOpusInput.Post(pcm1);
+                        vstToOpusInput.SendAsync(pcm1);
 
                         using (var wave = new WaveOutFloat(
                             0,
@@ -482,10 +482,10 @@ namespace Momiji.Test.Run
                         var vstToOpusOutput = new BufferBlock<PcmBuffer<float>>();
                         var opusToFtlInput = new BufferBlock<OpusOutputBuffer>();
 
-                        vstToOpusOutput.Post(pcm1);
-                        vstToOpusOutput.Post(pcm2);
-                        opusToFtlInput.Post(out1);
-                        opusToFtlInput.Post(out2);
+                        vstToOpusOutput.SendAsync(pcm1);
+                        vstToOpusOutput.SendAsync(pcm2);
+                        opusToFtlInput.SendAsync(out1);
+                        opusToFtlInput.SendAsync(out2);
 
                         using (var timer = new Momiji.Core.Timer())
                         using (var vst = new AudioMaster<float>(samplingRate, blockSize, LoggerFactory, timer))
@@ -555,7 +555,7 @@ namespace Momiji.Test.Run
                     midiData2 = item.data[2],
                     midiData3 = 0x00
                 };
-                midiEventInput.Post(vstEvent);
+                midiEventInput.SendAsync(vstEvent);
             }
         }
     }

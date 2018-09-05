@@ -45,8 +45,8 @@ namespace Momiji.Core.FFT
         public async Task Run(
             //ISourceBlock<Wave.PcmBuffer<float>> inputQueue,
             //ITargetBlock<Wave.PcmBuffer<float>> inputReleaseQueue,
-            ISourceBlock<H264InputBuffer> bufferQueue,
-            ITargetBlock<H264InputBuffer> outputQueue,
+            ISourceBlock<H264InputBuffer> destQueue,
+            ITargetBlock<H264InputBuffer> destReleaseQueue,
             CancellationToken ct)
         {
             await Task.Run(() =>
@@ -61,8 +61,8 @@ namespace Momiji.Core.FFT
                     }
 
                     //var pcm = inputQueue.Receive(ct);
-                    var data = bufferQueue.Receive(ct);
-                    data.Log.Clear();
+                    var dest = destQueue.Receive(ct);
+                    dest.Log.Clear();
 
                     //TODO FFT
 
@@ -71,8 +71,8 @@ namespace Momiji.Core.FFT
 
                     //TODO H264Inputへの変換は別サービスにする
 
-                    //inputReleaseQueue.Post(pcm);
-                    outputQueue.Post(data);
+                    //inputReleaseQueue.SendAsync(pcm);
+                    destReleaseQueue.SendAsync(dest);
                 }
             }, ct);
         }

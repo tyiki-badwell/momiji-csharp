@@ -1,4 +1,5 @@
 ﻿using Microsoft.Extensions.Logging;
+using Momiji.Core.Wave;
 using Momiji.Interop;
 using Momiji.Interop.Opus;
 using System;
@@ -73,10 +74,10 @@ namespace Momiji.Core.Opus
         }
 
         public async Task Run(
-            ISourceBlock<Wave.PcmBuffer<float>> inputQueue,
-            ITargetBlock<Wave.PcmBuffer<float>> inputReleaseQueue,
-            ISourceBlock<OpusOutputBuffer> bufferQueue,
-            ITargetBlock<OpusOutputBuffer> outputQueue,
+            ISourceBlock<PcmBuffer<float>> sourceQueue,
+            ITargetBlock<PcmBuffer<float>> sourceReleaseQueue,
+            ISourceBlock<OpusOutputBuffer> destQueue,
+            ITargetBlock<OpusOutputBuffer> destReleaseQueue,
             CancellationToken ct)
         {
             await Task.Run(() =>
@@ -90,28 +91,36 @@ namespace Momiji.Core.Opus
                         break;
                     }
 
-                    var pcm = inputQueue.Receive(ct);
-                    var data = bufferQueue.Receive(ct);
-                    data.Log.Marge(pcm.Log);
+                    var source = sourceQueue.Receive(ct);
+                    var dest = destQueue.Receive(ct);
 
-                    data.Log.Add("[opus] start opus_encode_float", Timer.USecDouble);
-                    data.Wrote = encoder.opus_encode_float(
-                        pcm.AddrOfPinnedObject,
-                        pcm.Target.Length / 2,
-                        data.AddrOfPinnedObject,
-                        data.Target.Length
-                        );
-                    data.Log.Add($"[opus] end opus_encode_float {data.Wrote}", Timer.USecDouble);
+                    Execute(source, dest);
 
-                    inputReleaseQueue.Post(pcm);
-                    if (data.Wrote < 0)
-                    {
-                        throw new Exception($"[opus] opus_encode_float error:{data.Wrote}");
-                    }
-
-                    outputQueue.Post(data);
+                    sourceReleaseQueue.SendAsync(source);
+                    destReleaseQueue.SendAsync(dest);
                 }
             }, ct);
+        }
+
+        public void Execute(
+            PcmBuffer<float> source,
+            OpusOutputBuffer dest
+        )
+        {
+            dest.Log.Marge(source.Log);
+
+            dest.Log.Add("[opus] start opus_encode_float", Timer.USecDouble);
+            dest.Wrote = encoder.opus_encode_float(
+                source.AddrOfPinnedObject,
+                source.Target.Length / 2,
+                dest.AddrOfPinnedObject,
+                dest.Target.Length
+                );
+            dest.Log.Add($"[opus] end opus_encode_float {dest.Wrote}", Timer.USecDouble);
+            if (dest.Wrote < 0)
+            {
+                throw new Exception($"[opus] opus_encode_float error:{dest.Wrote}");
+            }
         }
     }
 }

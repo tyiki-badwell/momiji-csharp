@@ -1,5 +1,6 @@
 ﻿using Microsoft.Extensions.Logging;
 using Momiji.Core.Vst;
+using Momiji.Core.Wave;
 using System;
 using System.Threading;
 using System.Threading.Tasks;
@@ -43,11 +44,32 @@ namespace Momiji.Core.Trans
             disposed = true;
         }
 
+        public void Execute(
+            VstBuffer<T> source,
+            PcmBuffer<T> dest
+        )
+        {
+            dest.Log.Marge(source.Log);
+
+            var target = dest.Target;
+            var targetIdx = 0;
+            var left = source.Get(0);
+            var right = source.Get(1);
+
+            dest.Log.Add("[to pcm] start", Timer.USecDouble);
+            for (var idx = 0; idx < left.Length; idx++)
+            {
+                target[targetIdx++] = left[idx];
+                target[targetIdx++] = right[idx];
+            }
+            dest.Log.Add("[to pcm] end", Timer.USecDouble);
+        }
+
         public async Task Run(
-            ISourceBlock<VstBuffer<T>> inputQueue,
-            ITargetBlock<VstBuffer<T>> inputReleaseQueue,
-            ISourceBlock<Wave.PcmBuffer<T>> bufferQueue,
-            ITargetBlock<Wave.PcmBuffer<T>> outputQueue,
+            ISourceBlock<VstBuffer<T>> sourceQueue,
+            ITargetBlock<VstBuffer<T>> sourceReleaseQueue,
+            ISourceBlock<PcmBuffer<T>> destQueue,
+            ITargetBlock<PcmBuffer<T>> destReleaseQueue,
             CancellationToken ct)
         {
             await Task.Run(() =>
@@ -61,25 +83,11 @@ namespace Momiji.Core.Trans
                         break;
                     }
 
-                    var buffer = inputQueue.Receive(ct);
-                    var data = bufferQueue.Receive(ct);
-                    data.Log.Marge(buffer.Log);
-
-                    var target = data.Target;
-                    var targetIdx = 0;
-                    var left = buffer.Get(0);
-                    var right = buffer.Get(1);
-
-                    data.Log.Add("[to pcm] start", Timer.USecDouble);
-                    for (var idx = 0; idx < left.Length; idx++)
-                    {
-                        target[targetIdx++] = left[idx];
-                        target[targetIdx++] = right[idx];
-                    }
-                    data.Log.Add("[to pcm] end", Timer.USecDouble);
-
-                    inputReleaseQueue.Post(buffer);
-                    outputQueue.Post(data);
+                    var source = sourceQueue.Receive(ct);
+                    var dest = destQueue.Receive(ct);
+                    Execute(source, dest);
+                    sourceReleaseQueue.Post(source);
+                    destReleaseQueue.Post(dest);
                 }
             }, ct);
         }

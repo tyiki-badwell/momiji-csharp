@@ -113,9 +113,34 @@ namespace Momiji.Core.Ftl
             }
         }
 
+        public void Execute(OpusOutputBuffer source)
+        {
+            source.Log.Add("[ftl] start ftl_ingest_send_media_dts AUDIO", Timer.USecDouble);
+            var sent = Handle.ftl_ingest_send_media_dts(
+                handle.AddrOfPinnedObject,
+                MediaType.FTL_AUDIO_DATA,
+                Timer.USec,
+                source.AddrOfPinnedObject,
+                source.Wrote,
+                0
+            );
+            source.Log.Add("[ftl] end ftl_ingest_send_media_dts AUDIO", Timer.USecDouble);
+            {
+                var log = "AUDIO ";
+                double? temp = null;
+                source.Log.Copy().ForEach((a) => {
+                    var lap = temp == null ? 0 : (a.Item2 - temp);
+                    log += $"\n{a.Item1}:{lap},";
+                    temp = a.Item2;
+                });
+                Logger.LogInformation($"[ftl] {log}");
+            }
+            source.Log.Clear();
+        }
+
         public async Task Run(
-            ISourceBlock<OpusOutputBuffer> inputQueue,
-            ITargetBlock<OpusOutputBuffer> inputReleaseQueue,
+            ISourceBlock<OpusOutputBuffer> sourceQueue,
+            ITargetBlock<OpusOutputBuffer> sourceReleaseQueue,
             CancellationToken ct)
         {
             await Task.Run(() =>
@@ -128,34 +153,41 @@ namespace Momiji.Core.Ftl
                         break;
                     }
 
-                    var buffer = inputQueue.Receive(ct);
-                    buffer.Log.Add("[ftl] start ftl_ingest_send_media_dts AUDIO", Timer.USecDouble);
-                    var sent = Handle.ftl_ingest_send_media_dts(
-                        handle.AddrOfPinnedObject,
-                        MediaType.FTL_AUDIO_DATA,
-                        Timer.USec,
-                        buffer.AddrOfPinnedObject,
-                        buffer.Wrote,
-                        0
-                    );
-                    buffer.Log.Add("[ftl] end ftl_ingest_send_media_dts AUDIO", Timer.USecDouble);
-                    {
-                        var log = "AUDIO ";
-                        double temp = 0;
-                        buffer.Log.Copy().ForEach((a) => {
-                            log += $"{a.Item1}:{(a.Item2-temp)},";
-                            temp = a.Item2;
-                        });
-                        Logger.LogInformation($"[ftl] {log}");
-                    }
-                    inputReleaseQueue.Post(buffer);
+                    var source = sourceQueue.Receive(ct);
+                    Execute(source);
+                    sourceReleaseQueue.SendAsync(source);
                 }
             }, ct);
         }
 
+        public void Execute(H264OutputBuffer source)
+        {
+            source.Log.Add("[ftl] start ftl_ingest_send_media_dts VIDEO", Timer.USecDouble);
+            var sent = Handle.ftl_ingest_send_media_dts(
+                handle.AddrOfPinnedObject,
+                MediaType.FTL_VIDEO_DATA,
+                Timer.USec,
+                source.AddrOfPinnedObject,
+                source.Wrote,
+                source.EndOfFrame ? 1 : 0
+            );
+            source.Log.Add("[ftl] end ftl_ingest_send_media_dts VIDEO", Timer.USecDouble);
+            {
+                var log = "VIDEO ";
+                double? temp = null;
+                source.Log.Copy().ForEach((a) => {
+                    var lap = temp == null ? 0 : (a.Item2 - temp);
+                    log += $"\n{a.Item1}:{lap},";
+                    temp = a.Item2;
+                });
+                Logger.LogInformation($"[ftl] {log}");
+            }
+            source.Log.Clear();
+        }
+
         public async Task Run(
-            ISourceBlock<H264OutputBuffer> inputQueue,
-            ITargetBlock<H264OutputBuffer> inputReleaseQueue,
+            ISourceBlock<H264OutputBuffer> sourceQueue,
+            ITargetBlock<H264OutputBuffer> sourceReleaseQueue,
             CancellationToken ct)
         {
             await Task.Run(() =>
@@ -167,27 +199,9 @@ namespace Momiji.Core.Ftl
                     {
                         break;
                     }
-                    var buffer = inputQueue.Receive(ct);
-                    buffer.Log.Add("[ftl] start ftl_ingest_send_media_dts VIDEO", Timer.USecDouble);
-                    var sent = Handle.ftl_ingest_send_media_dts(
-                        handle.AddrOfPinnedObject,
-                        MediaType.FTL_VIDEO_DATA,
-                        Timer.USec,
-                        buffer.AddrOfPinnedObject,
-                        buffer.Wrote,
-                        buffer.EndOfFrame ? 1 : 0
-                    );
-                    buffer.Log.Add("[ftl] end ftl_ingest_send_media_dts VIDEO", Timer.USecDouble);
-                    {
-                        var log = "VIDEO ";
-                        double temp = 0;
-                        buffer.Log.Copy().ForEach((a) => {
-                            log += $"{a.Item1}:{(a.Item2 - temp)},";
-                            temp = a.Item2;
-                        });
-                        Logger.LogInformation($"[ftl] {log}");
-                    }
-                    inputReleaseQueue.Post(buffer);
+                    var source = sourceQueue.Receive(ct);
+                    Execute(source);
+                    sourceReleaseQueue.SendAsync(source);
                 }
             }, ct);
         }

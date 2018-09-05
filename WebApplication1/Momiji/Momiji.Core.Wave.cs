@@ -202,13 +202,13 @@ namespace Momiji.Core.Wave
         }
 
 
-        private IntPtr Prepare(PcmBuffer<T> data, CancellationToken ct)
+        private IntPtr Prepare(PcmBuffer<T> source, CancellationToken ct)
         {
             var header = headerQueue.Receive(ct);
             {
                 var waveHeader = header.Target;
-                waveHeader.data = data.AddrOfPinnedObject;
-                waveHeader.bufferLength = (uint)(data.Target.Length * SIZE_OF_T);
+                waveHeader.data = source.AddrOfPinnedObject;
+                waveHeader.bufferLength = (uint)(source.Target.Length * SIZE_OF_T);
                 waveHeader.flags = 0;
                 waveHeader.loops = 1;
 
@@ -229,7 +229,7 @@ namespace Momiji.Core.Wave
                 throw new WaveException(mmResult);
             }
             headerBusyPool.Add(header.AddrOfPinnedObject, header);
-            dataBusyPool.Add(data.AddrOfPinnedObject, data);
+            dataBusyPool.Add(source.AddrOfPinnedObject, source);
             return header.AddrOfPinnedObject;
         }
 
@@ -248,11 +248,11 @@ namespace Momiji.Core.Wave
                 throw new WaveException(mmResult);
             }
 
-            PcmBuffer<T> data;
-            dataBusyPool.Remove(header.Target.data, out data);
+            PcmBuffer<T> source;
+            dataBusyPool.Remove(header.Target.data, out source);
             headerQueue.Post(header);
 
-            return data;
+            return source;
         }
 
         static public UInt32 GetNumDevices()
@@ -318,7 +318,7 @@ namespace Momiji.Core.Wave
         }
 
         public async Task Run(
-            ISourceBlock<PcmBuffer<T>> inputQueue,
+            ISourceBlock<PcmBuffer<T>> sourceQueue,
             CancellationToken ct)
         {
             await Task.Run(() =>
@@ -331,8 +331,8 @@ namespace Momiji.Core.Wave
                     {
                         break;
                     }
-                    var data = inputQueue.Receive(ct);
-                    var headerPtr = Prepare(data, ct);
+                    var source = sourceQueue.Receive(ct);
+                    var headerPtr = Prepare(source, ct);
                     Send(headerPtr);
                 }
                 Logger.LogInformation("[wave] process loop end");
@@ -340,7 +340,7 @@ namespace Momiji.Core.Wave
         }
 
         public async Task Release(
-            ITargetBlock<PcmBuffer<T>> inputReleaseQueue,
+            ITargetBlock<PcmBuffer<T>> sourceReleaseQueue,
             CancellationToken ct)
         {
             await Task.Run(() =>
@@ -354,8 +354,8 @@ namespace Momiji.Core.Wave
                         break;
                     }
                     var headerPtr = releaseQueue.Receive(ct);
-                    var data = Unprepare(headerPtr);
-                    inputReleaseQueue.Post(data);
+                    var source = Unprepare(headerPtr);
+                    sourceReleaseQueue.Post(source);
                 }
                 Logger.LogInformation("[wave] release loop end");
             });

@@ -320,8 +320,8 @@ namespace Momiji.Core.Vst
         }
 
         public async Task Run(
-            ISourceBlock<VstBuffer<T>> bufferQueue,
-            ITargetBlock<VstBuffer<T>> outputQueue,
+            ISourceBlock<VstBuffer<T>> destQueue,
+            ITargetBlock<VstBuffer<T>> destReleaseQueue,
             IReceivableSourceBlock<VstMidiEvent> midiEventQueue,
             CancellationToken ct)
         {
@@ -348,11 +348,11 @@ namespace Momiji.Core.Vst
                                 break;
                             }
 
-                            var buffer = bufferQueue.Receive(ct);
-                            buffer.Log.Clear();
-                            buffer.Log.Add("[vst] receive buffer", Timer.USecDouble);
+                            var dest = destQueue.Receive(ct);
+                            dest.Log.Clear();
+                            dest.Log.Add("[vst] receive buffer", Timer.USecDouble);
                             w.Wait();
-                            buffer.Log.Add("[vst] start", Timer.USecDouble);
+                            dest.Log.Add("[vst] start", Timer.USecDouble);
 
                             {
                                 var list = new List<VstMidiEvent>();
@@ -385,7 +385,7 @@ namespace Momiji.Core.Vst
                                         eventsPtr += sizeIntPtr;
                                     });
 
-                                    buffer.Log.Add("[vst] start effProcessEvents", Timer.USecDouble);
+                                    dest.Log.Add("[vst] start effProcessEvents", Timer.USecDouble);
                                     Dispatcher(
                                         AEffect.Opcodes.effProcessEvents,
                                         0,
@@ -393,20 +393,20 @@ namespace Momiji.Core.Vst
                                         events.AddrOfPinnedObject,
                                         0
                                     );
-                                    buffer.Log.Add("[vst] end effProcessEvents", Timer.USecDouble);
+                                    dest.Log.Add("[vst] end effProcessEvents", Timer.USecDouble);
                                 }
                             }
 
-                            buffer.Log.Add("[vst] start processReplacing", Timer.USecDouble);
+                            dest.Log.Add("[vst] start processReplacing", Timer.USecDouble);
                             processReplacing(
                                 AEffectPtr,
                                 IntPtr.Zero,
-                                buffer.AddrOfPinnedObject,
+                                dest.AddrOfPinnedObject,
                                 blockSize
                             );
-                            buffer.Log.Add("[vst] end processReplacing", Timer.USecDouble);
+                            dest.Log.Add("[vst] end processReplacing", Timer.USecDouble);
 
-                            outputQueue.Post(buffer);
+                            destReleaseQueue.SendAsync(dest);
                         }
                     }
                     Logger.LogInformation("[vst] loop end");
