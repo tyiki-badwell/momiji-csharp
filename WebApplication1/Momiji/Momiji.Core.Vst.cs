@@ -350,7 +350,7 @@ namespace Momiji.Core.Vst
 
                             var dest = destQueue.Receive(ct);
                             dest.Log.Clear();
-                            dest.Log.Add("[vst] receive buffer", Timer.USecDouble);
+                            //dest.Log.Add("[vst] receive buffer", Timer.USecDouble);
                             w.Wait();
                             dest.Log.Add("[vst] start", Timer.USecDouble);
 

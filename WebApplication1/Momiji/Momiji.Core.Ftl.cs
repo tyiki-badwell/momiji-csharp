@@ -133,7 +133,7 @@ namespace Momiji.Core.Ftl
                     log += $"\n{a.Item1}:{lap},";
                     temp = a.Item2;
                 });
-                Logger.LogInformation($"[ftl] {log}");
+                Logger.LogInformation($"[ftl] {source.Log.GetSpentTime()} {log}");
             }
             source.Log.Clear();
         }
@@ -180,7 +180,7 @@ namespace Momiji.Core.Ftl
                     log += $"\n{a.Item1}:{lap},";
                     temp = a.Item2;
                 });
-                Logger.LogInformation($"[ftl] {log}");
+                Logger.LogInformation($"[ftl] {source.Log.GetSpentTime()} {log}");
             }
             source.Log.Clear();
         }

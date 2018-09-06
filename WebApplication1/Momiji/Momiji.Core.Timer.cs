@@ -13,7 +13,7 @@ namespace Momiji.Core
 
         public Timer()
         {
-            startUsec = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds() * 1000;
+            startUsec = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds() * 1000.0;
             stopwatch = Stopwatch.StartNew();
         }
 
@@ -27,7 +27,7 @@ namespace Momiji.Core
         {
             get
             {
-                return startUsec + ((double)stopwatch.ElapsedTicks / Stopwatch.Frequency * 1000000);
+                return startUsec + (((double)stopwatch.ElapsedTicks / Stopwatch.Frequency) * 1_000_000.0);
             }
         }
 
@@ -93,9 +93,7 @@ namespace Momiji.Core
 
         public void Wait()
         {
-            var after = Timer.USecDouble;
-            var diff = after - Before;
-            var left = Interval - diff;
+            var left = Interval - (Timer.USecDouble - Before);
             if (left > 0)
             {
                 //セマフォで時間調整を行う

@@ -138,11 +138,11 @@ namespace Momiji.Test.Run
                      */
 
                     using (var timer = new Core.Timer())
-                    using (var vstBufferPool = new BufferPool<VstBuffer<float>>(2, () => { return new VstBuffer<float>(blockSize, 2); }))
-                    using (var pcmPool = new BufferPool<PcmBuffer<float>>(2, () => { return new PcmBuffer<float>(blockSize, 2); }))
-                    using (var audioPool = new BufferPool<OpusOutputBuffer>(2, () => { return new OpusOutputBuffer(5000); }))
-                    using (var bmpPool = new BufferPool<H264InputBuffer>(2, () => { return new H264InputBuffer(width, height); }))
-                    using (var videoPool = new BufferPool<H264OutputBuffer>(2, () => { return new H264OutputBuffer(100000); }))
+                    using (var vstBufferPool = new BufferPool<VstBuffer<float>>(3, () => { return new VstBuffer<float>(blockSize, 2); }))
+                    using (var pcmPool = new BufferPool<PcmBuffer<float>>(3, () => { return new PcmBuffer<float>(blockSize, 2); }))
+                    using (var audioPool = new BufferPool<OpusOutputBuffer>(3, () => { return new OpusOutputBuffer(5000); }))
+                    using (var bmpPool = new BufferPool<H264InputBuffer>(3, () => { return new H264InputBuffer(width, height); }))
+                    using (var videoPool = new BufferPool<H264OutputBuffer>(3, () => { return new H264OutputBuffer(100000); }))
                     using (var vst = new AudioMaster<float>(samplingRate, blockSize, LoggerFactory, timer))
                     using (var toPcm = new ToPcm<float>(LoggerFactory, timer))
                     using (var opus = new OpusEncoder(SamplingRate.Sampling48000, Channels.Stereo, LoggerFactory, timer))

@@ -38,6 +38,11 @@ namespace Momiji.Interop
         {
             return new List<Tuple<string, double>>(Log);
         }
+
+        public double GetSpentTime()
+        {
+            return Log[Log.Count - 1].Item2 - Log[0].Item2;
+        }
     }
 
     public class PinnedBuffer<T> : IDisposable where T : class
