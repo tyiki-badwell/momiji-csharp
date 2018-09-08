@@ -98,7 +98,6 @@ namespace Momiji.Core
             {
                 //セマフォで時間調整を行う
                 S.Wait((int)(left / 1000), Ct);
-                //Logger.LogInformation($"[vst] get data OK [{diff}+{left}]us [{interval}]us");
             }
             else
             {

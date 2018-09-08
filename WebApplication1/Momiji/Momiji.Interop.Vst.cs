@@ -117,7 +117,7 @@ namespace Momiji.Interop.Vst
 
     }
 
-    [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Ansi)]
+   [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Ansi)]
     public class AEffect
     {
         //-------------------------------------------------------------------------------------------------------

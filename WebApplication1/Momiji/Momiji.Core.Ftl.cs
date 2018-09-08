@@ -133,7 +133,7 @@ namespace Momiji.Core.Ftl
                     log += $"\n{a.Item1}:{lap},";
                     temp = a.Item2;
                 });
-                Logger.LogInformation($"[ftl] {source.Log.GetSpentTime()} {log}");
+            //    Logger.LogInformation($"[ftl] {source.Log.GetSpentTime()} {log}");
             }
             source.Log.Clear();
         }
@@ -155,7 +155,7 @@ namespace Momiji.Core.Ftl
 
                     var source = sourceQueue.Receive(ct);
                     Execute(source);
-                    sourceReleaseQueue.SendAsync(source);
+                    sourceReleaseQueue.Post(source);
                 }
             }, ct);
         }
@@ -180,7 +180,7 @@ namespace Momiji.Core.Ftl
                     log += $"\n{a.Item1}:{lap},";
                     temp = a.Item2;
                 });
-                Logger.LogInformation($"[ftl] {source.Log.GetSpentTime()} {log}");
+            //    Logger.LogInformation($"[ftl] {source.Log.GetSpentTime()} {log}");
             }
             source.Log.Clear();
         }
@@ -201,7 +201,7 @@ namespace Momiji.Core.Ftl
                     }
                     var source = sourceQueue.Receive(ct);
                     Execute(source);
-                    sourceReleaseQueue.SendAsync(source);
+                    sourceReleaseQueue.Post(source);
                 }
             }, ct);
         }
@@ -226,7 +226,7 @@ namespace Momiji.Core.Ftl
                         }
 
                         var status = Handle.ftl_ingest_get_status(handle.AddrOfPinnedObject, msg, 500);
-                        if (status != Status.FTL_SUCCESS)
+                        //if (status != Status.FTL_SUCCESS)
                         {
                             continue;
                         }

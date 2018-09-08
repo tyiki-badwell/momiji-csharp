@@ -54,7 +54,7 @@ namespace Momiji.Test.Run
                 return false;
             }
             processCancel = new CancellationTokenSource();
-            processTask = Loop(processCancel);
+            processTask = Loop3(processCancel);
             return true;
         }
 
@@ -144,9 +144,9 @@ namespace Momiji.Test.Run
                     using (var bmpPool = new BufferPool<H264InputBuffer>(3, () => { return new H264InputBuffer(width, height); }))
                     using (var videoPool = new BufferPool<H264OutputBuffer>(3, () => { return new H264OutputBuffer(100000); }))
                     using (var vst = new AudioMaster<float>(samplingRate, blockSize, LoggerFactory, timer))
-                    using (var toPcm = new ToPcm<float>(LoggerFactory, timer))
+                    //using (var toPcm = new ToPcm<float>(LoggerFactory, timer))
                     using (var opus = new OpusEncoder(SamplingRate.Sampling48000, Channels.Stereo, LoggerFactory, timer))
-                    using (var fft = new FFTEncoder(LoggerFactory))
+                    using (var fft = new FFTEncoder(width, height, maxFrameRate, LoggerFactory, timer))
                     using (var h264 = new H264Encoder(width, height, targetBitrate, maxFrameRate, intraFrameIntervalMs, LoggerFactory, timer))
                     //using (var h264 = new H264File(LoggerFactory))
                     {
@@ -170,13 +170,21 @@ namespace Momiji.Test.Run
 
                             var taskSet = new HashSet<Task>();
 
-                            taskSet.Add(effect.Run(
+                            taskSet.Add(effect.Interval(
                                 vstToPcmOutput,
                                 vstToPcmInput,
-                                midiEventInput,
                                 ct
                             ));
 
+                            taskSet.Add(effect.Run(
+                                vstToPcmInput,
+                                vstToPcmOutput,
+                                pcmToOpusOutput,
+                                pcmToOpusInput,
+                                midiEventInput,
+                                ct
+                            ));
+                            /*
                             taskSet.Add(toPcm.Run(
                                 vstToPcmInput,
                                 vstToPcmOutput,
@@ -184,7 +192,7 @@ namespace Momiji.Test.Run
                                 pcmToOpusInput,
                                 ct
                             ));
-
+                            */
                             taskSet.Add(opus.Run(
                                 pcmToOpusInput,
                                 pcmToOpusOutput,
@@ -247,6 +255,161 @@ namespace Momiji.Test.Run
             }
         }
 
+        private async Task Loop3(CancellationTokenSource processCancel)
+        {
+            var ct = processCancel.Token;
+
+            Logger.LogInformation("main loop start");
+
+            try
+            {
+                await Task.Run(() =>
+                {
+                    ct.ThrowIfCancellationRequested();
+
+                    var width = 1280;
+                    var height = 720;
+                    var targetBitrate = 5_000_000;
+                    var maxFrameRate = 60.0f;
+                    var intraFrameIntervalMs = 1000;
+
+                    var samplingRate = 48000;
+                    var sampleLength = 0.01;// 0.06;
+                    var blockSize = (int)(samplingRate * sampleLength);
+
+                    var streamKey = Configuration["MIXER_STREAM_KEY"];
+
+                    /*
+                     この式を満たさないとダメ
+                     new_size = blockSize
+                     Fs = samplingRate
+
+                      if (frame_size<Fs/400)
+                        return -1;
+                      if (400*new_size!=Fs   && 200*new_size!=Fs   && 100*new_size!=Fs   &&
+                          50*new_size!=Fs   &&  25*new_size!=Fs   &&  50*new_size!=3*Fs &&
+                          50*new_size!=4*Fs &&  50*new_size!=5*Fs &&  50*new_size!=6*Fs)
+                        return -1;
+                    
+                    0.0025
+                    0.005
+                    0.01
+                    0.02
+                    0.04
+                    0.06
+                    0.08
+                    0.1
+                    0.12
+                     */
+
+                    using (var timer = new Core.Timer())
+                    using (var vstBufferPool = new BufferPool<VstBuffer<float>>(3, () => { return new VstBuffer<float>(blockSize, 2); }))
+                    using (var pcmPool = new BufferPool<PcmBuffer<float>>(3, () => { return new PcmBuffer<float>(blockSize, 2); }))
+                    using (var audioPool = new BufferPool<OpusOutputBuffer>(3, () => { return new OpusOutputBuffer(5000); }))
+                    using (var bmpPool = new BufferPool<H264InputBuffer>(3, () => { return new H264InputBuffer(width, height); }))
+                    using (var videoPool = new BufferPool<H264OutputBuffer>(3, () => { return new H264OutputBuffer(100000); }))
+                    using (var vst = new AudioMaster<float>(samplingRate, blockSize, LoggerFactory, timer))
+                    //using (var toPcm = new ToPcm<float>(LoggerFactory, timer))
+                    using (var opus = new OpusEncoder(SamplingRate.Sampling48000, Channels.Stereo, LoggerFactory, timer))
+                    using (var fft = new FFTEncoder(width, height, maxFrameRate, LoggerFactory, timer))
+                    using (var h264 = new H264Encoder(width, height, targetBitrate, maxFrameRate, intraFrameIntervalMs, LoggerFactory, timer))
+                    //using (var h264 = new H264File(LoggerFactory))
+                    {
+                        var vstToPcmOutput = vstBufferPool.makeBufferBlock();
+                        var pcmToOpusOutput = pcmPool.makeBufferBlock();
+                        var audioToFtlInput = audioPool.makeBufferBlock();
+
+                        var bmpToVideoInput = bmpPool.makeEmptyBufferBlock();
+                        var bmpToVideoOutput = bmpPool.makeBufferBlock();
+                        var videoToFtlInput = videoPool.makeBufferBlock();
+                        var videoToFtlOutput = videoPool.makeEmptyBufferBlock();
+
+                        var effect = vst.AddEffect("Synth1 VST.dll");
+                        //var effect = vst.AddEffect("Dexed.dll");
+
+                        using (var ftl = new FtlIngest(streamKey, LoggerFactory, timer))
+                        {
+                            ftl.Connect();
+
+                            var taskSet = new HashSet<Task>();
+
+                            var workerBlock = 
+                                new ActionBlock<VstBuffer<float>>(buffer => {
+                                    //VST
+                                    var pcm = pcmToOpusOutput.Receive(ct);
+                                    effect.Execute(buffer, pcm, midiEventInput);
+                                    vstToPcmOutput.Post(buffer);
+
+                                    //OPUS
+                                    var audio = audioToFtlInput.Receive(ct);
+                                    opus.Execute(pcm, audio);
+                                    pcmToOpusOutput.Post(pcm);
+
+                                    //FTL
+                                    ftl.Execute(audio);
+                                    audioToFtlInput.Post(audio);
+                                },
+                                new ExecutionDataflowBlockOptions
+                                {
+                                    CancellationToken = ct,
+                                    MaxDegreeOfParallelism = 1
+                                });
+                            taskSet.Add(workerBlock.Completion);
+
+                            taskSet.Add(effect.Interval(
+                                vstToPcmOutput,
+                                workerBlock,
+                                ct
+                            ));
+                            
+                            taskSet.Add(fft.Run(
+                                //vstToOpusInput,
+                                //vstToOpusOutput,
+                                bmpToVideoOutput,
+                                bmpToVideoInput,
+                                ct
+                            ));
+
+                            taskSet.Add(h264.Run(
+                                bmpToVideoInput,
+                                bmpToVideoOutput,
+                                videoToFtlInput,
+                                videoToFtlOutput,
+                                ct
+                            ));
+
+                            taskSet.Add(ftl.Run(
+                                videoToFtlOutput,
+                                videoToFtlInput,
+                                ct
+                            ));
+
+                            while (taskSet.Count > 0)
+                            {
+                                var any = Task.WhenAny(taskSet);
+                                any.ConfigureAwait(false);
+                                any.Wait();
+                                var task = any.Result;
+                                taskSet.Remove(task);
+                                if (task.IsFaulted)
+                                {
+                                    processCancel.Cancel();
+                                    foreach (var v in task.Exception.InnerExceptions)
+                                    {
+                                        Logger.LogInformation($"Process Exception:{task.Exception.Message} {v.Message}");
+                                    }
+                                }
+                            }
+                        }
+                    }
+                });
+            }
+            finally
+            {
+                Logger.LogInformation("main loop end");
+            }
+        }
+
         public bool Start2()
         {
             if (processCancel != null)
@@ -254,7 +417,7 @@ namespace Momiji.Test.Run
                 return false;
             }
             processCancel = new CancellationTokenSource();
-            processTask = Loop2(processCancel);
+            processTask = Loop22(processCancel);
             return true;
         }
 
@@ -273,37 +436,46 @@ namespace Momiji.Test.Run
                     Int32 samplingRate = 48000;
                     Int32 blockSize = (Int32)(samplingRate * 0.05);
 
-                    using (var vstBufferPool = new BufferPool<VstBuffer<float>>(2, () => { return new VstBuffer<float>(blockSize, 2); }))
-                    using (var pcmPool = new BufferPool<PcmBuffer<float>>(2, () => { return new PcmBuffer<float>(blockSize, 2); }))
+                    using (var vstBufferPool = new BufferPool<VstBuffer<float>>(3, () => { return new VstBuffer<float>(blockSize, 2); }))
+                    using (var pcmPool = new BufferPool<PcmBuffer<float>>(3, () => { return new PcmBuffer<float>(blockSize, 2); }))
                     {
-                        var vstToPcmInput = vstBufferPool.makeBufferBlock();
-                        var vstToPcmOutput = vstBufferPool.makeEmptyBufferBlock();
+                        var vstToPcmInput = vstBufferPool.makeEmptyBufferBlock();
+                        var vstToPcmOutput = vstBufferPool.makeBufferBlock();
 
                         var pcmToWaveInput = pcmPool.makeEmptyBufferBlock();
                         var pcmToWaveOutput = pcmPool.makeBufferBlock();
 
                         using (var timer = new Core.Timer())
                         using (var vst = new AudioMaster<float>(samplingRate, blockSize, LoggerFactory, timer))
-                        using (var toPcm = new ToPcm<float>(LoggerFactory, timer))
+                        //using (var toPcm = new ToPcm<float>(LoggerFactory, timer))
                         using (var wave = new WaveOutFloat(
                             0,
                             2,
                             (uint)samplingRate,
                             WaveFormatExtensiblePart.SPEAKER.FRONT_LEFT | WaveFormatExtensiblePart.SPEAKER.FRONT_RIGHT,
-                            LoggerFactory))
+                            LoggerFactory,
+                            timer))
                         {
                             var effect = vst.AddEffect("Synth1 VST.dll");
                             //var effect = vst.AddEffect("Dexed.dll");
 
                             var taskSet = new HashSet<Task>();
 
-                            taskSet.Add(effect.Run(
+                            taskSet.Add(effect.Interval(
                                 vstToPcmOutput,
                                 vstToPcmInput,
-                                midiEventInput,
                                 ct
                             ));
 
+                            taskSet.Add(effect.Run(
+                                vstToPcmInput,
+                                vstToPcmOutput,
+                                pcmToWaveInput,
+                                pcmToWaveOutput,
+                                midiEventInput,
+                                ct
+                            ));
+                            /*
                             taskSet.Add(toPcm.Run(
                                 vstToPcmInput,
                                 vstToPcmOutput,
@@ -311,7 +483,7 @@ namespace Momiji.Test.Run
                                 pcmToWaveOutput,
                                 ct
                             ));
-
+                            */
                             taskSet.Add(wave.Run(
                                 pcmToWaveOutput,
                                 ct
@@ -347,6 +519,100 @@ namespace Momiji.Test.Run
                 Logger.LogInformation("main loop end");
             }
         }
+
+        private async Task Loop22(CancellationTokenSource processCancel)
+        {
+            var ct = processCancel.Token;
+
+            Logger.LogInformation("main loop start");
+
+            try
+            {
+                await Task.Run(() =>
+                {
+                    ct.ThrowIfCancellationRequested();
+
+                    Int32 samplingRate = 48000;
+                    Int32 blockSize = (Int32)(samplingRate * 0.05);
+
+                    using (var vstBufferPool = new BufferPool<VstBuffer<float>>(3, () => { return new VstBuffer<float>(blockSize, 2); }))
+                    using (var pcmPool = new BufferPool<PcmBuffer<float>>(3, () => { return new PcmBuffer<float>(blockSize, 2); }))
+                    {
+                        var vstToPcmOutput = vstBufferPool.makeBufferBlock();
+                        var pcmToWaveOutput = pcmPool.makeBufferBlock();
+
+                        var interval = (((double)blockSize / samplingRate) * 1_000_000.0);
+
+                        using (var timer = new Core.Timer())
+                        using (var w = new Waiter(timer, interval, ct))
+                        using (var vst = new AudioMaster<float>(samplingRate, blockSize, LoggerFactory, timer))
+                        //using (var toPcm = new ToPcm<float>(LoggerFactory, timer))
+                        using (var wave = new WaveOutFloat(
+                            0,
+                            2,
+                            (uint)samplingRate,
+                            WaveFormatExtensiblePart.SPEAKER.FRONT_LEFT | WaveFormatExtensiblePart.SPEAKER.FRONT_RIGHT,
+                            LoggerFactory,
+                            timer))
+                        {
+                            var effect = vst.AddEffect("Synth1 VST.dll");
+                            //var effect = vst.AddEffect("Dexed.dll");
+
+                            var taskSet = new HashSet<Task>();
+
+                            var workerBlock =
+                                new ActionBlock<VstBuffer<float>>(buffer =>
+                                {
+                                    buffer.Log.Clear();
+                                    var pcm = pcmToWaveOutput.Receive(ct);
+                                    w.Wait();
+
+                                    //VST
+                                    effect.Execute(buffer, pcm, midiEventInput);
+                                    vstToPcmOutput.Post(buffer);
+
+                                    //WAVEOUT
+                                    wave.Execute(pcm, ct);
+                                },
+                                new ExecutionDataflowBlockOptions
+                                {
+                                    CancellationToken = ct,
+                                    MaxDegreeOfParallelism = 1
+                                });
+                            taskSet.Add(workerBlock.Completion);
+                            vstToPcmOutput.LinkTo(workerBlock);
+
+                            taskSet.Add(wave.Release(
+                                pcmToWaveOutput,
+                                ct
+                            ));
+
+                            while (taskSet.Count > 0)
+                            {
+                                var any = Task.WhenAny(taskSet);
+                                any.ConfigureAwait(false);
+                                any.Wait();
+                                var task = any.Result;
+                                taskSet.Remove(task);
+                                if (task.IsFaulted)
+                                {
+                                    processCancel.Cancel();
+                                    foreach (var v in task.Exception.InnerExceptions)
+                                    {
+                                        Logger.LogInformation($"Process Exception:{task.Exception.Message} {v.Message}");
+                                    }
+                                }
+                            }
+                        }
+                    }
+                });
+            }
+            finally
+            {
+                Logger.LogInformation("main loop end");
+            }
+        }
+
         /*
         private async Task Loop3()
         {
@@ -383,7 +649,7 @@ namespace Momiji.Test.Run
                             pcm1.Target[idx++] = (float)(d/2);
                         }
 
-                        vstToOpusInput.SendAsync(pcm1);
+                        vstToOpusInput.Post(pcm1);
 
                         using (var wave = new WaveOutFloat(
                             0,
@@ -482,10 +748,10 @@ namespace Momiji.Test.Run
                         var vstToOpusOutput = new BufferBlock<PcmBuffer<float>>();
                         var opusToFtlInput = new BufferBlock<OpusOutputBuffer>();
 
-                        vstToOpusOutput.SendAsync(pcm1);
-                        vstToOpusOutput.SendAsync(pcm2);
-                        opusToFtlInput.SendAsync(out1);
-                        opusToFtlInput.SendAsync(out2);
+                        vstToOpusOutput.Post(pcm1);
+                        vstToOpusOutput.Post(pcm2);
+                        opusToFtlInput.Post(out1);
+                        opusToFtlInput.Post(out2);
 
                         using (var timer = new Momiji.Core.Timer())
                         using (var vst = new AudioMaster<float>(samplingRate, blockSize, LoggerFactory, timer))
@@ -555,7 +821,7 @@ namespace Momiji.Test.Run
                     midiData2 = item.data[2],
                     midiData3 = 0x00
                 };
-                midiEventInput.SendAsync(vstEvent);
+                midiEventInput.Post(vstEvent);
             }
         }
     }

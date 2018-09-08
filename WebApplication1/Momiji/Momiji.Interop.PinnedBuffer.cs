@@ -4,7 +4,7 @@ using System.Runtime.InteropServices;
 
 namespace Momiji.Interop
 {
-    public class BufferLog
+    internal class BufferLog
     {
         private List<Tuple<string, double>> Log { get; }
 
@@ -48,11 +48,13 @@ namespace Momiji.Interop
     public class PinnedBuffer<T> : IDisposable where T : class
     {
         private bool disposed = false;
+        internal T Target { get; }
         private GCHandle handle;
-        public BufferLog Log { get; }
+        internal BufferLog Log { get; private set; }
 
         public PinnedBuffer(T buffer)
         {
+            Target = buffer;
             handle = GCHandle.Alloc(buffer, GCHandleType.Pinned);
             Log = new BufferLog();
         }
@@ -69,6 +71,7 @@ namespace Momiji.Interop
 
             if (disposing)
             {
+                Log.Clear();
                 if (handle != null && handle.IsAllocated)
                 {
                     handle.Free();
@@ -84,14 +87,5 @@ namespace Momiji.Interop
                 return handle.AddrOfPinnedObject();
             }
         }
-
-        public T Target
-        {
-            get
-            {
-                return (T)handle.Target;
-            }
-        }
-
     }
 }

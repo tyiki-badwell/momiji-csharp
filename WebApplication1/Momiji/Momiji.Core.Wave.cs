@@ -39,14 +39,16 @@ namespace Momiji.Core.Wave
             UInt16 channels,
             UInt32 samplesPerSecond,
             WaveFormatExtensiblePart.SPEAKER channelMask,
-            ILoggerFactory loggerFactory
+            ILoggerFactory loggerFactory,
+            Timer timer
         ) : base(
             deviceID,
             channels,
             samplesPerSecond,
             channelMask,
             new Guid("00000001-0000-0010-8000-00aa00389b71"),
-            loggerFactory
+            loggerFactory,
+            timer
             )
         { }
     }
@@ -58,14 +60,16 @@ namespace Momiji.Core.Wave
             UInt16 channels,
             UInt32 samplesPerSecond,
             WaveFormatExtensiblePart.SPEAKER channelMask,
-            ILoggerFactory loggerFactory
+            ILoggerFactory loggerFactory,
+            Timer timer
         ) : base(
             deviceID,
             channels,
             samplesPerSecond,
             channelMask,
             new Guid("00000003-0000-0010-8000-00aa00389b71"),
-            loggerFactory
+            loggerFactory,
+            timer
             )
         { }
     }
@@ -74,6 +78,7 @@ namespace Momiji.Core.Wave
     {
         private ILoggerFactory LoggerFactory { get; }
         private ILogger Logger { get; }
+        private Timer Timer { get; }
 
         private bool disposed = false;
 
@@ -110,11 +115,13 @@ namespace Momiji.Core.Wave
             UInt32 samplesPerSecond,
             WaveFormatExtensiblePart.SPEAKER channelMask,
             Guid formatSubType, 
-            ILoggerFactory loggerFactory
+            ILoggerFactory loggerFactory,
+            Timer timer
         )
         {
             LoggerFactory = loggerFactory;
             Logger = LoggerFactory.CreateLogger<WaveOut<T>>();
+            Timer = timer;
 
             SIZE_OF_T = Marshal.SizeOf<T>();
             SIZE_OF_WAVEHEADER = (uint)Marshal.SizeOf<WaveHeader>();
@@ -317,6 +324,17 @@ namespace Momiji.Core.Wave
             }
         }
 
+        public void Execute(
+            PcmBuffer<T> source,
+            CancellationToken ct
+        )
+        {
+            source.Log.Add("[wave] send start", Timer.USecDouble);
+            var headerPtr = Prepare(source, ct);
+            Send(headerPtr);
+            source.Log.Add("[wave] send end", Timer.USecDouble);
+        }
+
         public async Task Run(
             ISourceBlock<PcmBuffer<T>> sourceQueue,
             CancellationToken ct)
@@ -332,8 +350,7 @@ namespace Momiji.Core.Wave
                         break;
                     }
                     var source = sourceQueue.Receive(ct);
-                    var headerPtr = Prepare(source, ct);
-                    Send(headerPtr);
+                    Execute(source, ct);
                 }
                 Logger.LogInformation("[wave] process loop end");
             });
@@ -355,6 +372,17 @@ namespace Momiji.Core.Wave
                     }
                     var headerPtr = releaseQueue.Receive(ct);
                     var source = Unprepare(headerPtr);
+                    source.Log.Add("[wave] unprepare", Timer.USecDouble);
+                    {
+                        var log = "";
+                        double? temp = null;
+                        source.Log.Copy().ForEach((a) => {
+                            var lap = temp == null ? 0 : (a.Item2 - temp);
+                            log += $"\n{a.Item1}:{lap},";
+                            temp = a.Item2;
+                        });
+                        Logger.LogInformation($"[wave] {source.Log.GetSpentTime()} {log}");
+                    }
                     sourceReleaseQueue.Post(source);
                 }
                 Logger.LogInformation("[wave] release loop end");

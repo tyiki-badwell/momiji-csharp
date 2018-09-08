@@ -96,8 +96,8 @@ namespace Momiji.Core.Opus
 
                     Execute(source, dest);
 
-                    sourceReleaseQueue.SendAsync(source);
-                    destReleaseQueue.SendAsync(dest);
+                    sourceReleaseQueue.Post(source);
+                    destReleaseQueue.Post(dest);
                 }
             }, ct);
         }

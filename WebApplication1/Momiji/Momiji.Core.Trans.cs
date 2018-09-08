@@ -84,7 +84,9 @@ namespace Momiji.Core.Trans
                     }
 
                     var source = sourceQueue.Receive(ct);
+                    source.Log.Add("[to pcm] source get", Timer.USecDouble);
                     var dest = destQueue.Receive(ct);
+                    source.Log.Add("[to pcm] dest get", Timer.USecDouble);
                     Execute(source, dest);
                     sourceReleaseQueue.Post(source);
                     destReleaseQueue.Post(dest);

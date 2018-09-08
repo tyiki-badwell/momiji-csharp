@@ -12,15 +12,29 @@ namespace Momiji.Core.FFT
     {
         private ILoggerFactory LoggerFactory { get; }
         private ILogger Logger { get; }
+        private Timer Timer { get; }
+
+        private int PicWidth { get; }
+        private int PicHeight { get; }
+        private float MaxFrameRate { get; }
 
         private bool disposed = false;
 
         public FFTEncoder(
-            ILoggerFactory loggerFactory
+            int picWidth,
+            int picHeight,
+            float maxFrameRate,
+            ILoggerFactory loggerFactory,
+            Timer timer
         )
         {
             LoggerFactory = loggerFactory;
             Logger = LoggerFactory.CreateLogger<FFTEncoder>();
+            Timer = timer;
+
+            PicWidth = picWidth;
+            PicHeight = picHeight;
+            MaxFrameRate = maxFrameRate;
 
         }
 
@@ -52,27 +66,35 @@ namespace Momiji.Core.FFT
             await Task.Run(() =>
             {
                 ct.ThrowIfCancellationRequested();
-
-                while (true)
+                var interval = 1000000.0 / MaxFrameRate;
+                var before = Timer.USecDouble;
+                using (var w = new Waiter(Timer, interval, ct))
                 {
-                    if (ct.IsCancellationRequested)
+                    while (true)
                     {
-                        break;
+                        if (ct.IsCancellationRequested)
+                        {
+                            break;
+                        }
+
+                        //var pcm = inputQueue.Receive(ct);
+                        var dest = destQueue.Receive(ct);
+                        dest.Log.Clear();
+
+                        w.Wait();
+                        //Logger.LogInformation($"[FFT] start {Timer.USecDouble - before} {interval}");
+                        before = Timer.USecDouble;
+
+                        //TODO FFT
+
+
+
+
+                        //TODO H264Inputへの変換は別サービスにする
+
+                        //inputReleaseQueue.Post(pcm);
+                        destReleaseQueue.Post(dest);
                     }
-
-                    //var pcm = inputQueue.Receive(ct);
-                    var dest = destQueue.Receive(ct);
-                    dest.Log.Clear();
-
-                    //TODO FFT
-
-
-
-
-                    //TODO H264Inputへの変換は別サービスにする
-
-                    //inputReleaseQueue.SendAsync(pcm);
-                    destReleaseQueue.SendAsync(dest);
                 }
             }, ct);
         }

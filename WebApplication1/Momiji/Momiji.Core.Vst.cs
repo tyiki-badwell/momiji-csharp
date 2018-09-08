@@ -1,4 +1,5 @@
 ﻿using Microsoft.Extensions.Logging;
+using Momiji.Core.Wave;
 using Momiji.Interop;
 using Momiji.Interop.Kernel32;
 using Momiji.Interop.Vst;
@@ -191,7 +192,13 @@ namespace Momiji.Core.Vst
         private AEffect.VstAEffectFlags flags;
         private AudioMaster<T> audioMaster;
 
-        private System.Windows.Input.ICommand window;
+        //private System.Windows.Input.ICommand window;
+
+        private PinnedBuffer<byte[]> events;
+        private PinnedBuffer<byte[]> eventList;
+        private int sizeVstEvents = Marshal.SizeOf<VstEvents>();
+        private int sizeVstMidiEvent = Marshal.SizeOf<VstMidiEvent>();
+        private int sizeIntPtr = Marshal.SizeOf<IntPtr>();
 
         internal Effect(string library, AudioMaster<T> audioMaster, ILoggerFactory loggerFactory, Timer timer)
         {
@@ -200,6 +207,9 @@ namespace Momiji.Core.Vst
             Timer = timer;
 
             this.audioMaster = audioMaster;
+
+            events = new PinnedBuffer<byte[]>(new byte[4000]); //TODO サイズが適当
+            eventList = new PinnedBuffer<byte[]>(new byte[4000]); //TODO サイズが適当
 
             dll = DLL.LoadLibrary(library);
             if (dll.IsInvalid)
@@ -260,9 +270,9 @@ namespace Momiji.Core.Vst
             Logger.LogInformation($"uniqueID:{aeffect.uniqueID}");
             Logger.LogInformation($"version:{aeffect.version}");
 
-            //Logger.LogInformation("processReplacing:"+aeffect.processReplacing);
-            //Logger.LogInformation("processDoubleReplacing:"+aeffect.processDoubleReplacing);
-
+            Logger.LogInformation("processReplacing:"+aeffect.processReplacing);
+            Logger.LogInformation("processDoubleReplacing:"+aeffect.processDoubleReplacing);
+            
             if (aeffect.dispatcher != IntPtr.Zero)
             {
                 dispatcher =
@@ -319,99 +329,142 @@ namespace Momiji.Core.Vst
             return result;
         }
 
+        public async Task Interval(
+            ISourceBlock<VstBuffer<T>> sourceQueue,
+            ITargetBlock<VstBuffer<T>> sourceReleaseQueue,
+            CancellationToken ct)
+        {
+            await Task.Run(() =>
+            {
+                ct.ThrowIfCancellationRequested();
+                var interval = (((double)audioMaster.BlockSize / audioMaster.SamplingRate) * 1_000_000.0);
+                using (var w = new Waiter(Timer, interval, ct))
+                {
+                    while (true)
+                    {
+                        if (ct.IsCancellationRequested)
+                        {
+                            break;
+                        }
+                        var source = sourceQueue.Receive(ct);
+                        source.Log.Clear();
+                        w.Wait();
+                        sourceReleaseQueue.Post(source);
+                    }
+                }
+            });
+        }
+
+        public void Execute(
+            VstBuffer<T> source,
+            PcmBuffer<T> dest,
+            IReceivableSourceBlock<VstMidiEvent> midiEventQueue
+        )
+        {
+            source.Log.Add("[vst] start", Timer.USecDouble);
+
+            var blockSize = audioMaster.BlockSize;
+
+            {
+                var list = new List<VstMidiEvent>();
+                {
+                    VstMidiEvent midiEvent;
+                    while (midiEventQueue.TryReceive(out midiEvent))
+                    {
+                        list.Add(midiEvent);
+                    }
+                }
+
+                if (list.Count > 0)
+                {
+                    var eventsPtr = events.AddrOfPinnedObject;
+                    var eventListPtr = eventList.AddrOfPinnedObject;
+
+                    var vstEvents = new VstEvents();
+                    vstEvents.numEvents = list.Count;
+
+                    //TODO 境界チェック
+                    Marshal.StructureToPtr(vstEvents, eventsPtr, false);
+                    eventsPtr += sizeVstEvents;
+
+                    list.ForEach(midiEvent =>
+                    {
+                        //TODO 境界チェック
+                        Marshal.StructureToPtr(midiEvent, eventListPtr, false);
+                        Marshal.WriteIntPtr(eventsPtr, eventListPtr);
+                        eventListPtr += sizeVstMidiEvent;
+                        eventsPtr += sizeIntPtr;
+                    });
+
+                    source.Log.Add("[vst] start effProcessEvents", Timer.USecDouble);
+                    Dispatcher(
+                        AEffect.Opcodes.effProcessEvents,
+                        0,
+                        IntPtr.Zero,
+                        events.AddrOfPinnedObject,
+                        0
+                    );
+                    source.Log.Add("[vst] end effProcessEvents", Timer.USecDouble);
+                }
+            }
+
+            source.Log.Add("[vst] start processReplacing", Timer.USecDouble);
+            processReplacing(
+                AEffectPtr,
+                IntPtr.Zero,
+                source.AddrOfPinnedObject,
+                blockSize
+            );
+            source.Log.Add("[vst] end processReplacing", Timer.USecDouble);
+            {
+                dest.Log.Marge(source.Log);
+
+                var target = dest.Target;
+                var targetIdx = 0;
+                var left = source.Get(0);
+                var right = source.Get(1);
+
+                dest.Log.Add("[to pcm] start", Timer.USecDouble);
+                for (var idx = 0; idx < left.Length; idx++)
+                {
+                    target[targetIdx++] = left[idx];
+                    target[targetIdx++] = right[idx];
+                }
+                dest.Log.Add("[to pcm] end", Timer.USecDouble);
+            }
+        }
+
         public async Task Run(
-            ISourceBlock<VstBuffer<T>> destQueue,
-            ITargetBlock<VstBuffer<T>> destReleaseQueue,
+            ISourceBlock<VstBuffer<T>> sourceQueue,
+            ITargetBlock<VstBuffer<T>> sourceReleaseQueue,
+            ISourceBlock<PcmBuffer<T>> destQueue,
+            ITargetBlock<PcmBuffer<T>> destReleaseQueue,
             IReceivableSourceBlock<VstMidiEvent> midiEventQueue,
             CancellationToken ct)
         {
             var blockSize = audioMaster.BlockSize;
-            using (var events = new PinnedBuffer<byte[]>(new byte[4000]))
-            using (var eventList = new PinnedBuffer<byte[]>(new byte[4000]))
+
+            await Task.Run(() =>
             {
-                await Task.Run(() =>
+                ct.ThrowIfCancellationRequested();
+
+                while (true)
                 {
-                    ct.ThrowIfCancellationRequested();
-
-                    var sizeVstEvents = Marshal.SizeOf<VstEvents>();
-                    var sizeVstMidiEvent = Marshal.SizeOf<VstMidiEvent>();
-                    var sizeIntPtr = Marshal.SizeOf<IntPtr>();
-
-                    var interval = (((double)audioMaster.BlockSize / audioMaster.SamplingRate) * 1000000.0);
-
-                    using (var w = new Waiter(Timer, interval, ct))
+                    if (ct.IsCancellationRequested)
                     {
-                        while (true)
-                        {
-                            if (ct.IsCancellationRequested)
-                            {
-                                break;
-                            }
-
-                            var dest = destQueue.Receive(ct);
-                            dest.Log.Clear();
-                            //dest.Log.Add("[vst] receive buffer", Timer.USecDouble);
-                            w.Wait();
-                            dest.Log.Add("[vst] start", Timer.USecDouble);
-
-                            {
-                                var list = new List<VstMidiEvent>();
-                                {
-                                    VstMidiEvent midiEvent;
-                                    while (midiEventQueue.TryReceive(out midiEvent))
-                                    {
-                                        list.Add(midiEvent);
-                                    }
-                                }
-
-                                if (list.Count > 0)
-                                {
-                                    var eventsPtr = events.AddrOfPinnedObject;
-                                    var eventListPtr = eventList.AddrOfPinnedObject;
-
-                                    var vstEvents = new VstEvents();
-                                    vstEvents.numEvents = list.Count;
-
-                                    //TODO 境界チェック
-                                    Marshal.StructureToPtr(vstEvents, eventsPtr, false);
-                                    eventsPtr += sizeVstEvents;
-
-                                    list.ForEach(midiEvent =>
-                                    {
-                                        //TODO 境界チェック
-                                        Marshal.StructureToPtr(midiEvent, eventListPtr, false);
-                                        Marshal.WriteIntPtr(eventsPtr, eventListPtr);
-                                        eventListPtr += sizeVstMidiEvent;
-                                        eventsPtr += sizeIntPtr;
-                                    });
-
-                                    dest.Log.Add("[vst] start effProcessEvents", Timer.USecDouble);
-                                    Dispatcher(
-                                        AEffect.Opcodes.effProcessEvents,
-                                        0,
-                                        IntPtr.Zero,
-                                        events.AddrOfPinnedObject,
-                                        0
-                                    );
-                                    dest.Log.Add("[vst] end effProcessEvents", Timer.USecDouble);
-                                }
-                            }
-
-                            dest.Log.Add("[vst] start processReplacing", Timer.USecDouble);
-                            processReplacing(
-                                AEffectPtr,
-                                IntPtr.Zero,
-                                dest.AddrOfPinnedObject,
-                                blockSize
-                            );
-                            dest.Log.Add("[vst] end processReplacing", Timer.USecDouble);
-
-                            destReleaseQueue.SendAsync(dest);
-                        }
+                        break;
                     }
-                    Logger.LogInformation("[vst] loop end");
-                });
-            }
+
+                    var source = sourceQueue.Receive(ct);
+                    var dest = destQueue.Receive(ct);
+
+                    Execute(source, dest, midiEventQueue);
+
+                    destReleaseQueue.Post(dest);
+                    sourceReleaseQueue.Post(source);
+                }
+                Logger.LogInformation("[vst] loop end");
+            });
         }
 
         internal void Open()
@@ -545,6 +598,9 @@ namespace Momiji.Core.Vst
                     dll.Dispose();
                     dll = null;
                 }
+
+                events.Dispose();
+                eventList.Dispose();
             }
 
             disposed = true;
