@@ -53,8 +53,8 @@ namespace Momiji.Core.Trans
 
             var target = dest.Target;
             var targetIdx = 0;
-            var left = source.Get(0);
-            var right = source.Get(1);
+            var left = source[0];
+            var right = source[1];
 
             dest.Log.Add("[to pcm] start", Timer.USecDouble);
             for (var idx = 0; idx < left.Length; idx++)

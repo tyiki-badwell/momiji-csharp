@@ -115,16 +115,18 @@ namespace Momiji.Core.Ftl
 
         public void Execute(OpusOutputBuffer source)
         {
+            long time = (long)source.Log.GetFirstTime();
             source.Log.Add("[ftl] start ftl_ingest_send_media_dts AUDIO", Timer.USecDouble);
             var sent = Handle.ftl_ingest_send_media_dts(
                 handle.AddrOfPinnedObject,
                 MediaType.FTL_AUDIO_DATA,
-                Timer.USec,
+                time,
                 source.AddrOfPinnedObject,
                 source.Wrote,
                 0
             );
-            source.Log.Add("[ftl] end ftl_ingest_send_media_dts AUDIO", Timer.USecDouble);
+            source.Log.Add($"[ftl] end ftl_ingest_send_media_dts AUDIO [{sent}][{source.Wrote}][{new DateTime(time*10, DateTimeKind.Utc):yyyyMMdd HH:mm:ss ffffff}]", Timer.USecDouble);
+            if (false)
             {
                 var log = "AUDIO ";
                 double? temp = null;
@@ -133,7 +135,7 @@ namespace Momiji.Core.Ftl
                     log += $"\n{a.Item1}:{lap},";
                     temp = a.Item2;
                 });
-            //    Logger.LogInformation($"[ftl] {source.Log.GetSpentTime()} {log}");
+                Logger.LogInformation($"[ftl] {source.Log.GetSpentTime()} {log}");
             }
             source.Log.Clear();
         }
@@ -162,16 +164,27 @@ namespace Momiji.Core.Ftl
 
         public void Execute(H264OutputBuffer source)
         {
-            source.Log.Add("[ftl] start ftl_ingest_send_media_dts VIDEO", Timer.USecDouble);
-            var sent = Handle.ftl_ingest_send_media_dts(
-                handle.AddrOfPinnedObject,
-                MediaType.FTL_VIDEO_DATA,
-                Timer.USec,
-                source.AddrOfPinnedObject,
-                source.Wrote,
-                source.EndOfFrame ? 1 : 0
-            );
-            source.Log.Add("[ftl] end ftl_ingest_send_media_dts VIDEO", Timer.USecDouble);
+            long time = (long)source.Log.GetFirstTime();
+            foreach (var nuls in source.LayerNuls)
+            {
+                for (var idx = 0; idx < nuls.Count; idx++)
+                {
+                    var nul = nuls[idx];
+                    var endOfFrame = (idx == nuls.Count - 1) ? 1 : 0;
+                    source.Log.Add("[ftl] start ftl_ingest_send_media_dts VIDEO", Timer.USecDouble);
+                    var sent = Handle.ftl_ingest_send_media_dts(
+                        handle.AddrOfPinnedObject,
+                        MediaType.FTL_VIDEO_DATA,
+                        time,
+                        source.AddrOfPinnedObject + nul.Item1,
+                        nul.Item2,
+                        endOfFrame
+                    );
+                    source.Log.Add($"[ftl] end ftl_ingest_send_media_dts VIDEO [{sent}][{nul.Item2}][{endOfFrame}][{new DateTime(time*10, DateTimeKind.Utc):yyyyMMdd HH:mm:ss ffffff}]", Timer.USecDouble);
+                    time++;
+                }
+            }
+            if (false)
             {
                 var log = "VIDEO ";
                 double? temp = null;
@@ -180,7 +193,7 @@ namespace Momiji.Core.Ftl
                     log += $"\n{a.Item1}:{lap},";
                     temp = a.Item2;
                 });
-            //    Logger.LogInformation($"[ftl] {source.Log.GetSpentTime()} {log}");
+                Logger.LogInformation($"[ftl] {source.Log.GetSpentTime()} {log}");
             }
             source.Log.Clear();
         }

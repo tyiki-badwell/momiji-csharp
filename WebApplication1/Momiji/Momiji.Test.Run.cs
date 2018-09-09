@@ -18,6 +18,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using System.Threading.Tasks.Dataflow;
 using Momiji.Core.Trans;
+using System.Diagnostics;
 
 namespace Momiji.Test.Run
 {
@@ -90,7 +91,7 @@ namespace Momiji.Test.Run
             return true;
         }
 
-        private async Task Loop(CancellationTokenSource processCancel)
+        private async Task Loop1(CancellationTokenSource processCancel)
         {
             var ct = processCancel.Token;
 
@@ -169,13 +170,13 @@ namespace Momiji.Test.Run
                             ftl.Connect();
 
                             var taskSet = new HashSet<Task>();
-
+                            /*
                             taskSet.Add(effect.Interval(
                                 vstToPcmOutput,
                                 vstToPcmInput,
                                 ct
                             ));
-
+                            */
                             taskSet.Add(effect.Run(
                                 vstToPcmInput,
                                 vstToPcmOutput,
@@ -302,7 +303,12 @@ namespace Momiji.Test.Run
                     0.12
                      */
 
+                    var audioInterval = (((double)blockSize / samplingRate) * 1_000_000.0);
+                    var videoInterval = 1_000_000.0 / maxFrameRate;
+
                     using (var timer = new Core.Timer())
+                    using (var audioWaiter = new Waiter(timer, audioInterval, ct))
+                    using (var videoWaiter = new Waiter(timer, videoInterval, ct))
                     using (var vstBufferPool = new BufferPool<VstBuffer<float>>(3, () => { return new VstBuffer<float>(blockSize, 2); }))
                     using (var pcmPool = new BufferPool<PcmBuffer<float>>(3, () => { return new PcmBuffer<float>(blockSize, 2); }))
                     using (var audioPool = new BufferPool<OpusOutputBuffer>(3, () => { return new OpusOutputBuffer(5000); }))
@@ -333,57 +339,84 @@ namespace Momiji.Test.Run
 
                             var taskSet = new HashSet<Task>();
 
-                            var workerBlock = 
-                                new ActionBlock<VstBuffer<float>>(buffer => {
-                                    //VST
-                                    var pcm = pcmToOpusOutput.Receive(ct);
-                                    effect.Execute(buffer, pcm, midiEventInput);
-                                    vstToPcmOutput.Post(buffer);
+                            {
+                                var audioWorkerBlock =
+                                    new ActionBlock<VstBuffer<float>>(buffer =>
+                                    {
+                                        buffer.Log.Clear();
+                                        buffer.Log.Add("[audio] start pcm input get", timer.USecDouble);
+                                        var pcm = pcmToOpusOutput.Receive(ct);
+                                        buffer.Log.Add("[audio] end pcm input get", timer.USecDouble);
+                                        audioWaiter.Wait();
+                                        buffer.Log.Add("[audio] start", timer.USecDouble);
 
-                                    //OPUS
-                                    var audio = audioToFtlInput.Receive(ct);
-                                    opus.Execute(pcm, audio);
-                                    pcmToOpusOutput.Post(pcm);
+                                        //VST
+                                        effect.Execute(buffer, pcm, midiEventInput);
+                                        vstToPcmOutput.Post(buffer);
 
-                                    //FTL
-                                    ftl.Execute(audio);
-                                    audioToFtlInput.Post(audio);
-                                },
-                                new ExecutionDataflowBlockOptions
-                                {
-                                    CancellationToken = ct,
-                                    MaxDegreeOfParallelism = 1
-                                });
-                            taskSet.Add(workerBlock.Completion);
+                                        //PCM
 
-                            taskSet.Add(effect.Interval(
-                                vstToPcmOutput,
-                                workerBlock,
-                                ct
-                            ));
-                            
-                            taskSet.Add(fft.Run(
-                                //vstToOpusInput,
-                                //vstToOpusOutput,
-                                bmpToVideoOutput,
-                                bmpToVideoInput,
-                                ct
-                            ));
+                                        //OPUS
+                                        buffer.Log.Add("[audio] start ftl input get", timer.USecDouble);
+                                        var audio = audioToFtlInput.Receive(ct);
+                                        buffer.Log.Add("[audio] end ftl input get", timer.USecDouble);
+                                        opus.Execute(pcm, audio);
+                                        pcmToOpusOutput.Post(pcm);
 
-                            taskSet.Add(h264.Run(
-                                bmpToVideoInput,
-                                bmpToVideoOutput,
-                                videoToFtlInput,
-                                videoToFtlOutput,
-                                ct
-                            ));
+                                        //FTL
+                                        ftl.Execute(audio);
+                                        audioToFtlInput.Post(audio);
+                                    },
+                                    new ExecutionDataflowBlockOptions
+                                    {
+                                        CancellationToken = ct,
+                                        MaxDegreeOfParallelism = 1
+                                    });
+                                taskSet.Add(audioWorkerBlock.Completion);
+                                vstToPcmOutput.LinkTo(audioWorkerBlock);
+                            }
 
-                            taskSet.Add(ftl.Run(
-                                videoToFtlOutput,
-                                videoToFtlInput,
-                                ct
-                            ));
+                            {
+                                var intraFrameCount = 0.0;
+                                var videoWorkerBlock =
+                                    new ActionBlock<H264InputBuffer>(buffer =>
+                                    {
+                                        buffer.Log.Clear();
+                                        //var bmp = bmpToVideoOutput.Receive(ct);
+                                        videoWaiter.Wait();
+                                        buffer.Log.Add("[video] start", timer.USecDouble);
 
+                                        //FFT
+                                        fft.Execute(buffer);
+                                        //bmpToVideoOutput.Post(bmp);
+
+                                        //YUV
+
+                                        //H264
+                                        buffer.Log.Add("[video] start ftl input get", timer.USecDouble);
+                                        var video = videoToFtlInput.Receive(ct);
+                                        buffer.Log.Add("[video] end ftl input get", timer.USecDouble);
+                                        h264.Execute(buffer, video, (intraFrameCount <= 0));
+                                        bmpToVideoOutput.Post(buffer);
+                                        intraFrameCount -= videoInterval;
+
+                                        //FTL
+                                        ftl.Execute(video);
+                                        videoToFtlInput.Post(video);
+                                    },
+                                    new ExecutionDataflowBlockOptions
+                                    {
+                                        CancellationToken = ct,
+                                        MaxDegreeOfParallelism = 1
+                                    });
+                                taskSet.Add(videoWorkerBlock.Completion);
+                                bmpToVideoOutput.LinkTo(videoWorkerBlock);
+                            }
+                            /*
+                            Task.Delay(5000).ContinueWith(_ => {
+                                GC.Collect();
+                            });
+                            */
                             while (taskSet.Count > 0)
                             {
                                 var any = Task.WhenAny(taskSet);
@@ -460,13 +493,13 @@ namespace Momiji.Test.Run
                             //var effect = vst.AddEffect("Dexed.dll");
 
                             var taskSet = new HashSet<Task>();
-
+                            /*
                             taskSet.Add(effect.Interval(
                                 vstToPcmOutput,
                                 vstToPcmInput,
                                 ct
                             ));
-
+                            */
                             taskSet.Add(effect.Run(
                                 vstToPcmInput,
                                 vstToPcmOutput,
@@ -555,8 +588,8 @@ namespace Momiji.Test.Run
                             LoggerFactory,
                             timer))
                         {
-                            var effect = vst.AddEffect("Synth1 VST.dll");
-                            //var effect = vst.AddEffect("Dexed.dll");
+                            //var effect = vst.AddEffect("Synth1 VST.dll");
+                            var effect = vst.AddEffect("Dexed.dll");
 
                             var taskSet = new HashSet<Task>();
 
@@ -586,6 +619,12 @@ namespace Momiji.Test.Run
                                 pcmToWaveOutput,
                                 ct
                             ));
+
+                            Task.Delay(5000).ContinueWith(_ => {
+                                Trace.WriteLine($"GC");
+                                GC.Collect();
+                            });
+
 
                             while (taskSet.Count > 0)
                             {

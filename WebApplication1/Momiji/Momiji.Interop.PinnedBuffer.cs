@@ -43,6 +43,11 @@ namespace Momiji.Interop
         {
             return Log[Log.Count - 1].Item2 - Log[0].Item2;
         }
+
+        public double GetFirstTime()
+        {
+            return Log[0].Item2;
+        }
     }
 
     public class PinnedBuffer<T> : IDisposable where T : class
@@ -72,7 +77,7 @@ namespace Momiji.Interop
             if (disposing)
             {
                 Log.Clear();
-                if (handle != null && handle.IsAllocated)
+                if (handle.IsAllocated)
                 {
                     handle.Free();
                 }

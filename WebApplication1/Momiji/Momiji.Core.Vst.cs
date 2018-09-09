@@ -50,9 +50,12 @@ namespace Momiji.Core.Vst
             base.Dispose(disposing);
         }
 
-        public T[] Get(int index)
+        public T[] this[int index]
         {
-            return list[index].Target;
+            get
+            {
+                return list[index].Target;
+            }
         }
     }
 
@@ -188,6 +191,8 @@ namespace Momiji.Core.Vst
         private AEffect.ProcessProc processReplacing;
         private AEffect.ProcessDoubleProc processDoubleReplacing;
 
+        private AEffect aeffect;
+
         private int numOutputs;
         private AEffect.VstAEffectFlags flags;
         private AudioMaster<T> audioMaster;
@@ -240,7 +245,7 @@ namespace Momiji.Core.Vst
             {
                 throw new VstException("vstPluginMain で失敗");
             }
-            var aeffect = Marshal.PtrToStructure<AEffect>(AEffectPtr);
+            aeffect = Marshal.PtrToStructure<AEffect>(AEffectPtr);
             numOutputs = aeffect.numOutputs;
             flags = aeffect.flags;
 
@@ -329,40 +334,12 @@ namespace Momiji.Core.Vst
             return result;
         }
 
-        public async Task Interval(
-            ISourceBlock<VstBuffer<T>> sourceQueue,
-            ITargetBlock<VstBuffer<T>> sourceReleaseQueue,
-            CancellationToken ct)
-        {
-            await Task.Run(() =>
-            {
-                ct.ThrowIfCancellationRequested();
-                var interval = (((double)audioMaster.BlockSize / audioMaster.SamplingRate) * 1_000_000.0);
-                using (var w = new Waiter(Timer, interval, ct))
-                {
-                    while (true)
-                    {
-                        if (ct.IsCancellationRequested)
-                        {
-                            break;
-                        }
-                        var source = sourceQueue.Receive(ct);
-                        source.Log.Clear();
-                        w.Wait();
-                        sourceReleaseQueue.Post(source);
-                    }
-                }
-            });
-        }
-
         public void Execute(
             VstBuffer<T> source,
             PcmBuffer<T> dest,
             IReceivableSourceBlock<VstMidiEvent> midiEventQueue
         )
         {
-            source.Log.Add("[vst] start", Timer.USecDouble);
-
             var blockSize = audioMaster.BlockSize;
 
             {
@@ -421,8 +398,8 @@ namespace Momiji.Core.Vst
 
                 var target = dest.Target;
                 var targetIdx = 0;
-                var left = source.Get(0);
-                var right = source.Get(1);
+                var left = source[0];
+                var right = source[1];
 
                 dest.Log.Add("[to pcm] start", Timer.USecDouble);
                 for (var idx = 0; idx < left.Length; idx++)
@@ -473,10 +450,10 @@ namespace Momiji.Core.Vst
             {
                 throw new VstException("effFlagsIsSynth ではない");
             }
-            if (!flags.HasFlag(AEffect.VstAEffectFlags.effFlagsHasEditor))
+            /*if (!flags.HasFlag(AEffect.VstAEffectFlags.effFlagsHasEditor))
             {
                 throw new VstException("effFlagsHasEditor ではない");
-            }
+            }*/
 
             Dispatcher(
                 AEffect.Opcodes.effOpen,

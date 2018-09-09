@@ -56,6 +56,13 @@ namespace Momiji.Core.FFT
             disposed = true;
         }
 
+        public void Execute(
+            H264InputBuffer dest
+        )
+        {
+
+        }
+
         public async Task Run(
             //ISourceBlock<Wave.PcmBuffer<float>> inputQueue,
             //ITargetBlock<Wave.PcmBuffer<float>> inputReleaseQueue,
@@ -82,10 +89,8 @@ namespace Momiji.Core.FFT
                         dest.Log.Clear();
 
                         w.Wait();
-                        //Logger.LogInformation($"[FFT] start {Timer.USecDouble - before} {interval}");
-                        before = Timer.USecDouble;
 
-                        //TODO FFT
+
 
 
 

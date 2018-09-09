@@ -59,11 +59,24 @@ namespace Momiji.Core.H264
 
     public class H264OutputBuffer : PinnedBuffer<byte[]>
     {
-        public int Wrote { get; set; }
-        public bool EndOfFrame { get; set; }
+        public List<List<Tuple<int, int>>> LayerNuls = new List<List<Tuple<int, int>>>();
 
         public H264OutputBuffer(int size) : base(new byte[size])
         {
+        }
+    }
+
+    class SFrameBSInfoBuffer : PinnedBuffer<SFrameBSInfo>
+    {
+        internal List<FieldInfo> LayerInfoList { get; }
+
+        public SFrameBSInfoBuffer() : base(new SFrameBSInfo())
+        {
+            LayerInfoList = new List<FieldInfo>();
+            for (var idx = 0; idx < 128; idx++)
+            {
+                LayerInfoList.Add(typeof(SFrameBSInfo).GetField($"sLayerInfo{idx:000}"));
+            }
         }
     }
 
@@ -75,6 +88,7 @@ namespace Momiji.Core.H264
 
         private bool disposed = false;
         private SVCEncoder Encoder { get; set; }
+        private SFrameBSInfoBuffer sFrameBSInfoBuffer { get; }
 
         private int PicWidth { get; }
         private int PicHeight { get; }
@@ -179,6 +193,8 @@ namespace Momiji.Core.H264
                     throw new H264Exception($"WelsCreateSVCEncoder Initialize failed {result}");
                 }
             }
+
+            sFrameBSInfoBuffer = new SFrameBSInfoBuffer();
         }
 
         public void Dispose()
@@ -202,9 +218,62 @@ namespace Momiji.Core.H264
                     Encoder.Close();
                     Encoder = null;
                 }
+
+                if (sFrameBSInfoBuffer != null)
+                {
+                    sFrameBSInfoBuffer.Dispose();
+                }
             }
 
             disposed = true;
+        }
+
+        public void Execute(
+            H264InputBuffer source,
+            H264OutputBuffer dest,
+            bool insertIntraFrame
+        )
+        {
+            if (insertIntraFrame)
+            {
+                var result = ForceIntraFrame(Encoder, true);
+                if (result != 0)
+                {
+                    throw new H264Exception($"WelsCreateSVCEncoder ForceIntraFrame failed {result}");
+                }
+            }
+
+            {
+                source.Log.Add("[h264] start EncodeFrame", Timer.USecDouble);
+                source.Target.uiTimeStamp = (long)(Timer.USecDouble / 1000);
+                var result = EncodeFrame(Encoder, source.AddrOfPinnedObject, sFrameBSInfoBuffer.AddrOfPinnedObject);
+                if (result != 0)
+                {
+                    throw new H264Exception($"WelsCreateSVCEncoder EncodeFrame failed {result}");
+                }
+                source.Log.Add("[h264] end EncodeFrame", Timer.USecDouble);
+            }
+
+            dest.Log.Marge(source.Log);
+            dest.LayerNuls.Clear();
+            CopyMemory(dest.AddrOfPinnedObject, sFrameBSInfoBuffer.Target.sLayerInfo000.pBsBuf, sFrameBSInfoBuffer.Target.iFrameSizeInBytes);
+
+            var sizeOfInt32 = Marshal.SizeOf<Int32>();
+            for (var idx = 0; idx < sFrameBSInfoBuffer.Target.iLayerNum; idx++)
+            {
+                var layer = (SLayerBSInfo)sFrameBSInfoBuffer.LayerInfoList[idx].GetValue(sFrameBSInfoBuffer.Target);
+
+                var nuls = new List<Tuple<int, int>>();
+                dest.LayerNuls.Add(nuls);
+
+                var offset = 0;
+                for (var nalIdx = 0; nalIdx < layer.iNalCount; nalIdx++)
+                {
+                    var length = Marshal.ReadInt32(layer.pNalLengthInByte, nalIdx * sizeOfInt32);
+                    nuls.Add(new Tuple<int, int>(offset + 4, length - 4));
+                    offset += length;
+                }
+            }
         }
 
         public async Task Run(
@@ -216,12 +285,6 @@ namespace Momiji.Core.H264
         {
             using (var frameBSInfoBuffer = new PinnedBuffer<SFrameBSInfo>(new SFrameBSInfo()))
             {
-                var layerInfoList = new List<FieldInfo>();
-                for (var idx = 0; idx < 128; idx++)
-                {
-                    layerInfoList.Add(typeof(SFrameBSInfo).GetField($"sLayerInfo{idx:000}"));
-                }
-
                 await Task.Run(() =>
                 {
                     ct.ThrowIfCancellationRequested();
@@ -236,54 +299,14 @@ namespace Momiji.Core.H264
                             break;
                         }
 
-                        List<Tuple<string, double>> log;
-                        {
-                            var source = sourceQueue.Receive(ct);
+                        var source = sourceQueue.Receive(ct);
+                        var dest = destQueue.Receive(ct);
 
-                            if (intraFrameCount <= 0)
-                            {
-                                intraFrameCount = IntraFrameIntervalUs;
-                                var result = ForceIntraFrame(Encoder, true);
-                                if (result != 0)
-                                {
-                                    throw new H264Exception($"WelsCreateSVCEncoder ForceIntraFrame failed {result}");
-                                }
-                            }
-                            intraFrameCount -= interval;
+                        Execute(source, dest, (intraFrameCount <= 0));
+                        intraFrameCount -= interval;
 
-                            {
-                                source.Log.Add("[h264] start EncodeFrame", Timer.USecDouble);
-                                source.Target.uiTimeStamp = (long)(Timer.USecDouble / 1000);
-                                var result = EncodeFrame(Encoder, source.AddrOfPinnedObject, frameBSInfoBuffer.AddrOfPinnedObject);
-                                if (result != 0)
-                                {
-                                    throw new H264Exception($"WelsCreateSVCEncoder EncodeFrame failed {result}");
-                                }
-                                source.Log.Add("[h264] end EncodeFrame", Timer.USecDouble);
-                            }
-                            log = source.Log.Copy();
-                            sourceReleaseQueue.Post(source);
-                        }
-
-                        for (var idx = 0; idx < frameBSInfoBuffer.Target.iLayerNum; idx++)
-                        {
-                            var layer = (SLayerBSInfo)layerInfoList[idx].GetValue(frameBSInfoBuffer.Target);
-                            var bsBuf = layer.pBsBuf;
-                            var sizeOfInt32 = Marshal.SizeOf<Int32>();
-                            for (var nalIdx = 0; nalIdx < layer.iNalCount; nalIdx++)
-                            {
-                                var dest = destQueue.Receive(ct);
-                                dest.Log.Marge(log);
-                                var length = Marshal.ReadInt32(layer.pNalLengthInByte, nalIdx * sizeOfInt32);
-                                CopyMemory(dest.AddrOfPinnedObject, bsBuf + 4, length - 4);
-                                bsBuf += length;
-                                dest.Wrote = length - 4;
-                                dest.EndOfFrame = (nalIdx == layer.iNalCount - 1);
-
-                                dest.Log.Add("[h264] nal", Timer.USecDouble);
-                                destReleaseQueue.Post(dest);
-                            }
-                        }
+                        destReleaseQueue.Post(dest);
+                        sourceReleaseQueue.Post(source);
                     }
                     Logger.LogInformation("[h264] loop end");
                 });
