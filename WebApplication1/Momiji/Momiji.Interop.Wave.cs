@@ -325,8 +325,8 @@ namespace Momiji.Interop.Wave
             [Out]  out WaveOut phwo,
             [In]   UInt32 uDeviceID,
             [In]   ref WaveFormatExtensible pwfx,
-            [In][MarshalAs(UnmanagedType.FunctionPtr)]
-                        DriverCallBack.Delegate     dwCallback,
+            //[In][MarshalAs(UnmanagedType.FunctionPtr)]DriverCallBack.Delegate dwCallback,
+            [In]   IntPtr/*DriverCallBack.Delegate*/ dwCallback,
             [In]   IntPtr dwInstance,
             [In]   DriverCallBack.TYPE fdwOpen
         );

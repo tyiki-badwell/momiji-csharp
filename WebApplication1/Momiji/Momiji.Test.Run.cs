@@ -412,11 +412,7 @@ namespace Momiji.Test.Run
                                 taskSet.Add(videoWorkerBlock.Completion);
                                 bmpToVideoOutput.LinkTo(videoWorkerBlock);
                             }
-                            /*
-                            Task.Delay(5000).ContinueWith(_ => {
-                                GC.Collect();
-                            });
-                            */
+
                             while (taskSet.Count > 0)
                             {
                                 var any = Task.WhenAny(taskSet);
@@ -619,12 +615,6 @@ namespace Momiji.Test.Run
                                 pcmToWaveOutput,
                                 ct
                             ));
-
-                            Task.Delay(5000).ContinueWith(_ => {
-                                Trace.WriteLine($"GC");
-                                GC.Collect();
-                            });
-
 
                             while (taskSet.Count > 0)
                             {

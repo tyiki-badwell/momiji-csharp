@@ -53,13 +53,11 @@ namespace Momiji.Interop
     public class PinnedBuffer<T> : IDisposable where T : class
     {
         private bool disposed = false;
-        internal T Target { get; }
         private GCHandle handle;
         internal BufferLog Log { get; private set; }
 
         public PinnedBuffer(T buffer)
         {
-            Target = buffer;
             handle = GCHandle.Alloc(buffer, GCHandleType.Pinned);
             Log = new BufferLog();
         }
@@ -86,6 +84,14 @@ namespace Momiji.Interop
             disposed = true;
         }
 
+        public T Target
+        {
+            get
+            {
+                return (T)handle.Target;
+            }
+        }
+
         public IntPtr AddrOfPinnedObject {
             get
             {
@@ -93,4 +99,47 @@ namespace Momiji.Interop
             }
         }
     }
+
+
+    public class PinnedDelegate<T> : IDisposable where T : class
+    {
+        private bool disposed = false;
+        private GCHandle handle;
+
+        public PinnedDelegate(T buffer)
+        {
+            handle = GCHandle.Alloc(buffer, GCHandleType.Normal);
+        }
+
+        public void Dispose()
+        {
+            Dispose(true);
+            GC.SuppressFinalize(this);
+        }
+
+        protected virtual void Dispose(bool disposing)
+        {
+            if (disposed) return;
+
+            if (disposing)
+            {
+                if (handle.IsAllocated)
+                {
+                    handle.Free();
+                }
+            }
+
+            disposed = true;
+        }
+
+        public IntPtr FunctionPointer
+        {
+            get
+            {
+                return Marshal.GetFunctionPointerForDelegate(handle.Target);
+            }
+        }
+    }
+
+
 }

@@ -195,7 +195,9 @@ namespace Momiji.Core.Vst
 
         private int numOutputs;
         private AEffect.VstAEffectFlags flags;
+
         private AudioMaster<T> audioMaster;
+        private PinnedDelegate<AudioMaster.CallBack> audioMasterCallBack;
 
         //private System.Windows.Input.ICommand window;
 
@@ -240,7 +242,8 @@ namespace Momiji.Core.Vst
             var vstPluginMain =
                 Marshal.GetDelegateForFunctionPointer<AEffect.VSTPluginMain>(proc);
 
-            AEffectPtr = vstPluginMain(audioMaster.AudioMasterCallBackProc);
+            audioMasterCallBack = new PinnedDelegate<AudioMaster.CallBack>(new AudioMaster.CallBack(audioMaster.AudioMasterCallBackProc));
+            AEffectPtr = vstPluginMain(audioMasterCallBack.FunctionPointer);
             if (AEffectPtr == IntPtr.Zero)
             {
                 throw new VstException("vstPluginMain で失敗");

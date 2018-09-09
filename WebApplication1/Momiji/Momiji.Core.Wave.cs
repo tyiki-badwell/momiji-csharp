@@ -90,6 +90,7 @@ namespace Momiji.Core.Wave
         private IDictionary<IntPtr, PinnedBuffer<WaveHeader>> headerBusyPool = new ConcurrentDictionary<IntPtr, PinnedBuffer<WaveHeader>>();
         private IDictionary<IntPtr, PcmBuffer<T>> dataBusyPool = new ConcurrentDictionary<IntPtr, PcmBuffer<T>>();
 
+        private PinnedDelegate<DriverCallBack.Delegate> driverCallBack;
         private WaveOut handle;
 
         private int SIZE_OF_T { get; }
@@ -141,12 +142,14 @@ namespace Momiji.Core.Wave
 
             headerQueue = headerPool.makeBufferBlock();
 
+            driverCallBack = new PinnedDelegate<DriverCallBack.Delegate>(new DriverCallBack.Delegate(DriverCallBackProc));
+
             var mmResult =
                 WaveOut.waveOutOpen(
                     out handle,
                     deviceID,
                     ref format,
-                    DriverCallBackProc,
+                    driverCallBack.FunctionPointer,
                     IntPtr.Zero,
                     (
                           DriverCallBack.TYPE.FUNCTION
@@ -203,6 +206,8 @@ namespace Momiji.Core.Wave
                         handle.Close();
                     }
                 }
+
+                driverCallBack.Dispose();
             }
 
             disposed = true;

@@ -125,8 +125,8 @@ namespace Momiji.Core.Ftl
                 source.Wrote,
                 0
             );
-            source.Log.Add($"[ftl] end ftl_ingest_send_media_dts AUDIO [{sent}][{source.Wrote}][{new DateTime(time*10, DateTimeKind.Utc):yyyyMMdd HH:mm:ss ffffff}]", Timer.USecDouble);
-            if (false)
+            source.Log.Add($"[ftl] end ftl_ingest_send_media_dts AUDIO [{sent}][{source.Wrote}][{new DateTime(time*10, DateTimeKind.Utc):HH:mm:ss ffffff}]", Timer.USecDouble);
+            //if (false)
             {
                 var log = "AUDIO ";
                 double? temp = null;
@@ -180,11 +180,11 @@ namespace Momiji.Core.Ftl
                         nul.Item2,
                         endOfFrame
                     );
-                    source.Log.Add($"[ftl] end ftl_ingest_send_media_dts VIDEO [{sent}][{nul.Item2}][{endOfFrame}][{new DateTime(time*10, DateTimeKind.Utc):yyyyMMdd HH:mm:ss ffffff}]", Timer.USecDouble);
+                    source.Log.Add($"[ftl] end ftl_ingest_send_media_dts VIDEO [{sent}][{nul.Item2}][{endOfFrame}][{new DateTime(time*10, DateTimeKind.Utc):HH:mm:ss ffffff}]", Timer.USecDouble);
                     time++;
                 }
             }
-            if (false)
+            //if (false)
             {
                 var log = "VIDEO ";
                 double? temp = null;
@@ -239,7 +239,7 @@ namespace Momiji.Core.Ftl
                         }
 
                         var status = Handle.ftl_ingest_get_status(handle.AddrOfPinnedObject, msg, 500);
-                        //if (status != Status.FTL_SUCCESS)
+                        if (status != Status.FTL_SUCCESS)
                         {
                             continue;
                         }

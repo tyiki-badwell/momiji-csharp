@@ -311,7 +311,8 @@ namespace Momiji.Interop.Vst
 
         [UnmanagedFunctionPointer(CallingConvention.Cdecl, CharSet = CharSet.Ansi, SetLastError = false)]
         internal delegate IntPtr VSTPluginMain(
-            [In][MarshalAs(UnmanagedType.FunctionPtr)]AudioMaster.CallBack audioMaster
+            //[In][MarshalAs(UnmanagedType.FunctionPtr)]AudioMaster.CallBack audioMaster
+            [In]IntPtr/*AudioMaster.CallBack*/ audioMaster
         );
 
         [UnmanagedFunctionPointer(CallingConvention.Cdecl, CharSet = CharSet.Ansi, SetLastError = false)]
