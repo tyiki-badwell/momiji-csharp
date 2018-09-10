@@ -129,12 +129,12 @@ namespace Momiji.Core.Ftl
             //if (false)
             {
                 var log = "AUDIO ";
-                double? temp = null;
+                /*double? temp = null;
                 source.Log.Copy().ForEach((a) => {
-                    var lap = temp == null ? 0 : (a.Item2 - temp);
-                    log += $"\n{a.Item1}:{lap},";
-                    temp = a.Item2;
-                });
+                    var lap = temp == null ? 0 : (a.time - temp);
+                    log += $"\n{a.label}:{lap},";
+                    temp = a.time;
+                });*/
                 Logger.LogInformation($"[ftl] {source.Log.GetSpentTime()} {log}");
             }
             source.Log.Clear();
@@ -176,8 +176,8 @@ namespace Momiji.Core.Ftl
                         handle.AddrOfPinnedObject,
                         MediaType.FTL_VIDEO_DATA,
                         time,
-                        source.AddrOfPinnedObject + nul.Item1,
-                        nul.Item2,
+                        source.AddrOfPinnedObject + nul.offset,
+                        nul.length,
                         endOfFrame
                     );
                     source.Log.Add($"[ftl] end ftl_ingest_send_media_dts VIDEO [{sent}][{nul.Item2}][{endOfFrame}][{new DateTime(time*10, DateTimeKind.Utc):HH:mm:ss ffffff}]", Timer.USecDouble);
@@ -187,12 +187,12 @@ namespace Momiji.Core.Ftl
             //if (false)
             {
                 var log = "VIDEO ";
-                double? temp = null;
+                /*double? temp = null;
                 source.Log.Copy().ForEach((a) => {
-                    var lap = temp == null ? 0 : (a.Item2 - temp);
-                    log += $"\n{a.Item1}:{lap},";
-                    temp = a.Item2;
-                });
+                    var lap = temp == null ? 0 : (a.time - temp);
+                    log += $"\n{a.label}:{lap},";
+                    temp = a.time;
+                });*/
                 Logger.LogInformation($"[ftl] {source.Log.GetSpentTime()} {log}");
             }
             source.Log.Clear();

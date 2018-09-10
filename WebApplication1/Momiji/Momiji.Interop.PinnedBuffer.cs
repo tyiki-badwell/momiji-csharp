@@ -6,11 +6,11 @@ namespace Momiji.Interop
 {
     internal class BufferLog
     {
-        private List<Tuple<string, double>> Log { get; }
+        private List<(string label, double time)> Log { get; }
 
         public BufferLog()
         {
-            Log = new List<Tuple<string, double>>();
+            Log = new List<(string, double)>();
         }
 
         public void Clear()
@@ -20,7 +20,7 @@ namespace Momiji.Interop
 
         public void Add(string label, double time)
         {
-            Log.Add(new Tuple<string, double>(label, time));
+            Log.Add((label, time));
         }
 
         public void Marge(BufferLog source)
@@ -28,15 +28,15 @@ namespace Momiji.Interop
             Marge(source.Log);
         }
 
-        public void Marge(List<Tuple<string, double>> source)
+        public void Marge(List<(string, double)> source)
         {
             Clear();
             Log.InsertRange(0, source);
         }
 
-        public List<Tuple<string, double>> Copy()
+        public List<(string label, double time)> Copy()
         {
-            return new List<Tuple<string, double>>(Log);
+            return new List<(string, double)>(Log);
         }
 
         public double GetSpentTime()
@@ -92,7 +92,8 @@ namespace Momiji.Interop
             }
         }
 
-        public IntPtr AddrOfPinnedObject {
+        public IntPtr AddrOfPinnedObject
+        {
             get
             {
                 return handle.AddrOfPinnedObject();

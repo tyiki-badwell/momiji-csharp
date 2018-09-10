@@ -59,16 +59,17 @@ namespace Momiji.Core.H264
 
     public class H264OutputBuffer : PinnedBuffer<byte[]>
     {
-        public List<List<Tuple<int, int>>> LayerNuls = new List<List<Tuple<int, int>>>();
+        public List<List<(int offset, int length)>> LayerNuls { get; }
 
         public H264OutputBuffer(int size) : base(new byte[size])
         {
+            LayerNuls = new List<List<(int, int)>>();
         }
     }
 
-    class SFrameBSInfoBuffer : PinnedBuffer<SFrameBSInfo>
+    public class SFrameBSInfoBuffer : PinnedBuffer<SFrameBSInfo>
     {
-        internal List<FieldInfo> LayerInfoList { get; }
+        public List<FieldInfo> LayerInfoList { get; }
 
         public SFrameBSInfoBuffer() : base(new SFrameBSInfo())
         {
@@ -263,14 +264,14 @@ namespace Momiji.Core.H264
             {
                 var layer = (SLayerBSInfo)sFrameBSInfoBuffer.LayerInfoList[idx].GetValue(sFrameBSInfoBuffer.Target);
 
-                var nuls = new List<Tuple<int, int>>();
+                var nuls = new List<(int offset, int length)>();
                 dest.LayerNuls.Add(nuls);
 
                 var offset = 0;
                 for (var nalIdx = 0; nalIdx < layer.iNalCount; nalIdx++)
                 {
                     var length = Marshal.ReadInt32(layer.pNalLengthInByte, nalIdx * sizeOfInt32);
-                    nuls.Add(new Tuple<int, int>(offset + 4, length - 4));
+                    nuls.Add((offset + 4, length - 4));
                     offset += length;
                 }
             }

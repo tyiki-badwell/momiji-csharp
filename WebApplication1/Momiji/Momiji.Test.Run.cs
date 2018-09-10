@@ -271,11 +271,11 @@ namespace Momiji.Test.Run
                     var width = 1280;
                     var height = 720;
                     var targetBitrate = 5_000_000;
-                    var maxFrameRate = 60.0f;
+                    var maxFrameRate = 30.0f;
                     var intraFrameIntervalMs = 1000;
 
                     var samplingRate = 48000;
-                    var sampleLength = 0.01;// 0.06;
+                    var sampleLength = 0.06;// 0.06;
                     var blockSize = (int)(samplingRate * sampleLength);
 
                     var streamKey = Configuration["MIXER_STREAM_KEY"];
