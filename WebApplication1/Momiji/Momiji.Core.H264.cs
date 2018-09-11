@@ -29,17 +29,29 @@ namespace Momiji.Core.H264
             var frameSize = picWidth * picHeight * 3 / 2;
             buffer = new PinnedBuffer<byte[]>(new byte[frameSize]);
 
-            Target.iColorFormat = EVideoFormatType.videoFormatI420;
-            Target.iStride0 = picWidth;
-            Target.iStride1 = picWidth >> 1;
-            Target.iStride2 = picWidth >> 1;
-            Target.iStride3 = 0;
-            Target.pData0 = buffer.AddrOfPinnedObject;
-            Target.pData1 = Target.pData0 + (picWidth * picHeight);
-            Target.pData2 = Target.pData1 + (picWidth * picHeight >> 2);
-            Target.pData3 = IntPtr.Zero;
-            Target.iPicWidth = picWidth;
-            Target.iPicHeight = picHeight;
+            var value = 16;
+            for (var idx = 0; idx < buffer.Target.Length; idx++)
+            {
+                buffer.Target[idx] = (byte)value++;
+                if (value > 235)
+                {
+                    value = 16;
+                }
+
+            }
+
+            var target = Target;
+            target.iColorFormat = EVideoFormatType.videoFormatI420;
+            target.iStride0 = picWidth;
+            target.iStride1 = picWidth >> 1;
+            target.iStride2 = picWidth >> 1;
+            target.iStride3 = 0;
+            target.pData0 = buffer.AddrOfPinnedObject;
+            target.pData1 = target.pData0 + (picWidth * picHeight);
+            target.pData2 = target.pData1 + (picWidth * picHeight >> 2);
+            target.pData3 = IntPtr.Zero;
+            target.iPicWidth = picWidth;
+            target.iPicHeight = picHeight;
         }
 
         protected override void Dispose(bool disposing)
@@ -257,7 +269,12 @@ namespace Momiji.Core.H264
 
             dest.Log.Marge(source.Log);
             dest.LayerNuls.Clear();
-            CopyMemory(dest.AddrOfPinnedObject, sFrameBSInfoBuffer.Target.sLayerInfo000.pBsBuf, sFrameBSInfoBuffer.Target.iFrameSizeInBytes);
+            CopyMemory(
+                dest.AddrOfPinnedObject, 
+                dest.Target.Length, 
+                sFrameBSInfoBuffer.Target.sLayerInfo000.pBsBuf, 
+                sFrameBSInfoBuffer.Target.iFrameSizeInBytes
+            );
 
             var sizeOfInt32 = Marshal.SizeOf<Int32>();
             for (var idx = 0; idx < sFrameBSInfoBuffer.Target.iLayerNum; idx++)
@@ -316,9 +333,15 @@ namespace Momiji.Core.H264
 
         private void CopyMemory(
             IntPtr Destination,
+            long maxLength,
             IntPtr Source,
             long Length)
         {
+            if (maxLength < Length)
+            {
+                throw new H264Exception($"too large {Length} max {maxLength}");
+            }
+
             var temp = new byte[Length];
             Marshal.Copy(Source, temp, 0, (int)Length);
             Marshal.Copy(temp, 0, Destination, (int)Length);
