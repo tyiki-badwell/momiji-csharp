@@ -29,17 +29,6 @@ namespace Momiji.Core.H264
             var frameSize = picWidth * picHeight * 3 / 2;
             buffer = new PinnedBuffer<byte[]>(new byte[frameSize]);
 
-            var value = 16;
-            for (var idx = 0; idx < buffer.Target.Length; idx++)
-            {
-                buffer.Target[idx] = (byte)value++;
-                if (value > 235)
-                {
-                    value = 16;
-                }
-
-            }
-
             var target = Target;
             target.iColorFormat = EVideoFormatType.videoFormatI420;
             target.iStride0 = picWidth;
@@ -277,14 +266,14 @@ namespace Momiji.Core.H264
             );
 
             var sizeOfInt32 = Marshal.SizeOf<Int32>();
+            var offset = 0;
             for (var idx = 0; idx < sFrameBSInfoBuffer.Target.iLayerNum; idx++)
             {
                 var layer = (SLayerBSInfo)sFrameBSInfoBuffer.LayerInfoList[idx].GetValue(sFrameBSInfoBuffer.Target);
 
                 var nuls = new List<(int offset, int length)>();
                 dest.LayerNuls.Add(nuls);
-
-                var offset = 0;
+                
                 for (var nalIdx = 0; nalIdx < layer.iNalCount; nalIdx++)
                 {
                     var length = Marshal.ReadInt32(layer.pNalLengthInByte, nalIdx * sizeOfInt32);

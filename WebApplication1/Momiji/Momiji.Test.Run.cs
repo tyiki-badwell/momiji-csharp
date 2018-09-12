@@ -271,8 +271,8 @@ namespace Momiji.Test.Run
                     var width = 1280;
                     var height = 720;
                     var targetBitrate = 5_000_000;
-                    var maxFrameRate = 30.0f;
-                    var intraFrameIntervalMs = 1000;
+                    var maxFrameRate = 10.0f;
+                    var intraFrameIntervalMs = 5000;
 
                     var samplingRate = 48000;
                     var sampleLength = 0.06;// 0.06;

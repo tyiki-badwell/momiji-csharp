@@ -2,6 +2,7 @@
 using Momiji.Core.H264;
 using Momiji.Interop;
 using System;
+using System.Runtime.InteropServices;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Threading.Tasks.Dataflow;
@@ -56,10 +57,62 @@ namespace Momiji.Core.FFT
             disposed = true;
         }
 
+        private static int a = 16;
         public void Execute(
             H264InputBuffer dest
         )
         {
+            var target = dest.Target;
+            {
+                var y = target.pData0;
+                var length = target.iPicWidth * target.iPicHeight;
+
+                var value = a;
+                a++;
+                if (a > 235)
+                {
+                    a = 16;
+                }
+                for (var idx = 0; idx < length; idx++)
+                {
+                    Marshal.WriteByte(y, (byte)value++);
+                    y += 1;
+                    if (value > 235)
+                    {
+                        value = 16;
+                    }
+                }
+            }
+
+            {
+                var u = target.pData1;
+                var length = target.iPicWidth * target.iPicHeight >> 2;
+                var value = a;
+                for (var idx = 0; idx < length; idx++)
+                {
+                    Marshal.WriteByte(u, (byte)value++);
+                    u += 1;
+                    if (value > 235)
+                    {
+                        value = 16;
+                    }
+                }
+            }
+
+            {
+                var v = target.pData2;
+                var length = target.iPicWidth * target.iPicHeight >> 2;
+                var value = a;
+                for (var idx = 0; idx < length; idx++)
+                {
+                    Marshal.WriteByte(v, (byte)value++);
+                    v += 1;
+                    if (value > 235)
+                    {
+                        value = 16;
+                    }
+                }
+            }
 
         }
 
@@ -89,12 +142,7 @@ namespace Momiji.Core.FFT
                         dest.Log.Clear();
 
                         w.Wait();
-
-
-
-
-
-
+                        Execute(dest);
                         //TODO H264Inputへの変換は別サービスにする
 
                         //inputReleaseQueue.Post(pcm);

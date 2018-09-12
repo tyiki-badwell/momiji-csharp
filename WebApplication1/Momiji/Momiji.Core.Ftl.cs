@@ -126,7 +126,7 @@ namespace Momiji.Core.Ftl
                 0
             );
             source.Log.Add($"[ftl] end ftl_ingest_send_media_dts AUDIO [{sent}][{source.Wrote}][{new DateTime(time*10, DateTimeKind.Utc):HH:mm:ss ffffff}]", Timer.USecDouble);
-            //if (false)
+            if (false)
             {
                 var log = "AUDIO ";
                 /*double? temp = null;
@@ -135,7 +135,7 @@ namespace Momiji.Core.Ftl
                     log += $"\n{a.label}:{lap},";
                     temp = a.time;
                 });*/
-                Logger.LogInformation($"[ftl] {source.Log.GetSpentTime()} {log}");
+                //Logger.LogInformation($"[ftl] {source.Log.GetSpentTime()} {log}");
             }
             source.Log.Clear();
         }
@@ -184,15 +184,15 @@ namespace Momiji.Core.Ftl
                     time++;
                 }
             }
-            //if (false)
+            if (false)
             {
                 var log = "VIDEO ";
-                /*double? temp = null;
+                double? temp = null;
                 source.Log.Copy().ForEach((a) => {
                     var lap = temp == null ? 0 : (a.time - temp);
                     log += $"\n{a.label}:{lap},";
                     temp = a.time;
-                });*/
+                });
                 Logger.LogInformation($"[ftl] {source.Log.GetSpentTime()} {log}");
             }
             source.Log.Clear();
