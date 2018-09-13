@@ -148,7 +148,7 @@ namespace Momiji.Test.Run
                     //using (var toPcm = new ToPcm<float>(LoggerFactory, timer))
                     using (var opus = new OpusEncoder(SamplingRate.Sampling48000, Channels.Stereo, LoggerFactory, timer))
                     using (var fft = new FFTEncoder(width, height, maxFrameRate, LoggerFactory, timer))
-                    using (var h264 = new H264Encoder(width, height, targetBitrate, maxFrameRate, intraFrameIntervalMs, LoggerFactory, timer))
+                    using (var h264 = new H264Encoder(width, height, targetBitrate, maxFrameRate, LoggerFactory, timer))
                     //using (var h264 = new H264File(LoggerFactory))
                     {
                         var vstToPcmInput = vstBufferPool.makeEmptyBufferBlock();
@@ -270,12 +270,12 @@ namespace Momiji.Test.Run
 
                     var width = 1280;
                     var height = 720;
-                    var targetBitrate = 5_000_000;
-                    var maxFrameRate = 10.0f;
-                    var intraFrameIntervalMs = 5000;
+                    var targetBitrate = 3200;// 1_000_000;
+                    var maxFrameRate = 60.0f;
+                    var intraFrameIntervalMs = 1000;
 
                     var samplingRate = 48000;
-                    var sampleLength = 0.06;// 0.06;
+                    var sampleLength = 0.01f;// 0.06;
                     var blockSize = (int)(samplingRate * sampleLength);
 
                     var streamKey = Configuration["MIXER_STREAM_KEY"];
@@ -303,7 +303,7 @@ namespace Momiji.Test.Run
                     0.12
                      */
 
-                    var audioInterval = (((double)blockSize / samplingRate) * 1_000_000.0);
+                    var audioInterval = 1_000_000.0 * sampleLength;
                     var videoInterval = 1_000_000.0 / maxFrameRate;
 
                     using (var timer = new Core.Timer())
@@ -318,7 +318,7 @@ namespace Momiji.Test.Run
                     //using (var toPcm = new ToPcm<float>(LoggerFactory, timer))
                     using (var opus = new OpusEncoder(SamplingRate.Sampling48000, Channels.Stereo, LoggerFactory, timer))
                     using (var fft = new FFTEncoder(width, height, maxFrameRate, LoggerFactory, timer))
-                    using (var h264 = new H264Encoder(width, height, targetBitrate, maxFrameRate, intraFrameIntervalMs, LoggerFactory, timer))
+                    using (var h264 = new H264Encoder(width, height, targetBitrate, maxFrameRate, LoggerFactory, timer))
                     //using (var h264 = new H264File(LoggerFactory))
                     {
                         var vstToPcmOutput = vstBufferPool.makeBufferBlock();
@@ -396,8 +396,13 @@ namespace Momiji.Test.Run
                                         buffer.Log.Add("[video] start ftl input get", timer.USecDouble);
                                         var video = videoToFtlInput.Receive(ct);
                                         buffer.Log.Add("[video] end ftl input get", timer.USecDouble);
-                                        h264.Execute(buffer, video, (intraFrameCount <= 0));
+                                        var insertIntraFrame = (intraFrameCount <= 0);
+                                        h264.Execute(buffer, video, insertIntraFrame);
                                         bmpToVideoOutput.Post(buffer);
+                                        if (insertIntraFrame)
+                                        {
+                                            intraFrameCount = intraFrameIntervalMs * 1000;
+                                        }
                                         intraFrameCount -= videoInterval;
 
                                         //FTL
@@ -584,8 +589,8 @@ namespace Momiji.Test.Run
                             LoggerFactory,
                             timer))
                         {
-                            //var effect = vst.AddEffect("Synth1 VST.dll");
-                            var effect = vst.AddEffect("Dexed.dll");
+                            var effect = vst.AddEffect("Synth1 VST.dll");
+                            //var effect = vst.AddEffect("Dexed.dll");
 
                             var taskSet = new HashSet<Task>();
 

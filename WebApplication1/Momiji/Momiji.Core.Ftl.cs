@@ -180,11 +180,11 @@ namespace Momiji.Core.Ftl
                         nul.length,
                         endOfFrame
                     );
-                    source.Log.Add($"[ftl] end ftl_ingest_send_media_dts VIDEO [{sent}][{nul.Item2}][{endOfFrame}][{new DateTime(time*10, DateTimeKind.Utc):HH:mm:ss ffffff}]", Timer.USecDouble);
+                    source.Log.Add($"[ftl] end ftl_ingest_send_media_dts VIDEO [{sent}][{nul.length}][{endOfFrame}][{new DateTime(time*10, DateTimeKind.Utc):HH:mm:ss ffffff}]", Timer.USecDouble);
                     time++;
                 }
             }
-            if (false)
+            //if (false)
             {
                 var log = "VIDEO ";
                 double? temp = null;

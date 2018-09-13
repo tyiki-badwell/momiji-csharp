@@ -96,7 +96,6 @@ namespace Momiji.Core.H264
         private int PicHeight { get; }
         private int TargetBitrate { get; }
         private float MaxFrameRate { get; }
-        private double IntraFrameIntervalUs { get; }
 
         private ISVCEncoderVtbl.InitializeProc Initialize;
         private ISVCEncoderVtbl.GetDefaultParamsProc GetDefaultParams;
@@ -111,8 +110,7 @@ namespace Momiji.Core.H264
             int picWidth,
             int picHeight,
             int targetBitrate,
-            float maxFrameRate, 
-            int intraFrameIntervalMs,
+            float maxFrameRate,
             ILoggerFactory loggerFactory, 
             Timer timer
         )
@@ -125,7 +123,6 @@ namespace Momiji.Core.H264
             PicHeight = picHeight;
             TargetBitrate = targetBitrate;
             MaxFrameRate = maxFrameRate;
-            IntraFrameIntervalUs = intraFrameIntervalMs * 1000;
 
             {
                 SVCEncoder handle = null;
@@ -238,6 +235,7 @@ namespace Momiji.Core.H264
         {
             if (insertIntraFrame)
             {
+                source.Log.Add("[h264] ForceIntraFrame", Timer.USecDouble);
                 var result = ForceIntraFrame(Encoder, true);
                 if (result != 0)
                 {
