@@ -184,7 +184,7 @@ namespace Momiji.Core.Ftl
                     time++;
                 }
             }
-            //if (false)
+            if (false)
             {
                 var log = "VIDEO ";
                 double? temp = null;
