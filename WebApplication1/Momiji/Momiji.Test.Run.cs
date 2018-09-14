@@ -270,9 +270,9 @@ namespace Momiji.Test.Run
 
                     var width = 1280;
                     var height = 720;
-                    var targetBitrate = 3200;// 1_000_000;
+                    var targetBitrate = 5_000_000;// 1_000_000;
                     var maxFrameRate = 60.0f;
-                    var intraFrameIntervalMs = 1000;
+                    var intraFrameIntervalUs = 1000_000;
 
                     var samplingRate = 48000;
                     var sampleLength = 0.01f;// 0.06;
@@ -401,7 +401,7 @@ namespace Momiji.Test.Run
                                         bmpToVideoOutput.Post(buffer);
                                         if (insertIntraFrame)
                                         {
-                                            intraFrameCount = intraFrameIntervalMs * 1000;
+                                            intraFrameCount = intraFrameIntervalUs;
                                         }
                                         intraFrameCount -= videoInterval;
 
