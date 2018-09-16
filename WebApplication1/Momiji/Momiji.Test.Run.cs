@@ -162,8 +162,8 @@ namespace Momiji.Test.Run
                         var videoToFtlInput = videoPool.makeBufferBlock();
                         var videoToFtlOutput = videoPool.makeEmptyBufferBlock();
 
-                        var effect = vst.AddEffect("Synth1 VST.dll");
-                        //var effect = vst.AddEffect("Dexed.dll");
+                        //var effect = vst.AddEffect("Synth1 VST.dll");
+                        var effect = vst.AddEffect("Dexed.dll");
 
                         using (var ftl = new FtlIngest(streamKey, LoggerFactory, timer))
                         {
@@ -306,14 +306,16 @@ namespace Momiji.Test.Run
                     var audioInterval = 1_000_000.0 * sampleLength;
                     var videoInterval = 1_000_000.0 / maxFrameRate;
 
+                    var bufferCount = 2;
+
                     using (var timer = new Core.Timer())
                     using (var audioWaiter = new Waiter(timer, audioInterval, ct))
                     using (var videoWaiter = new Waiter(timer, videoInterval, ct))
-                    using (var vstBufferPool = new BufferPool<VstBuffer<float>>(3, () => { return new VstBuffer<float>(blockSize, 2); }))
-                    using (var pcmPool = new BufferPool<PcmBuffer<float>>(3, () => { return new PcmBuffer<float>(blockSize, 2); }))
-                    using (var audioPool = new BufferPool<OpusOutputBuffer>(3, () => { return new OpusOutputBuffer(5000); }))
-                    using (var bmpPool = new BufferPool<H264InputBuffer>(3, () => { return new H264InputBuffer(width, height); }))
-                    using (var videoPool = new BufferPool<H264OutputBuffer>(3, () => { return new H264OutputBuffer(200000); }))
+                    using (var vstBufferPool = new BufferPool<VstBuffer<float>>(bufferCount, () => { return new VstBuffer<float>(blockSize, 2); }))
+                    using (var pcmPool = new BufferPool<PcmBuffer<float>>(bufferCount, () => { return new PcmBuffer<float>(blockSize, 2); }))
+                    using (var audioPool = new BufferPool<OpusOutputBuffer>(bufferCount, () => { return new OpusOutputBuffer(5000); }))
+                    using (var bmpPool = new BufferPool<H264InputBuffer>(bufferCount, () => { return new H264InputBuffer(width, height); }))
+                    using (var videoPool = new BufferPool<H264OutputBuffer>(bufferCount, () => { return new H264OutputBuffer(200000); }))
                     using (var vst = new AudioMaster<float>(samplingRate, blockSize, LoggerFactory, timer))
                     //using (var toPcm = new ToPcm<float>(LoggerFactory, timer))
                     using (var opus = new OpusEncoder(SamplingRate.Sampling48000, Channels.Stereo, LoggerFactory, timer))
@@ -330,8 +332,8 @@ namespace Momiji.Test.Run
                         var videoToFtlInput = videoPool.makeBufferBlock();
                         var videoToFtlOutput = videoPool.makeEmptyBufferBlock();
 
-                        var effect = vst.AddEffect("Synth1 VST.dll");
-                        //var effect = vst.AddEffect("Dexed.dll");
+                        //var effect = vst.AddEffect("Synth1 VST.dll");
+                        var effect = vst.AddEffect("Dexed.dll");
 
                         using (var ftl = new FtlIngest(streamKey, LoggerFactory, timer))
                         {

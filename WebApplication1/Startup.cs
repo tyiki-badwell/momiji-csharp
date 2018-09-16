@@ -14,9 +14,12 @@ namespace WebApplication1
 {
     public class Startup
     {
+        private ILogger Logger { get; }
+
         public Startup(IHostingEnvironment env, IConfiguration configuration, ILoggerFactory loggerFactory)
         {
             Configuration = configuration;
+            Logger = loggerFactory.CreateLogger<Startup>();
         }
 
         public IConfiguration Configuration { get; }
@@ -37,6 +40,7 @@ namespace WebApplication1
                     "lib",
                     Environment.Is64BitProcess ? "64" : "32"
                 );
+            Logger.LogInformation($"call SetDllDirectory({dllPathBase})");
             DLLMethod.SetDllDirectory(dllPathBase);
 
             if (env.IsDevelopment())
