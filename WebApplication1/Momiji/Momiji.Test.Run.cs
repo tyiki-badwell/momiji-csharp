@@ -37,7 +37,7 @@ namespace Momiji.Test.Run
         public int width = 1280;
         public int height = 720;
         public int targetBitrate = 5_000_000;
-        public float maxFrameRate = 60.0f;
+        public float maxFrameRate = 30.0f;
         public int intraFrameIntervalUs = 1_000_000;
         
         //public string effectName = "Synth1 VST.dll";
