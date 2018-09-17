@@ -34,17 +34,18 @@ namespace Momiji.Test.Run
 
     public class Param
     {
+        public int bufferCount = 3;
+
         public int width = 1280;
         public int height = 720;
         public int targetBitrate = 5_000_000;
         public float maxFrameRate = 30.0f;
         public int intraFrameIntervalUs = 1_000_000;
         
-        //public string effectName = "Synth1 VST.dll";
-        public string effectName = "Dexed.dll";
+        public string effectName = "Synth1 VST.dll";
+        //public string effectName = "Dexed.dll";
         public int samplingRate = 48000;
         public float sampleLength = 0.06f;
-        //public float sampleLength = 0.05f;
         /*
          この式を満たさないとダメ
          new_size = blockSize
@@ -67,7 +68,6 @@ namespace Momiji.Test.Run
         0.1
         0.12
          */
-        public int bufferCount = 3;
     }
 
     public class Runner : IRunner
@@ -154,6 +154,7 @@ namespace Momiji.Test.Run
                     using (var vstBufferPool = new BufferPool<VstBuffer<float>>(param.bufferCount, () => { return new VstBuffer<float>(blockSize, 2); }))
                     using (var pcmPool = new BufferPool<PcmBuffer<float>>(param.bufferCount, () => { return new PcmBuffer<float>(blockSize, 2); }))
                     using (var audioPool = new BufferPool<OpusOutputBuffer>(param.bufferCount, () => { return new OpusOutputBuffer(5000); }))
+                    using (var pcmDummyPool = new BufferPool<PcmBuffer<float>>(param.bufferCount, () => { return new PcmBuffer<float>(blockSize, 2); }))
                     using (var bmpPool = new BufferPool<H264InputBuffer>(param.bufferCount, () => { return new H264InputBuffer(param.width, param.height); }))
                     using (var videoPool = new BufferPool<H264OutputBuffer>(param.bufferCount, () => { return new H264OutputBuffer(200000); }))
                     using (var vst = new AudioMaster<float>(param.samplingRate, blockSize, LoggerFactory, timer))
@@ -166,6 +167,7 @@ namespace Momiji.Test.Run
                         var pcmToOpusOutput = pcmPool.MakeBufferBlock();
                         var audioToFtlInput = audioPool.MakeBufferBlock();
 
+                        var pcmToBmpOutput = pcmDummyPool.MakeBufferBlock();
                         var bmpToVideoOutput = bmpPool.MakeBufferBlock();
                         var videoToFtlInput = videoPool.MakeBufferBlock();
 
@@ -217,16 +219,16 @@ namespace Momiji.Test.Run
                             {
                                 var intraFrameCount = 0.0;
                                 var videoWorkerBlock =
-                                    new ActionBlock<H264InputBuffer>(buffer =>
+                                    new ActionBlock<PcmBuffer<float>>(buffer =>
                                     {
                                         buffer.Log.Clear();
-                                        //var bmp = bmpToVideoOutput.Receive(ct);
+                                        var bmp = bmpToVideoOutput.Receive(ct);
                                         videoWaiter.Wait();
                                         buffer.Log.Add("[video] start", timer.USecDouble);
 
                                         //FFT
-                                        fft.Execute(buffer);
-                                        //bmpToVideoOutput.Post(bmp);
+                                        fft.Execute(buffer, bmp);
+                                        pcmToBmpOutput.Post(buffer);
 
                                         //YUV
 
@@ -235,8 +237,8 @@ namespace Momiji.Test.Run
                                         var video = videoToFtlInput.Receive(ct);
                                         buffer.Log.Add("[video] end ftl input get", timer.USecDouble);
                                         var insertIntraFrame = (intraFrameCount <= 0);
-                                        h264.Execute(buffer, video, insertIntraFrame);
-                                        bmpToVideoOutput.Post(buffer);
+                                        h264.Execute(bmp, video, insertIntraFrame);
+                                        bmpToVideoOutput.Post(bmp);
                                         if (insertIntraFrame)
                                         {
                                             intraFrameCount = param.intraFrameIntervalUs;
@@ -253,7 +255,7 @@ namespace Momiji.Test.Run
                                         MaxDegreeOfParallelism = 1
                                     });
                                 taskSet.Add(videoWorkerBlock.Completion);
-                                bmpToVideoOutput.LinkTo(videoWorkerBlock);
+                                pcmToBmpOutput.LinkTo(videoWorkerBlock);
                             }
 
                             while (taskSet.Count > 0)
@@ -358,9 +360,9 @@ namespace Momiji.Test.Run
                                 var opusBlock =
                                     new TransformBlock<PcmBuffer<float>, OpusOutputBuffer>(buffer =>
                                     {
-                                        buffer.Log.Add("[audio] start ftl input get", timer.USecDouble);
+                                        buffer.Log.Add("[audio] opus input get", timer.USecDouble);
                                         var audio = audioToFtlInput.Receive(ct);
-                                        buffer.Log.Add("[audio] end ftl input get", timer.USecDouble);
+                                        buffer.Log.Add("[audio] ftl output get", timer.USecDouble);
                                         opus.Execute(buffer, audio);
                                         pcmToOpusOutput.Post(buffer);
                                         return audio;
@@ -377,6 +379,7 @@ namespace Momiji.Test.Run
                                     new ActionBlock<OpusOutputBuffer>(buffer =>
                                     {
                                         //FTL
+                                        buffer.Log.Add("[audio] ftl input get", timer.USecDouble);
                                         ftl.Execute(buffer);
                                         audioToFtlInput.Post(buffer);
                                     },
@@ -403,7 +406,7 @@ namespace Momiji.Test.Run
                                         buffer.Log.Add("[video] start", timer.USecDouble);
 
                                         //FFT
-                                        fft.Execute(bmp);
+                                        fft.Execute(buffer, bmp);
                                         pcmToBmpOutput.Post(buffer);
                                         return bmp;
                                     },
@@ -419,9 +422,9 @@ namespace Momiji.Test.Run
                                     new TransformBlock<H264InputBuffer, H264OutputBuffer>(buffer =>
                                     {
                                         //H264
-                                        buffer.Log.Add("[video] start ftl input get", timer.USecDouble);
+                                        buffer.Log.Add("[video] h264 input get", timer.USecDouble);
                                         var video = videoToFtlInput.Receive(ct);
-                                        buffer.Log.Add("[video] end ftl input get", timer.USecDouble);
+                                        buffer.Log.Add("[video] ftl output get", timer.USecDouble);
                                         var insertIntraFrame = (intraFrameCount <= 0);
                                         h264.Execute(buffer, video, insertIntraFrame);
                                         bmpToVideoOutput.Post(buffer);
@@ -444,6 +447,7 @@ namespace Momiji.Test.Run
                                     new ActionBlock<H264OutputBuffer>(buffer =>
                                     {
                                         //FTL
+                                        buffer.Log.Add("[video] ftl input get", timer.USecDouble);
                                         ftl.Execute(buffer);
                                         videoToFtlInput.Post(buffer);
                                     },

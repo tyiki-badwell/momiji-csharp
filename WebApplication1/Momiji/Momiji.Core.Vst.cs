@@ -7,8 +7,6 @@ using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Runtime.InteropServices;
-using System.Threading;
-using System.Threading.Tasks;
 using System.Threading.Tasks.Dataflow;
 
 namespace Momiji.Core.Vst
@@ -413,39 +411,6 @@ namespace Momiji.Core.Vst
                 }
                 dest.Log.Add("[to pcm] end", Timer.USecDouble);
             }
-        }
-
-        public async Task Run(
-            ISourceBlock<VstBuffer<T>> sourceQueue,
-            ITargetBlock<VstBuffer<T>> sourceReleaseQueue,
-            ISourceBlock<PcmBuffer<T>> destQueue,
-            ITargetBlock<PcmBuffer<T>> destReleaseQueue,
-            IReceivableSourceBlock<VstMidiEvent> midiEventQueue,
-            CancellationToken ct)
-        {
-            var blockSize = audioMaster.BlockSize;
-
-            await Task.Run(() =>
-            {
-                ct.ThrowIfCancellationRequested();
-
-                while (true)
-                {
-                    if (ct.IsCancellationRequested)
-                    {
-                        break;
-                    }
-
-                    var source = sourceQueue.Receive(ct);
-                    var dest = destQueue.Receive(ct);
-
-                    Execute(source, dest, midiEventQueue);
-
-                    destReleaseQueue.Post(dest);
-                    sourceReleaseQueue.Post(source);
-                }
-                Logger.LogInformation("[vst] loop end");
-            });
         }
 
         internal void Open()

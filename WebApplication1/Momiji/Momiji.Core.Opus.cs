@@ -3,9 +3,6 @@ using Momiji.Core.Wave;
 using Momiji.Interop;
 using Momiji.Interop.Opus;
 using System;
-using System.Threading;
-using System.Threading.Tasks;
-using System.Threading.Tasks.Dataflow;
 
 namespace Momiji.Core.Opus
 {
@@ -29,7 +26,7 @@ namespace Momiji.Core.Opus
 
         public OpusEncoder(
             SamplingRate Fs,
-            Channels channels, 
+            Channels channels,
             ILoggerFactory loggerFactory,
             Timer timer
         )
@@ -73,35 +70,6 @@ namespace Momiji.Core.Opus
             disposed = true;
         }
 
-        public async Task Run(
-            ISourceBlock<PcmBuffer<float>> sourceQueue,
-            ITargetBlock<PcmBuffer<float>> sourceReleaseQueue,
-            ISourceBlock<OpusOutputBuffer> destQueue,
-            ITargetBlock<OpusOutputBuffer> destReleaseQueue,
-            CancellationToken ct)
-        {
-            await Task.Run(() =>
-            {
-                ct.ThrowIfCancellationRequested();
-
-                while (true)
-                {
-                    if (ct.IsCancellationRequested)
-                    {
-                        break;
-                    }
-
-                    var source = sourceQueue.Receive(ct);
-                    var dest = destQueue.Receive(ct);
-
-                    Execute(source, dest);
-
-                    sourceReleaseQueue.Post(source);
-                    destReleaseQueue.Post(dest);
-                }
-            }, ct);
-        }
-
         public void Execute(
             PcmBuffer<float> source,
             OpusOutputBuffer dest
@@ -116,6 +84,16 @@ namespace Momiji.Core.Opus
                 dest.AddrOfPinnedObject,
                 dest.Target.Length
                 );
+            /*
+             この式を満たさないとダメ
+             TODO 満たすように分結する仕組み要る？？？
+              if (blockSize<samplingRate/400)
+                return -1;
+              if (400*blockSize!=samplingRate   && 200*blockSize!=samplingRate   && 100*blockSize!=samplingRate   &&
+                  50*blockSize!=samplingRate   &&  25*blockSize!=samplingRate   &&  50*blockSize!=3*samplingRate &&
+                  50*blockSize!=4*samplingRate &&  50*blockSize!=5*samplingRate &&  50*blockSize!=6*samplingRate)
+                return -1;
+            */
             dest.Log.Add($"[opus] end opus_encode_float {dest.Wrote}", Timer.USecDouble);
             if (dest.Wrote < 0)
             {

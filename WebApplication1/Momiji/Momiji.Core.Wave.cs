@@ -83,7 +83,7 @@ namespace Momiji.Core.Wave
         private bool disposed = false;
 
         private BufferPool<PinnedBuffer<WaveHeader>> headerPool = 
-            new BufferPool<PinnedBuffer<WaveHeader>>(2, () => { return new PinnedBuffer<WaveHeader>(new WaveHeader()); });
+            new BufferPool<PinnedBuffer<WaveHeader>>(10, () => { return new PinnedBuffer<WaveHeader>(new WaveHeader()); });
         private BufferBlock<PinnedBuffer<WaveHeader>> headerQueue = null;
         private BufferBlock<IntPtr> releaseQueue = new BufferBlock<IntPtr>();
 
@@ -336,27 +336,6 @@ namespace Momiji.Core.Wave
             var headerPtr = Prepare(source, ct);
             Send(headerPtr);
             source.Log.Add("[wave] send end", Timer.USecDouble);
-        }
-
-        public async Task Run(
-            ISourceBlock<PcmBuffer<T>> sourceQueue,
-            CancellationToken ct)
-        {
-            await Task.Run(() =>
-            {
-                ct.ThrowIfCancellationRequested();
-
-                while (true)
-                {
-                    if (ct.IsCancellationRequested)
-                    {
-                        break;
-                    }
-                    var source = sourceQueue.Receive(ct);
-                    Execute(source, ct);
-                }
-                Logger.LogInformation("[wave] process loop end");
-            });
         }
 
         public async Task Release(

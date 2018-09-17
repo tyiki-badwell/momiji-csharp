@@ -5,9 +5,6 @@ using System;
 using System.Collections.Generic;
 using System.Reflection;
 using System.Runtime.InteropServices;
-using System.Threading;
-using System.Threading.Tasks;
-using System.Threading.Tasks.Dataflow;
 
 namespace Momiji.Core.H264
 {
@@ -277,43 +274,6 @@ namespace Momiji.Core.H264
                     nuls.Add((offset + 4, length - 4));
                     offset += length;
                 }
-            }
-        }
-
-        public async Task Run(
-            ISourceBlock<H264InputBuffer> sourceQueue,
-            ITargetBlock<H264InputBuffer> sourceReleaseQueue,
-            ISourceBlock<H264OutputBuffer> destQueue,
-            ITargetBlock<H264OutputBuffer> destReleaseQueue,
-            CancellationToken ct)
-        {
-            using (var frameBSInfoBuffer = new PinnedBuffer<SFrameBSInfo>(new SFrameBSInfo()))
-            {
-                await Task.Run(() =>
-                {
-                    ct.ThrowIfCancellationRequested();
-
-                    var interval = 1000000.0 / MaxFrameRate;
-                    var intraFrameCount = 0.0;
-
-                    while (true)
-                    {
-                        if (ct.IsCancellationRequested)
-                        {
-                            break;
-                        }
-
-                        var source = sourceQueue.Receive(ct);
-                        var dest = destQueue.Receive(ct);
-
-                        Execute(source, dest, (intraFrameCount <= 0));
-                        intraFrameCount -= interval;
-
-                        destReleaseQueue.Post(dest);
-                        sourceReleaseQueue.Post(source);
-                    }
-                    Logger.LogInformation("[h264] loop end");
-                });
             }
         }
 

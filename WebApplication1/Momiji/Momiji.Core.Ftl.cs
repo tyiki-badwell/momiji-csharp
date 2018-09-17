@@ -7,7 +7,6 @@ using System;
 using System.Runtime.InteropServices;
 using System.Threading;
 using System.Threading.Tasks;
-using System.Threading.Tasks.Dataflow;
 
 namespace Momiji.Core.Ftl
 {
@@ -139,7 +138,7 @@ namespace Momiji.Core.Ftl
                 );
             }
             source.Log.Add($"[ftl] end ftl_ingest_send_media_dts AUDIO [{sent}][{source.Wrote}][{new DateTime(time * 10, DateTimeKind.Utc):HH:mm:ss ffffff}]", Timer.USecDouble);
-            if (false)
+            //if (false)
             {
                 var log = "AUDIO ";
                 double? temp = null;
@@ -152,28 +151,6 @@ namespace Momiji.Core.Ftl
                 Logger.LogInformation($"[ftl] {source.Log.GetSpentTime()} {log}");
             }
             source.Log.Clear();
-        }
-
-        public async Task Run(
-            ISourceBlock<OpusOutputBuffer> sourceQueue,
-            ITargetBlock<OpusOutputBuffer> sourceReleaseQueue,
-            CancellationToken ct)
-        {
-            await Task.Run(() =>
-            {
-                ct.ThrowIfCancellationRequested();
-                while (true)
-                {
-                    if (ct.IsCancellationRequested)
-                    {
-                        break;
-                    }
-
-                    var source = sourceQueue.Receive(ct);
-                    Execute(source);
-                    sourceReleaseQueue.Post(source);
-                }
-            }, ct);
         }
 
         public void Execute(H264OutputBuffer source)
@@ -215,27 +192,6 @@ namespace Momiji.Core.Ftl
                 Logger.LogInformation($"[ftl] {source.Log.GetSpentTime()} {log}");
             }
             source.Log.Clear();
-        }
-
-        public async Task Run(
-            ISourceBlock<H264OutputBuffer> sourceQueue,
-            ITargetBlock<H264OutputBuffer> sourceReleaseQueue,
-            CancellationToken ct)
-        {
-            await Task.Run(() =>
-            {
-                ct.ThrowIfCancellationRequested();
-                while (true)
-                {
-                    if (ct.IsCancellationRequested)
-                    {
-                        break;
-                    }
-                    var source = sourceQueue.Receive(ct);
-                    Execute(source);
-                    sourceReleaseQueue.Post(source);
-                }
-            }, ct);
         }
 
         private async Task PrintTrace(CancellationTokenSource logCancel, PinnedBuffer<Handle> handle)

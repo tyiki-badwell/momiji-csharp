@@ -1,5 +1,6 @@
 ﻿using Microsoft.Extensions.Logging;
 using Momiji.Core.H264;
+using Momiji.Core.Wave;
 using Momiji.Interop;
 using System;
 using System.Runtime.InteropServices;
@@ -59,9 +60,12 @@ namespace Momiji.Core.FFT
 
         private static int a = 16;
         public void Execute(
+            PcmBuffer<float> source,
             H264InputBuffer dest
         )
         {
+            dest.Log.Marge(source.Log);
+            dest.Log.Add("[fft] start", Timer.USecDouble);
             var target = dest.Target;
             {
                 var y = target.pData0;
@@ -113,43 +117,7 @@ namespace Momiji.Core.FFT
                     }
                 }
             }
-
-        }
-
-        public async Task Run(
-            //ISourceBlock<Wave.PcmBuffer<float>> inputQueue,
-            //ITargetBlock<Wave.PcmBuffer<float>> inputReleaseQueue,
-            ISourceBlock<H264InputBuffer> destQueue,
-            ITargetBlock<H264InputBuffer> destReleaseQueue,
-            CancellationToken ct)
-        {
-            await Task.Run(() =>
-            {
-                ct.ThrowIfCancellationRequested();
-                var interval = 1000000.0 / MaxFrameRate;
-                var before = Timer.USecDouble;
-                using (var w = new Waiter(Timer, interval, ct))
-                {
-                    while (true)
-                    {
-                        if (ct.IsCancellationRequested)
-                        {
-                            break;
-                        }
-
-                        //var pcm = inputQueue.Receive(ct);
-                        var dest = destQueue.Receive(ct);
-                        dest.Log.Clear();
-
-                        w.Wait();
-                        Execute(dest);
-                        //TODO H264Inputへの変換は別サービスにする
-
-                        //inputReleaseQueue.Post(pcm);
-                        destReleaseQueue.Post(dest);
-                    }
-                }
-            }, ct);
+            dest.Log.Add("[fft] end", Timer.USecDouble);
         }
     }
 }
