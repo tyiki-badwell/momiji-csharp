@@ -30,7 +30,8 @@ namespace WebApplication1.Controllers
 
         public IActionResult Start([FromServices]IRunner runner)
         {
-            if (runner.Start())
+            Param param = new Param();
+            if (runner.Start(param))
             {
                 ViewData["Message"] = "OK.";
             }
@@ -44,7 +45,8 @@ namespace WebApplication1.Controllers
         
         public IActionResult Start2([FromServices]IRunner runner)
         {
-            if (runner.Start2())
+            Param param = new Param();
+            if (runner.Start2(param))
             {
                 ViewData["Message"] = "OK.";
             }

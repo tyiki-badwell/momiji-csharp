@@ -13,11 +13,11 @@ namespace Momiji.Core.Wave
 {
     public class WaveException : Exception
     {
-        public WaveException(MMRESULT mmResult) : base(makeMessage(mmResult))
+        public WaveException(MMRESULT mmResult) : base(MakeMessage(mmResult))
         {
         }
 
-        static private string makeMessage(MMRESULT mmResult)
+        static private string MakeMessage(MMRESULT mmResult)
         {
             var text = new System.Text.StringBuilder(256);
             WaveOutMethod.waveOutGetErrorText(mmResult, text, (uint)text.Capacity);
@@ -140,7 +140,7 @@ namespace Momiji.Core.Wave
             format.exp.channelMask = channelMask;
             format.exp.subFormat = formatSubType;
 
-            headerQueue = headerPool.makeBufferBlock();
+            headerQueue = headerPool.MakeBufferBlock();
 
             driverCallBack = new PinnedDelegate<DriverCallBack.Delegate>(new DriverCallBack.Delegate(DriverCallBackProc));
 
@@ -247,8 +247,7 @@ namespace Momiji.Core.Wave
 
         private PcmBuffer<T> Unprepare(IntPtr headerPtr)
         {
-            PinnedBuffer<WaveHeader> header;
-            headerBusyPool.Remove(headerPtr, out header);
+            headerBusyPool.Remove(headerPtr, out PinnedBuffer<WaveHeader> header);
 
             var mmResult =
                 handle.waveOutUnprepareHeader(
@@ -260,8 +259,7 @@ namespace Momiji.Core.Wave
                 throw new WaveException(mmResult);
             }
 
-            PcmBuffer<T> source;
-            dataBusyPool.Remove(header.Target.data, out source);
+            dataBusyPool.Remove(header.Target.data, out PcmBuffer<T> source);
             headerQueue.Post(header);
 
             return source;
@@ -378,13 +376,14 @@ namespace Momiji.Core.Wave
                     var headerPtr = releaseQueue.Receive(ct);
                     var source = Unprepare(headerPtr);
                     source.Log.Add("[wave] unprepare", Timer.USecDouble);
+                    if (false)
                     {
                         var log = "";
                         double? temp = null;
                         source.Log.Copy().ForEach((a) => {
-                            var lap = temp == null ? 0 : (a.Item2 - temp);
-                            log += $"\n{a.Item1}:{lap},";
-                            temp = a.Item2;
+                            var lap = temp == null ? 0 : (a.time - temp);
+                            log += $"\n{a.label}:{lap},";
+                            temp = a.time;
                         });
                         Logger.LogInformation($"[wave] {source.Log.GetSpentTime()} {log}");
                     }

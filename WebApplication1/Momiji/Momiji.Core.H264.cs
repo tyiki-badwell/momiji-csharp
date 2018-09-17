@@ -125,8 +125,7 @@ namespace Momiji.Core.H264
             MaxFrameRate = maxFrameRate;
 
             {
-                SVCEncoder handle = null;
-                var result = SVCEncoder.WelsCreateSVCEncoder(out handle);
+                var result = SVCEncoder.WelsCreateSVCEncoder(out SVCEncoder handle);
                 if (result != 0)
                 {
                     throw new H264Exception($"WelsCreateSVCEncoder failed {result}");

@@ -348,8 +348,7 @@ namespace Momiji.Core.Vst
             {
                 var list = new List<VstMidiEvent>();
                 {
-                    VstMidiEvent midiEvent;
-                    while (midiEventQueue.TryReceive(out midiEvent))
+                    while (midiEventQueue.TryReceive(out VstMidiEvent midiEvent))
                     {
                         list.Add(midiEvent);
                     }
@@ -360,8 +359,10 @@ namespace Momiji.Core.Vst
                     var eventsPtr = events.AddrOfPinnedObject;
                     var eventListPtr = eventList.AddrOfPinnedObject;
 
-                    var vstEvents = new VstEvents();
-                    vstEvents.numEvents = list.Count;
+                    var vstEvents = new VstEvents
+                    {
+                        numEvents = list.Count
+                    };
 
                     //TODO 境界チェック
                     Marshal.StructureToPtr(vstEvents, eventsPtr, false);

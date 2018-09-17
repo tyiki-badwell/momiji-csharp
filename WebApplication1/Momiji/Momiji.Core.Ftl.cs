@@ -22,7 +22,7 @@ namespace Momiji.Core.Ftl
         private CancellationTokenSource logCancel = new CancellationTokenSource();
         private Task logTask;
 
-        public FtlIngest(string streamKey, ILoggerFactory loggerFactory, Timer timer)
+        public FtlIngest(string streamKey, ILoggerFactory loggerFactory, Timer timer, bool connect = true)
         {
             LoggerFactory = loggerFactory;
             Logger = LoggerFactory.CreateLogger<FtlIngest>();
@@ -39,19 +39,22 @@ namespace Momiji.Core.Ftl
             param.vendor_name = "momiji";
             param.vendor_version = "0.0.1";
 
-            Status status;
-            status = Handle.ftl_init();
-            Logger.LogInformation($"ftl_init:{status}");
-
-            handle = new PinnedBuffer<Handle>(new Handle());
-
-            status = Handle.ftl_ingest_create(handle.AddrOfPinnedObject, ref param);
-            Logger.LogInformation($"ftl_ingest_create:{status}");
-            if (status != Status.FTL_SUCCESS)
+            if (connect)
             {
-                handle.Dispose();
-                handle = null;
-                throw new Exception($"ftl_ingest_create error:{status}");
+                Status status;
+                status = Handle.ftl_init();
+                Logger.LogInformation($"ftl_init:{status}");
+
+                handle = new PinnedBuffer<Handle>(new Handle());
+
+                status = Handle.ftl_ingest_create(handle.AddrOfPinnedObject, ref param);
+                Logger.LogInformation($"ftl_ingest_create:{status}");
+                if (status != Status.FTL_SUCCESS)
+                {
+                    handle.Dispose();
+                    handle = null;
+                    throw new Exception($"ftl_ingest_create error:{status}");
+                }
             }
         }
 
@@ -103,6 +106,11 @@ namespace Momiji.Core.Ftl
 
         public void Connect()
         {
+            if (handle == null)
+            {
+                return;
+            }
+
             logTask = PrintTrace(logCancel, handle);
 
             var status = Handle.ftl_ingest_connect(handle.AddrOfPinnedObject);
@@ -117,25 +125,31 @@ namespace Momiji.Core.Ftl
         {
             long time = (long)source.Log.GetFirstTime();
             source.Log.Add("[ftl] start ftl_ingest_send_media_dts AUDIO", Timer.USecDouble);
-            var sent = Handle.ftl_ingest_send_media_dts(
-                handle.AddrOfPinnedObject,
-                MediaType.FTL_AUDIO_DATA,
-                time,
-                source.AddrOfPinnedObject,
-                source.Wrote,
-                0
-            );
-            source.Log.Add($"[ftl] end ftl_ingest_send_media_dts AUDIO [{sent}][{source.Wrote}][{new DateTime(time*10, DateTimeKind.Utc):HH:mm:ss ffffff}]", Timer.USecDouble);
+
+            var sent = 0;
+            if (handle != null)
+            {
+                sent = Handle.ftl_ingest_send_media_dts(
+                    handle.AddrOfPinnedObject,
+                    MediaType.FTL_AUDIO_DATA,
+                    time,
+                    source.AddrOfPinnedObject,
+                    source.Wrote,
+                    0
+                );
+            }
+            source.Log.Add($"[ftl] end ftl_ingest_send_media_dts AUDIO [{sent}][{source.Wrote}][{new DateTime(time * 10, DateTimeKind.Utc):HH:mm:ss ffffff}]", Timer.USecDouble);
             if (false)
             {
                 var log = "AUDIO ";
-                /*double? temp = null;
-                source.Log.Copy().ForEach((a) => {
+                double? temp = null;
+                source.Log.Copy().ForEach((a) =>
+                {
                     var lap = temp == null ? 0 : (a.time - temp);
                     log += $"\n{a.label}:{lap},";
                     temp = a.time;
-                });*/
-                //Logger.LogInformation($"[ftl] {source.Log.GetSpentTime()} {log}");
+                });
+                Logger.LogInformation($"[ftl] {source.Log.GetSpentTime()} {log}");
             }
             source.Log.Clear();
         }
@@ -172,23 +186,28 @@ namespace Momiji.Core.Ftl
                     var nul = nuls[idx];
                     var endOfFrame = (idx == nuls.Count - 1) ? 1 : 0;
                     source.Log.Add("[ftl] start ftl_ingest_send_media_dts VIDEO", Timer.USecDouble);
-                    var sent = Handle.ftl_ingest_send_media_dts(
-                        handle.AddrOfPinnedObject,
-                        MediaType.FTL_VIDEO_DATA,
-                        time,
-                        source.AddrOfPinnedObject + nul.offset,
-                        nul.length,
-                        endOfFrame
-                    );
-                    source.Log.Add($"[ftl] end ftl_ingest_send_media_dts VIDEO [{sent}][{nul.length}][{endOfFrame}][{new DateTime(time*10, DateTimeKind.Utc):HH:mm:ss ffffff}]", Timer.USecDouble);
+                    var sent = 0;
+                    if (handle != null)
+                    {
+                        sent = Handle.ftl_ingest_send_media_dts(
+                            handle.AddrOfPinnedObject,
+                            MediaType.FTL_VIDEO_DATA,
+                            time,
+                            source.AddrOfPinnedObject + nul.offset,
+                            nul.length,
+                            endOfFrame
+                        );
+                    }
+                    source.Log.Add($"[ftl] end ftl_ingest_send_media_dts VIDEO [{sent}][{nul.length}][{endOfFrame}][{new DateTime(time * 10, DateTimeKind.Utc):HH:mm:ss ffffff}]", Timer.USecDouble);
                     time++;
                 }
             }
-            if (false)
+            //if (false)
             {
                 var log = "VIDEO ";
                 double? temp = null;
-                source.Log.Copy().ForEach((a) => {
+                source.Log.Copy().ForEach((a) =>
+                {
                     var lap = temp == null ? 0 : (a.time - temp);
                     log += $"\n{a.label}:{lap},";
                     temp = a.time;

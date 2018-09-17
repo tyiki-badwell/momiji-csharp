@@ -24,11 +24,50 @@ namespace Momiji.Test.Run
 {
     public interface IRunner
     {
-        bool Start();
+        bool Start(Param param);
         bool Stop();
 
-        bool Start2();
+        bool Start2(Param param);
         void Note(MIDIMessageEvent[] midiMessage);
+
+    }
+
+    public class Param
+    {
+        public int width = 1280;
+        public int height = 720;
+        public int targetBitrate = 5_000_000;
+        public float maxFrameRate = 60.0f;
+        public int intraFrameIntervalUs = 1_000_000;
+        
+        //public string effectName = "Synth1 VST.dll";
+        public string effectName = "Dexed.dll";
+        public int samplingRate = 48000;
+        public float sampleLength = 0.06f;
+        //public float sampleLength = 0.05f;
+        /*
+         この式を満たさないとダメ
+         new_size = blockSize
+         Fs = samplingRate
+
+          if (frame_size<Fs/400)
+            return -1;
+          if (400*new_size!=Fs   && 200*new_size!=Fs   && 100*new_size!=Fs   &&
+              50*new_size!=Fs   &&  25*new_size!=Fs   &&  50*new_size!=3*Fs &&
+              50*new_size!=4*Fs &&  50*new_size!=5*Fs &&  50*new_size!=6*Fs)
+            return -1;
+
+        0.0025
+        0.005
+        0.01
+        0.02
+        0.04
+        0.06
+        0.08
+        0.1
+        0.12
+         */
+        public int bufferCount = 3;
     }
 
     public class Runner : IRunner
@@ -36,6 +75,7 @@ namespace Momiji.Test.Run
         private IConfiguration Configuration { get; }
         private ILoggerFactory LoggerFactory { get; }
         private ILogger Logger { get; }
+        private String StreamKey { get; }
 
         private CancellationTokenSource processCancel;
         private Task processTask;
@@ -46,16 +86,18 @@ namespace Momiji.Test.Run
             Configuration = configuration;
             LoggerFactory = loggerFactory;
             Logger = LoggerFactory.CreateLogger<Runner>();
+
+            StreamKey = Configuration["MIXER_STREAM_KEY"];
         }
 
-        public bool Start()
+        public bool Start(Param param)
         {
             if (processCancel != null)
             {
                 return false;
             }
             processCancel = new CancellationTokenSource();
-            processTask = Loop3(processCancel);
+            processTask = Loop3(param, processCancel);
             return true;
         }
 
@@ -67,196 +109,29 @@ namespace Momiji.Test.Run
                 return false;
             }
 
-            if (processCancel != null)
-            {
-                processCancel.Cancel();
-                try
-                {
-                    processTask.Wait();
-                }
-                catch (AggregateException e)
-                {
-                    foreach (var v in e.InnerExceptions)
-                    {
-                        Logger.LogInformation($"[home] Process Exception:{e.Message} {v.Message}");
-                    }
-                }
-                finally
-                {
-                    processTask = null;
-                    processCancel.Dispose();
-                    processCancel = null;
-                }
-            }
-            return true;
-        }
-
-        private async Task Loop1(CancellationTokenSource processCancel)
-        {
-            var ct = processCancel.Token;
-
-            Logger.LogInformation("main loop start");
-
+            processCancel.Cancel();
             try
             {
-                await Task.Run(() =>
+                processTask.Wait();
+            }
+            catch (AggregateException e)
+            {
+                foreach (var v in e.InnerExceptions)
                 {
-                    ct.ThrowIfCancellationRequested();
-
-                    var width = 1280;
-                    var height = 720;
-                    var targetBitrate = 5_000_000;
-                    var maxFrameRate = 60.0f;
-                    var intraFrameIntervalMs = 1000;
-
-                    var samplingRate = 48000;
-                    var sampleLength = 0.01;// 0.06;
-                    var blockSize = (int)(samplingRate * sampleLength);
-
-                    var streamKey = Configuration["MIXER_STREAM_KEY"];
-
-                    /*
-                     この式を満たさないとダメ
-                     new_size = blockSize
-                     Fs = samplingRate
-
-                      if (frame_size<Fs/400)
-                        return -1;
-                      if (400*new_size!=Fs   && 200*new_size!=Fs   && 100*new_size!=Fs   &&
-                          50*new_size!=Fs   &&  25*new_size!=Fs   &&  50*new_size!=3*Fs &&
-                          50*new_size!=4*Fs &&  50*new_size!=5*Fs &&  50*new_size!=6*Fs)
-                        return -1;
-                    
-                    0.0025
-                    0.005
-                    0.01
-                    0.02
-                    0.04
-                    0.06
-                    0.08
-                    0.1
-                    0.12
-                     */
-
-                    using (var timer = new Core.Timer())
-                    using (var vstBufferPool = new BufferPool<VstBuffer<float>>(3, () => { return new VstBuffer<float>(blockSize, 2); }))
-                    using (var pcmPool = new BufferPool<PcmBuffer<float>>(3, () => { return new PcmBuffer<float>(blockSize, 2); }))
-                    using (var audioPool = new BufferPool<OpusOutputBuffer>(3, () => { return new OpusOutputBuffer(5000); }))
-                    using (var bmpPool = new BufferPool<H264InputBuffer>(3, () => { return new H264InputBuffer(width, height); }))
-                    using (var videoPool = new BufferPool<H264OutputBuffer>(3, () => { return new H264OutputBuffer(200000); }))
-                    using (var vst = new AudioMaster<float>(samplingRate, blockSize, LoggerFactory, timer))
-                    //using (var toPcm = new ToPcm<float>(LoggerFactory, timer))
-                    using (var opus = new OpusEncoder(SamplingRate.Sampling48000, Channels.Stereo, LoggerFactory, timer))
-                    using (var fft = new FFTEncoder(width, height, maxFrameRate, LoggerFactory, timer))
-                    using (var h264 = new H264Encoder(width, height, targetBitrate, maxFrameRate, LoggerFactory, timer))
-                    //using (var h264 = new H264File(LoggerFactory))
-                    {
-                        var vstToPcmInput = vstBufferPool.makeEmptyBufferBlock();
-                        var vstToPcmOutput = vstBufferPool.makeBufferBlock();
-                        var pcmToOpusInput = pcmPool.makeEmptyBufferBlock();
-                        var pcmToOpusOutput = pcmPool.makeBufferBlock();
-                        var audioToFtlInput = audioPool.makeBufferBlock();
-                        var audioToFtlOutput = audioPool.makeEmptyBufferBlock();
-                        var bmpToVideoInput = bmpPool.makeEmptyBufferBlock();
-                        var bmpToVideoOutput = bmpPool.makeBufferBlock(); 
-                        var videoToFtlInput = videoPool.makeBufferBlock();
-                        var videoToFtlOutput = videoPool.makeEmptyBufferBlock();
-
-                        //var effect = vst.AddEffect("Synth1 VST.dll");
-                        var effect = vst.AddEffect("Dexed.dll");
-
-                        using (var ftl = new FtlIngest(streamKey, LoggerFactory, timer))
-                        {
-                            ftl.Connect();
-
-                            var taskSet = new HashSet<Task>();
-                            /*
-                            taskSet.Add(effect.Interval(
-                                vstToPcmOutput,
-                                vstToPcmInput,
-                                ct
-                            ));
-                            */
-                            taskSet.Add(effect.Run(
-                                vstToPcmInput,
-                                vstToPcmOutput,
-                                pcmToOpusOutput,
-                                pcmToOpusInput,
-                                midiEventInput,
-                                ct
-                            ));
-                            /*
-                            taskSet.Add(toPcm.Run(
-                                vstToPcmInput,
-                                vstToPcmOutput,
-                                pcmToOpusOutput,
-                                pcmToOpusInput,
-                                ct
-                            ));
-                            */
-                            taskSet.Add(opus.Run(
-                                pcmToOpusInput,
-                                pcmToOpusOutput,
-                                audioToFtlInput,
-                                audioToFtlOutput,
-                                ct
-                            ));
-                            
-                            taskSet.Add(fft.Run(
-                                //vstToOpusInput,
-                                //vstToOpusOutput,
-                                bmpToVideoOutput,
-                                bmpToVideoInput,
-                                ct
-                            ));
-
-                            taskSet.Add(h264.Run(
-                                bmpToVideoInput,
-                                bmpToVideoOutput,
-                                videoToFtlInput,
-                                videoToFtlOutput,
-                                ct
-                            ));
-
-                            taskSet.Add(ftl.Run(
-                                audioToFtlOutput,
-                                audioToFtlInput,
-                                ct
-                            ));
-
-                            taskSet.Add(ftl.Run(
-                                videoToFtlOutput,
-                                videoToFtlInput,
-                                ct
-                            ));
-
-                            while (taskSet.Count > 0)
-                            {
-                                var any = Task.WhenAny(taskSet);
-                                any.ConfigureAwait(false);
-                                any.Wait();
-                                var task = any.Result;
-                                taskSet.Remove(task);
-                                if (task.IsFaulted)
-                                {
-                                    processCancel.Cancel();
-                                    foreach (var v in task.Exception.InnerExceptions)
-                                    {
-                                        Logger.LogInformation($"Process Exception:{task.Exception.Message} {v.Message}");
-                                    }
-                                }
-                            }
-                        }
-                    }
-                });
+                    Logger.LogInformation($"[home] Process Exception:{e.Message} {v.Message}");
+                }
             }
             finally
             {
-                Logger.LogInformation("main loop end");
+                processTask = null;
+                processCancel.Dispose();
+                processCancel = null;
             }
+
+            return true;
         }
 
-        private async Task Loop3(CancellationTokenSource processCancel)
+        private async Task Loop1(Param param, CancellationTokenSource processCancel)
         {
             var ct = processCancel.Token;
 
@@ -268,74 +143,35 @@ namespace Momiji.Test.Run
                 {
                     ct.ThrowIfCancellationRequested();
 
-                    var width = 1280;
-                    var height = 720;
-                    var targetBitrate = 5_000_000;// 1_000_000;
-                    var maxFrameRate = 60.0f;
-                    var intraFrameIntervalUs = 1000_000;
+                    var blockSize = (int)(param.samplingRate * param.sampleLength);
 
-                    var samplingRate = 48000;
-                    var sampleLength = 0.01f;// 0.06;
-                    var blockSize = (int)(samplingRate * sampleLength);
-
-                    var streamKey = Configuration["MIXER_STREAM_KEY"];
-
-                    /*
-                     この式を満たさないとダメ
-                     new_size = blockSize
-                     Fs = samplingRate
-
-                      if (frame_size<Fs/400)
-                        return -1;
-                      if (400*new_size!=Fs   && 200*new_size!=Fs   && 100*new_size!=Fs   &&
-                          50*new_size!=Fs   &&  25*new_size!=Fs   &&  50*new_size!=3*Fs &&
-                          50*new_size!=4*Fs &&  50*new_size!=5*Fs &&  50*new_size!=6*Fs)
-                        return -1;
+                    var audioInterval = 1_000_000.0 * param.sampleLength;
+                    var videoInterval = 1_000_000.0 / param.maxFrameRate;
                     
-                    0.0025
-                    0.005
-                    0.01
-                    0.02
-                    0.04
-                    0.06
-                    0.08
-                    0.1
-                    0.12
-                     */
-
-                    var audioInterval = 1_000_000.0 * sampleLength;
-                    var videoInterval = 1_000_000.0 / maxFrameRate;
-
-                    var bufferCount = 2;
-
                     using (var timer = new Core.Timer())
                     using (var audioWaiter = new Waiter(timer, audioInterval, ct))
                     using (var videoWaiter = new Waiter(timer, videoInterval, ct))
-                    using (var vstBufferPool = new BufferPool<VstBuffer<float>>(bufferCount, () => { return new VstBuffer<float>(blockSize, 2); }))
-                    using (var pcmPool = new BufferPool<PcmBuffer<float>>(bufferCount, () => { return new PcmBuffer<float>(blockSize, 2); }))
-                    using (var audioPool = new BufferPool<OpusOutputBuffer>(bufferCount, () => { return new OpusOutputBuffer(5000); }))
-                    using (var bmpPool = new BufferPool<H264InputBuffer>(bufferCount, () => { return new H264InputBuffer(width, height); }))
-                    using (var videoPool = new BufferPool<H264OutputBuffer>(bufferCount, () => { return new H264OutputBuffer(200000); }))
-                    using (var vst = new AudioMaster<float>(samplingRate, blockSize, LoggerFactory, timer))
+                    using (var vstBufferPool = new BufferPool<VstBuffer<float>>(param.bufferCount, () => { return new VstBuffer<float>(blockSize, 2); }))
+                    using (var pcmPool = new BufferPool<PcmBuffer<float>>(param.bufferCount, () => { return new PcmBuffer<float>(blockSize, 2); }))
+                    using (var audioPool = new BufferPool<OpusOutputBuffer>(param.bufferCount, () => { return new OpusOutputBuffer(5000); }))
+                    using (var bmpPool = new BufferPool<H264InputBuffer>(param.bufferCount, () => { return new H264InputBuffer(param.width, param.height); }))
+                    using (var videoPool = new BufferPool<H264OutputBuffer>(param.bufferCount, () => { return new H264OutputBuffer(200000); }))
+                    using (var vst = new AudioMaster<float>(param.samplingRate, blockSize, LoggerFactory, timer))
                     //using (var toPcm = new ToPcm<float>(LoggerFactory, timer))
                     using (var opus = new OpusEncoder(SamplingRate.Sampling48000, Channels.Stereo, LoggerFactory, timer))
-                    using (var fft = new FFTEncoder(width, height, maxFrameRate, LoggerFactory, timer))
-                    using (var h264 = new H264Encoder(width, height, targetBitrate, maxFrameRate, LoggerFactory, timer))
-                    //using (var h264 = new H264File(LoggerFactory))
+                    using (var fft = new FFTEncoder(param.width, param.height, param.maxFrameRate, LoggerFactory, timer))
+                    using (var h264 = new H264Encoder(param.width, param.height, param.targetBitrate, param.maxFrameRate, LoggerFactory, timer))
                     {
-                        var vstToPcmOutput = vstBufferPool.makeBufferBlock();
-                        var pcmToOpusOutput = pcmPool.makeBufferBlock();
-                        var audioToFtlInput = audioPool.makeBufferBlock();
+                        var vstToPcmOutput = vstBufferPool.MakeBufferBlock();
+                        var pcmToOpusOutput = pcmPool.MakeBufferBlock();
+                        var audioToFtlInput = audioPool.MakeBufferBlock();
 
-                        var bmpToVideoInput = bmpPool.makeEmptyBufferBlock();
-                        var bmpToVideoOutput = bmpPool.makeBufferBlock();
-                        var videoToFtlInput = videoPool.makeBufferBlock();
-                        var videoToFtlOutput = videoPool.makeEmptyBufferBlock();
+                        var bmpToVideoOutput = bmpPool.MakeBufferBlock();
+                        var videoToFtlInput = videoPool.MakeBufferBlock();
 
-                        //var effect = vst.AddEffect("Synth1 VST.dll");
-                        var effect = vst.AddEffect("Dexed.dll");
+                        var effect = vst.AddEffect(param.effectName);
 
-                        using (var ftl = new FtlIngest(streamKey, LoggerFactory, timer))
+                        using (var ftl = new FtlIngest(StreamKey, LoggerFactory, timer))
                         {
                             ftl.Connect();
 
@@ -403,7 +239,7 @@ namespace Momiji.Test.Run
                                         bmpToVideoOutput.Post(buffer);
                                         if (insertIntraFrame)
                                         {
-                                            intraFrameCount = intraFrameIntervalUs;
+                                            intraFrameCount = param.intraFrameIntervalUs;
                                         }
                                         intraFrameCount -= videoInterval;
 
@@ -446,18 +282,7 @@ namespace Momiji.Test.Run
             }
         }
 
-        public bool Start2()
-        {
-            if (processCancel != null)
-            {
-                return false;
-            }
-            processCancel = new CancellationTokenSource();
-            processTask = Loop22(processCancel);
-            return true;
-        }
-
-        private async Task Loop2(CancellationTokenSource processCancel)
+        private async Task Loop3(Param param, CancellationTokenSource processCancel)
         {
             var ct = processCancel.Token;
 
@@ -469,64 +294,277 @@ namespace Momiji.Test.Run
                 {
                     ct.ThrowIfCancellationRequested();
 
-                    Int32 samplingRate = 48000;
-                    Int32 blockSize = (Int32)(samplingRate * 0.05);
+                    var blockSize = (int)(param.samplingRate * param.sampleLength);
+                    
+                    var audioInterval = 1_000_000.0 * param.sampleLength;
+                    var videoInterval = 1_000_000.0 / param.maxFrameRate;
 
-                    using (var vstBufferPool = new BufferPool<VstBuffer<float>>(3, () => { return new VstBuffer<float>(blockSize, 2); }))
-                    using (var pcmPool = new BufferPool<PcmBuffer<float>>(3, () => { return new PcmBuffer<float>(blockSize, 2); }))
+                    //var bufferCount = 2;
+
+                    using (var timer = new Core.Timer())
+                    using (var audioWaiter = new Waiter(timer, audioInterval, ct))
+                    using (var videoWaiter = new Waiter(timer, videoInterval, ct))
+                    using (var vstBufferPool = new BufferPool<VstBuffer<float>>(param.bufferCount, () => { return new VstBuffer<float>(blockSize, 2); }))
+                    using (var pcmPool = new BufferPool<PcmBuffer<float>>(param.bufferCount, () => { return new PcmBuffer<float>(blockSize, 2); }))
+                    using (var audioPool = new BufferPool<OpusOutputBuffer>(param.bufferCount, () => { return new OpusOutputBuffer(5000); }))
+                    using (var pcmDummyPool = new BufferPool<PcmBuffer<float>>(param.bufferCount, () => { return new PcmBuffer<float>(blockSize, 2); }))
+                    using (var bmpPool = new BufferPool<H264InputBuffer>(param.bufferCount, () => { return new H264InputBuffer(param.width, param.height); }))
+                    using (var videoPool = new BufferPool<H264OutputBuffer>(param.bufferCount, () => { return new H264OutputBuffer(200000); }))
+                    using (var vst = new AudioMaster<float>(param.samplingRate, blockSize, LoggerFactory, timer))
+                    //using (var toPcm = new ToPcm<float>(LoggerFactory, timer))
+                    using (var opus = new OpusEncoder(SamplingRate.Sampling48000, Channels.Stereo, LoggerFactory, timer))
+                    using (var fft = new FFTEncoder(param.width, param.height, param.maxFrameRate, LoggerFactory, timer))
+                    using (var h264 = new H264Encoder(param.width, param.height, param.targetBitrate, param.maxFrameRate, LoggerFactory, timer))
+                    //using (var h264 = new H264File(LoggerFactory))
                     {
-                        var vstToPcmInput = vstBufferPool.makeEmptyBufferBlock();
-                        var vstToPcmOutput = vstBufferPool.makeBufferBlock();
+                        var vstToPcmOutput = vstBufferPool.MakeBufferBlock();
+                        var pcmToOpusOutput = pcmPool.MakeBufferBlock();
+                        var audioToFtlInput = audioPool.MakeBufferBlock();
 
-                        var pcmToWaveInput = pcmPool.makeEmptyBufferBlock();
-                        var pcmToWaveOutput = pcmPool.makeBufferBlock();
+                        var pcmToBmpOutput = pcmDummyPool.MakeBufferBlock();
+                        var bmpToVideoOutput = bmpPool.MakeBufferBlock();
+                        var videoToFtlInput = videoPool.MakeBufferBlock();
+                        
+                        var effect = vst.AddEffect(param.effectName);
+
+                        using (var ftl = new FtlIngest(StreamKey, LoggerFactory, timer, true))
+                        {
+                            ftl.Connect();
+
+                            var taskSet = new HashSet<Task>();
+
+                            {
+                                var vstBlock =
+                                    new TransformBlock<VstBuffer<float>, PcmBuffer<float>>(buffer =>
+                                    {
+                                        buffer.Log.Clear();
+                                        var pcm = pcmToOpusOutput.Receive(ct);
+                                        audioWaiter.Wait();
+                                        buffer.Log.Add("[audio] start", timer.USecDouble);
+
+                                        //VST
+                                        effect.Execute(buffer, pcm, midiEventInput);
+                                        vstToPcmOutput.Post(buffer);
+                                        return pcm;
+                                    },
+                                    new ExecutionDataflowBlockOptions
+                                    {
+                                        CancellationToken = ct,
+                                        MaxDegreeOfParallelism = 1
+                                    });
+                                taskSet.Add(vstBlock.Completion);
+                                vstToPcmOutput.LinkTo(vstBlock);
+
+                                var opusBlock =
+                                    new TransformBlock<PcmBuffer<float>, OpusOutputBuffer>(buffer =>
+                                    {
+                                        buffer.Log.Add("[audio] start ftl input get", timer.USecDouble);
+                                        var audio = audioToFtlInput.Receive(ct);
+                                        buffer.Log.Add("[audio] end ftl input get", timer.USecDouble);
+                                        opus.Execute(buffer, audio);
+                                        pcmToOpusOutput.Post(buffer);
+                                        return audio;
+                                    },
+                                    new ExecutionDataflowBlockOptions
+                                    {
+                                        CancellationToken = ct,
+                                        MaxDegreeOfParallelism = 1
+                                    });
+                                taskSet.Add(opusBlock.Completion);
+                                vstBlock.LinkTo(opusBlock);
+
+                                var ftlBlock =
+                                    new ActionBlock<OpusOutputBuffer>(buffer =>
+                                    {
+                                        //FTL
+                                        ftl.Execute(buffer);
+                                        audioToFtlInput.Post(buffer);
+                                    },
+                                    new ExecutionDataflowBlockOptions
+                                    {
+                                        CancellationToken = ct,
+                                        MaxDegreeOfParallelism = 1
+                                    });
+                                taskSet.Add(ftlBlock.Completion);
+                                opusBlock.LinkTo(ftlBlock);
+                            }
+
+                            {
+                                var intraFrameCount = 0.0;
+
+                                var fftBlock =
+                                    new TransformBlock<PcmBuffer<float>, H264InputBuffer>(buffer =>
+                                    {
+                                        buffer.Log.Clear();
+                                        var bmp = bmpToVideoOutput.Receive(ct);
+                                        bmp.Log.Clear();
+
+                                        videoWaiter.Wait();
+                                        buffer.Log.Add("[video] start", timer.USecDouble);
+
+                                        //FFT
+                                        fft.Execute(bmp);
+                                        pcmToBmpOutput.Post(buffer);
+                                        return bmp;
+                                    },
+                                    new ExecutionDataflowBlockOptions
+                                    {
+                                        CancellationToken = ct,
+                                        MaxDegreeOfParallelism = 1
+                                    });
+                                taskSet.Add(fftBlock.Completion);
+                                pcmToBmpOutput.LinkTo(fftBlock);
+
+                                var h264Block =
+                                    new TransformBlock<H264InputBuffer, H264OutputBuffer>(buffer =>
+                                    {
+                                        //H264
+                                        buffer.Log.Add("[video] start ftl input get", timer.USecDouble);
+                                        var video = videoToFtlInput.Receive(ct);
+                                        buffer.Log.Add("[video] end ftl input get", timer.USecDouble);
+                                        var insertIntraFrame = (intraFrameCount <= 0);
+                                        h264.Execute(buffer, video, insertIntraFrame);
+                                        bmpToVideoOutput.Post(buffer);
+                                        if (insertIntraFrame)
+                                        {
+                                            intraFrameCount = param.intraFrameIntervalUs;
+                                        }
+                                        intraFrameCount -= videoInterval;
+                                        return video;
+                                    },
+                                    new ExecutionDataflowBlockOptions
+                                    {
+                                        CancellationToken = ct,
+                                        MaxDegreeOfParallelism = 1
+                                    });
+                                taskSet.Add(h264Block.Completion);
+                                fftBlock.LinkTo(h264Block);
+
+                                var ftlBlock =
+                                    new ActionBlock<H264OutputBuffer>(buffer =>
+                                    {
+                                        //FTL
+                                        ftl.Execute(buffer);
+                                        videoToFtlInput.Post(buffer);
+                                    },
+                                    new ExecutionDataflowBlockOptions
+                                    {
+                                        CancellationToken = ct,
+                                        MaxDegreeOfParallelism = 1
+                                    });
+                                taskSet.Add(ftlBlock.Completion);
+                                h264Block.LinkTo(ftlBlock);
+                            }
+
+                            while (taskSet.Count > 0)
+                            {
+                                var any = Task.WhenAny(taskSet);
+                                any.ConfigureAwait(false);
+                                any.Wait();
+                                var task = any.Result;
+                                taskSet.Remove(task);
+                                if (task.IsFaulted)
+                                {
+                                    processCancel.Cancel();
+                                    foreach (var v in task.Exception.InnerExceptions)
+                                    {
+                                        Logger.LogInformation($"Process Exception:{task.Exception.Message} {v.Message}");
+                                    }
+                                }
+                            }
+                        }
+                    }
+                });
+            }
+            finally
+            {
+                Logger.LogInformation("main loop end");
+            }
+        }
+
+        public bool Start2(Param param)
+        {
+            if (processCancel != null)
+            {
+                return false;
+            }
+            processCancel = new CancellationTokenSource();
+            processTask = Loop2(param, processCancel);
+            return true;
+        }
+
+        private async Task Loop2(Param param, CancellationTokenSource processCancel)
+        {
+            var ct = processCancel.Token;
+
+            Logger.LogInformation("main loop start");
+
+            try
+            {
+                await Task.Run(() =>
+                {
+                    ct.ThrowIfCancellationRequested();
+
+                    var blockSize = (int)(param.samplingRate * param.sampleLength);
+                    var audioInterval = 1_000_000.0 * param.sampleLength;
+
+                    using (var vstBufferPool = new BufferPool<VstBuffer<float>>(param.bufferCount, () => { return new VstBuffer<float>(blockSize, 2); }))
+                    using (var pcmPool = new BufferPool<PcmBuffer<float>>(param.bufferCount, () => { return new PcmBuffer<float>(blockSize, 2); }))
+                    {
+                        var vstToPcmInput = vstBufferPool.MakeBufferBlock();
+                        var pcmToWaveOutput = pcmPool.MakeBufferBlock();
 
                         using (var timer = new Core.Timer())
-                        using (var vst = new AudioMaster<float>(samplingRate, blockSize, LoggerFactory, timer))
-                        //using (var toPcm = new ToPcm<float>(LoggerFactory, timer))
+                        using (var w = new Waiter(timer, audioInterval, ct))
+                        using (var vst = new AudioMaster<float>(param.samplingRate, blockSize, LoggerFactory, timer))
                         using (var wave = new WaveOutFloat(
                             0,
                             2,
-                            (uint)samplingRate,
+                            (uint)param.samplingRate,
                             WaveFormatExtensiblePart.SPEAKER.FRONT_LEFT | WaveFormatExtensiblePart.SPEAKER.FRONT_RIGHT,
                             LoggerFactory,
                             timer))
                         {
-                            var effect = vst.AddEffect("Synth1 VST.dll");
-                            //var effect = vst.AddEffect("Dexed.dll");
+                            var effect = vst.AddEffect(param.effectName);
 
                             var taskSet = new HashSet<Task>();
-                            /*
-                            taskSet.Add(effect.Interval(
-                                vstToPcmOutput,
-                                vstToPcmInput,
-                                ct
-                            ));
-                            */
-                            taskSet.Add(effect.Run(
-                                vstToPcmInput,
-                                vstToPcmOutput,
-                                pcmToWaveInput,
-                                pcmToWaveOutput,
-                                midiEventInput,
-                                ct
-                            ));
-                            /*
-                            taskSet.Add(toPcm.Run(
-                                vstToPcmInput,
-                                vstToPcmOutput,
-                                pcmToWaveInput,
-                                pcmToWaveOutput,
-                                ct
-                            ));
-                            */
-                            taskSet.Add(wave.Run(
-                                pcmToWaveOutput,
-                                ct
-                            ));
+                            
+                            var vstAction =
+                                new TransformBlock<VstBuffer<float>, PcmBuffer<float>>(buffer =>
+                                {
+                                    buffer.Log.Clear();
+                                    var pcm = pcmToWaveOutput.Receive(ct);
+                                    w.Wait();
 
+                                    //VST
+                                    effect.Execute(buffer, pcm, midiEventInput);
+                                    vstToPcmInput.Post(buffer);
+                                    return pcm;
+                                },
+                                new ExecutionDataflowBlockOptions
+                                {
+                                    CancellationToken = ct,
+                                    MaxDegreeOfParallelism = 1
+                                });
+                            taskSet.Add(vstAction.Completion);
+                            vstToPcmInput.LinkTo(vstAction);
+
+                            var waveAction =
+                                new ActionBlock<PcmBuffer<float>>(buffer =>
+                                {
+                                    //WAVEOUT
+                                    wave.Execute(buffer, ct);
+                                },
+                                new ExecutionDataflowBlockOptions
+                                {
+                                    CancellationToken = ct,
+                                    MaxDegreeOfParallelism = 2
+                                });
+                            taskSet.Add(waveAction.Completion);
+                            vstAction.LinkTo(waveAction);
+                            
                             taskSet.Add(wave.Release(
-                                pcmToWaveInput,
+                                pcmToWaveOutput,
                                 ct
                             ));
 
@@ -556,7 +594,7 @@ namespace Momiji.Test.Run
             }
         }
 
-        private async Task Loop22(CancellationTokenSource processCancel)
+        private async Task Loop22(Param param, CancellationTokenSource processCancel)
         {
             var ct = processCancel.Token;
 
@@ -568,31 +606,28 @@ namespace Momiji.Test.Run
                 {
                     ct.ThrowIfCancellationRequested();
 
-                    Int32 samplingRate = 48000;
-                    Int32 blockSize = (Int32)(samplingRate * 0.05);
+                    var blockSize = (int)(param.samplingRate * param.sampleLength);
+                    var audioInterval = 1_000_000.0 * param.sampleLength;
 
-                    using (var vstBufferPool = new BufferPool<VstBuffer<float>>(3, () => { return new VstBuffer<float>(blockSize, 2); }))
-                    using (var pcmPool = new BufferPool<PcmBuffer<float>>(3, () => { return new PcmBuffer<float>(blockSize, 2); }))
+                    using (var vstBufferPool = new BufferPool<VstBuffer<float>>(param.bufferCount, () => { return new VstBuffer<float>(blockSize, 2); }))
+                    using (var pcmPool = new BufferPool<PcmBuffer<float>>(param.bufferCount, () => { return new PcmBuffer<float>(blockSize, 2); }))
                     {
-                        var vstToPcmOutput = vstBufferPool.makeBufferBlock();
-                        var pcmToWaveOutput = pcmPool.makeBufferBlock();
-
-                        var interval = (((double)blockSize / samplingRate) * 1_000_000.0);
-
+                        var vstToPcmOutput = vstBufferPool.MakeBufferBlock();
+                        var pcmToWaveOutput = pcmPool.MakeBufferBlock();
+                        
                         using (var timer = new Core.Timer())
-                        using (var w = new Waiter(timer, interval, ct))
-                        using (var vst = new AudioMaster<float>(samplingRate, blockSize, LoggerFactory, timer))
+                        using (var w = new Waiter(timer, audioInterval, ct))
+                        using (var vst = new AudioMaster<float>(param.samplingRate, blockSize, LoggerFactory, timer))
                         //using (var toPcm = new ToPcm<float>(LoggerFactory, timer))
                         using (var wave = new WaveOutFloat(
                             0,
                             2,
-                            (uint)samplingRate,
+                            (uint)param.samplingRate,
                             WaveFormatExtensiblePart.SPEAKER.FRONT_LEFT | WaveFormatExtensiblePart.SPEAKER.FRONT_RIGHT,
                             LoggerFactory,
                             timer))
                         {
-                            var effect = vst.AddEffect("Synth1 VST.dll");
-                            //var effect = vst.AddEffect("Dexed.dll");
+                            var effect = vst.AddEffect(param.effectName);
 
                             var taskSet = new HashSet<Task>();
 
@@ -648,196 +683,6 @@ namespace Momiji.Test.Run
                 Logger.LogInformation("main loop end");
             }
         }
-
-        /*
-        private async Task Loop3()
-        {
-            var ct = processCancel.Token;
-
-            Logger.LogInformation("main loop start");
-
-            try
-            {
-                await Task.Run(() =>
-                {
-                    ct.ThrowIfCancellationRequested();
-
-                    Int32 samplingRate = 48000;
-                    Int32 blockSize = 2880;
-
-                    double a = Math.Sin(0);
-                    double b = Math.Sin(2 * 3.14159 * 440 / samplingRate);
-                    double c = 2 * Math.Cos(2 * 3.14159 * 440 / samplingRate);
-
-                    using (var pcm1 = new PcmBuffer<float>(blockSize, 2))
-                    {
-                        var vstToOpusInput = new BufferBlock<PcmBuffer<float>>();
-
-                        var count = blockSize;
-                        var idx = 0;
-                        for (int i = 0; i < count; i++)
-                        {
-                            var d = a;
-                            a = b;
-                            b = c * a - d;
-                            
-                            pcm1.Target[idx++] = (float)d;
-                            pcm1.Target[idx++] = (float)(d/2);
-                        }
-
-                        vstToOpusInput.Post(pcm1);
-
-                        using (var wave = new WaveOutFloat(
-                            0,
-                            2,
-                            (uint)samplingRate,
-                            Wave.WaveFormatExtensiblePart.SPEAKER.FRONT_LEFT | Wave.WaveFormatExtensiblePart.SPEAKER.FRONT_RIGHT, 
-                            LoggerFactory))
-                        {
-                            var taskSet = new HashSet<Task>();
-
-                            taskSet.Add(wave.Run(
-                                vstToOpusInput,
-                                ct
-                            ));
-
-                            taskSet.Add(wave.Release(
-                                vstToOpusInput,
-                                ct
-                            ));
-
-                            while (taskSet.Count > 0)
-                            {
-                                var any = Task.WhenAny(taskSet);
-                                any.ConfigureAwait(false);
-                                any.Wait();
-                                var task = any.Result;
-                                taskSet.Remove(task);
-                                if (task.IsFaulted)
-                                {
-                                    processCancel.Cancel();
-                                    foreach (var v in task.Exception.InnerExceptions)
-                                    {
-                                        Logger.LogInformation($"Process Exception:{task.Exception.Message} {v.Message}");
-                                    }
-                                }
-                            }
-                        }
-                    }
-                });
-            }
-            finally
-            {
-                Logger.LogInformation("main loop end");
-            }
-        }
-
-        private async Task Loop4()
-        {
-            var ct = processCancel.Token;
-
-            Logger.LogInformation("main loop start");
-
-            try
-            {
-                await Task.Run(() =>
-                {
-                    ct.ThrowIfCancellationRequested();
-                    using (var videoPool = new BufferPool<H264OutputBuffer>(3, () => { return new H264OutputBuffer(10000000); }))
-                    {
-                        var videoToFtlInput = videoPool.makeBufferBlock();
-
-                        using (var timer = new Momiji.Core.Timer())
-                        using (var h264 = new H264Encoder(100, 100, 5_000_000, 30.0f, 1000, LoggerFactory, timer))
-                        {
-                        }
-                    }
-                });
-            }
-            finally
-            {
-                Logger.LogInformation("main loop end");
-            }
-        }
-
-        private async Task Loop5()
-        {
-            var ct = processCancel.Token;
-
-            Logger.LogInformation("main loop start");
-
-            try
-            {
-                await Task.Run(() =>
-                {
-                    ct.ThrowIfCancellationRequested();
-
-                    Int32 samplingRate = 48000;
-                    Int32 blockSize = (Int32)(samplingRate * 0.05);
-
-                    using (var pcm1 = new PcmBuffer<float>(blockSize, 2))
-                    using (var pcm2 = new PcmBuffer<float>(blockSize, 2))
-                    using (var out1 = new OpusOutputBuffer(5000))
-                    using (var out2 = new OpusOutputBuffer(5000))
-                    {
-                        var vstToOpusInput = new BufferBlock<PcmBuffer<float>>();
-                        var vstToOpusOutput = new BufferBlock<PcmBuffer<float>>();
-                        var opusToFtlInput = new BufferBlock<OpusOutputBuffer>();
-
-                        vstToOpusOutput.Post(pcm1);
-                        vstToOpusOutput.Post(pcm2);
-                        opusToFtlInput.Post(out1);
-                        opusToFtlInput.Post(out2);
-
-                        using (var timer = new Momiji.Core.Timer())
-                        using (var vst = new AudioMaster<float>(samplingRate, blockSize, LoggerFactory, timer))
-                        using (var encoder = new OpusEncoder(SamplingRate.Sampling48000, Channels.Stereo, LoggerFactory))
-                        {
-                            var effect = vst.AddEffect("Synth1 VST.dll");
-
-                            var taskSet = new HashSet<Task>();
-
-                            taskSet.Add(effect.Run(
-                                vstToOpusOutput,
-                                vstToOpusInput,
-                                midiEventInput,
-                                ct
-                            ));
-
-                            taskSet.Add(encoder.Run(
-                                vstToOpusInput,
-                                vstToOpusOutput,
-                                opusToFtlInput,
-                                opusToFtlInput,
-                                ct
-                            ));
-
-                            while (taskSet.Count > 0)
-                            {
-                                var any = Task.WhenAny(taskSet);
-                                any.ConfigureAwait(false);
-                                any.Wait();
-                                var task = any.Result;
-                                taskSet.Remove(task);
-                                if (task.IsFaulted)
-                                {
-                                    processCancel.Cancel();
-                                    foreach (var v in task.Exception.InnerExceptions)
-                                    {
-                                        Logger.LogInformation($"Process Exception:{task.Exception.Message} {v.Message}");
-                                    }
-                                }
-                            }
-                        }
-                    }
-                });
-            }
-            finally
-            {
-                Logger.LogInformation("main loop end");
-            }
-        }
-        */
 
         public void Note(MIDIMessageEvent[] midiMessage)
         {

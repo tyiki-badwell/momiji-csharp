@@ -42,9 +42,9 @@ namespace Momiji.Core
             }
         }
 
-        public BufferBlock<T> makeBufferBlock()
+        public BufferBlock<T> MakeBufferBlock()
         {
-            var result = makeEmptyBufferBlock();
+            var result = MakeEmptyBufferBlock();
             foreach (var item in list)
             {
                 result.Post(item);
@@ -52,7 +52,7 @@ namespace Momiji.Core
             return result;
         }
 
-        public BufferBlock<T> makeEmptyBufferBlock()
+        public BufferBlock<T> MakeEmptyBufferBlock()
         {
             return new BufferBlock<T>();
         }
