@@ -79,7 +79,7 @@ namespace Momiji.Test.Run
 
         private CancellationTokenSource processCancel;
         private Task processTask;
-        private BufferBlock<VstMidiEvent> midiEventInput = new BufferBlock<VstMidiEvent>();
+        private BufferBlock<MIDIMessageEvent> midiEventInput = new BufferBlock<MIDIMessageEvent>();
 
         public Runner(IConfiguration configuration, ILoggerFactory loggerFactory)
         {
@@ -706,7 +706,7 @@ namespace Momiji.Test.Run
                     midiData2 = item.data[2],
                     midiData3 = 0x00
                 };
-                midiEventInput.Post(vstEvent);
+                midiEventInput.Post(item);
             }
         }
     }

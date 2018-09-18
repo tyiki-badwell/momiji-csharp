@@ -1,5 +1,6 @@
 ﻿using Microsoft.Extensions.Logging;
 using Momiji.Core.Wave;
+using Momiji.Core.WebMidi;
 using Momiji.Interop;
 using Momiji.Interop.Kernel32;
 using Momiji.Interop.Vst;
@@ -338,16 +339,17 @@ namespace Momiji.Core.Vst
         public void Execute(
             VstBuffer<T> source,
             PcmBuffer<T> dest,
-            IReceivableSourceBlock<VstMidiEvent> midiEventQueue
+            IReceivableSourceBlock<MIDIMessageEvent> midiEventQueue
         )
         {
             var blockSize = audioMaster.BlockSize;
 
             {
-                var list = new List<VstMidiEvent>();
+                var list = new List<MIDIMessageEvent>();
                 {
-                    while (midiEventQueue.TryReceive(out VstMidiEvent midiEvent))
+                    while (midiEventQueue.TryReceive(out MIDIMessageEvent midiEvent))
                     {
+                        source.Log.Add("[vst] midiEvent", midiEvent.receivedTime);
                         list.Add(midiEvent);
                     }
                 }
@@ -368,8 +370,21 @@ namespace Momiji.Core.Vst
 
                     list.ForEach(midiEvent =>
                     {
+                        var vstEvent = new VstMidiEvent
+                        {
+                            type = VstEvent.VstEventTypes.kVstMidiType,
+                            byteSize = Marshal.SizeOf<VstMidiEvent>(),
+                            deltaFrames = 0,
+                            flags = VstMidiEvent.VstMidiEventFlags.kVstMidiEventIsRealtime,
+
+                            midiData0 = midiEvent.data[0],
+                            midiData1 = midiEvent.data[1],
+                            midiData2 = midiEvent.data[2],
+                            midiData3 = 0x00
+                        };
+
                         //TODO 境界チェック
-                        Marshal.StructureToPtr(midiEvent, eventListPtr, false);
+                        Marshal.StructureToPtr(vstEvent, eventListPtr, false);
                         Marshal.WriteIntPtr(eventsPtr, eventListPtr);
                         eventListPtr += sizeVstMidiEvent;
                         eventsPtr += sizeIntPtr;

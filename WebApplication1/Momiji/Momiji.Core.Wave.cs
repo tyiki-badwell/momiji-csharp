@@ -355,7 +355,7 @@ namespace Momiji.Core.Wave
                     var headerPtr = releaseQueue.Receive(ct);
                     var source = Unprepare(headerPtr);
                     source.Log.Add("[wave] unprepare", Timer.USecDouble);
-                    if (false)
+                    //if (false)
                     {
                         var log = "";
                         double? temp = null;

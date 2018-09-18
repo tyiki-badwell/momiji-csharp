@@ -52,30 +52,36 @@
 
         var pool = [];
 
-        $(function () {
-            window.setInterval(function () {
-                if (pool.length > 0) {
-                    var temp = pool;
-                    pool = [];
+        window.setInterval(function () {
+            if (pool.length > 0) {
+                var temp = pool;
+                pool = [];
 
-                    $.ajax({
-                        type: "POST",
-                        url: 'Home/Note',
-                        contentType: "application/json; charset=utf-8",
-                        dataType: "json",
-                        data: JSON.stringify(temp)
-                    });
+                fetch('Home/Note', {
+                    method: 'POST',
+                    headers: {
+                        "Content-Type": "application/json; charset=utf-8"
+                    },
+                    body: JSON.stringify(temp)
+                });
+            }
+        }, 1);
+
+        window.onload = function () {
+            document.querySelectorAll('input').forEach(function (i) {
+                i.onclick = function () {
+                    pool.push(
+                        {
+                            "receivedTime": window.performance.timing.navigationStart + window.performance.now(),
+                            "data": [
+                                Number(this.dataset.shortMessage1),
+                                Number(this.dataset.shortMessage2),
+                                Number(this.dataset.shortMessage3)
+                            ]
+                        }
+                    );
                 }
-            }, 1);
-
-            $("input").on("click", function () {
-                pool.push(
-                    {
-                        "receivedTime": window.performance.timing.navigationStart + window.performance.now(),
-                        "data": [Number(this.dataset.shortMessage1), Number(this.dataset.shortMessage2), Number(this.dataset.shortMessage3)]
-                    }
-                );
             });
-        });
+        };
     </script>
 }
