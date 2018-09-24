@@ -252,6 +252,7 @@ namespace Momiji.Core.H264
 
             dest.Log.Marge(source.Log);
             dest.LayerNuls.Clear();
+            dest.Log.Add("[h264] start copy frame", Timer.USecDouble);
             CopyMemory(
                 dest.AddrOfPinnedObject, 
                 dest.Target.Length, 
@@ -275,6 +276,7 @@ namespace Momiji.Core.H264
                     offset += length;
                 }
             }
+            dest.Log.Add("[h264] end copy frame", Timer.USecDouble);
         }
 
         private void CopyMemory(
