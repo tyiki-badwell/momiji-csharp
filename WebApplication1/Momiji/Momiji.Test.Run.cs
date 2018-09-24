@@ -311,7 +311,7 @@ namespace Momiji.Test.Run
                     using (var audioPool = new BufferPool<OpusOutputBuffer>(param.bufferCount, () => { return new OpusOutputBuffer(5000); }))
                     using (var pcmDummyPool = new BufferPool<PcmBuffer<float>>(param.bufferCount, () => { return new PcmBuffer<float>(blockSize, 2); }))
                     using (var bmpPool = new BufferPool<H264InputBuffer>(param.bufferCount, () => { return new H264InputBuffer(param.width, param.height); }))
-                    using (var videoPool = new BufferPool<H264OutputBuffer>(param.bufferCount, () => { return new H264OutputBuffer(200000); }))
+                    using (var videoPool = new BufferPool<H264OutputBuffer>(param.bufferCount * 2, () => { return new H264OutputBuffer(200000); }))
                     using (var vst = new AudioMaster<float>(param.samplingRate, blockSize, LoggerFactory, timer))
                     //using (var toPcm = new ToPcm<float>(LoggerFactory, timer))
                     using (var opus = new OpusEncoder(SamplingRate.Sampling48000, Channels.Stereo, LoggerFactory, timer))
