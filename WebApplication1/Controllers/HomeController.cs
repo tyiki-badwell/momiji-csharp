@@ -71,8 +71,9 @@ namespace WebApplication1.Controllers
             return View("Stop");
         }
         
-        public IActionResult Index()
+        public IActionResult Index([FromServices]IRunner runner)
         {
+            Start(runner);
             return View("Index");
         }
 

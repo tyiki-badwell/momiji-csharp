@@ -95,7 +95,13 @@ namespace Momiji.Test.Run
                 return false;
             }
             processCancel = new CancellationTokenSource();
-            processTask = Loop1(param, processCancel);
+            processTask = Loop3(param, processCancel);
+
+            processTask.ContinueWith((result) => {
+                Stop();
+                Start(param);
+            });
+
             return true;
         }
 
@@ -171,7 +177,7 @@ namespace Momiji.Test.Run
 
                         var effect = vst.AddEffect(param.effectName);
 
-                        using (var ftl = new FtlIngest(StreamKey, LoggerFactory, timer))
+                        using (var ftl = new FtlIngest(StreamKey, LoggerFactory, timer, processCancel))
                         {
                             ftl.Connect();
 
@@ -326,7 +332,7 @@ namespace Momiji.Test.Run
                         
                         var effect = vst.AddEffect(param.effectName);
 
-                        using (var ftl = new FtlIngest(StreamKey, LoggerFactory, timer, true))
+                        using (var ftl = new FtlIngest(StreamKey, LoggerFactory, timer, processCancel, true))
                         {
                             ftl.Connect();
 

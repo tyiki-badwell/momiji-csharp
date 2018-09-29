@@ -15,6 +15,7 @@ namespace Momiji.Core.Ftl
         private ILoggerFactory LoggerFactory { get; }
         private ILogger Logger { get; }
         private Timer Timer { get; }
+        private CancellationTokenSource Cts { get; }
 
         private bool disposed = false;
         private PinnedBuffer<Handle> handle;
@@ -24,11 +25,12 @@ namespace Momiji.Core.Ftl
         private long lastAudioUsec;
         private long lastVideoUsec;
 
-        public FtlIngest(string streamKey, ILoggerFactory loggerFactory, Timer timer, bool connect = true)
+        public FtlIngest(string streamKey, ILoggerFactory loggerFactory, Timer timer, CancellationTokenSource cts, bool connect = true)
         {
             LoggerFactory = loggerFactory;
             Logger = LoggerFactory.CreateLogger<FtlIngest>();
             Timer = timer;
+            Cts = cts;
 
             IngestParams param;
             param.stream_key = streamKey;
@@ -259,6 +261,8 @@ namespace Momiji.Core.Ftl
                                         case StatusEventType.FTL_STATUS_EVENT_TYPE_DISCONNECTED:
                                             {
                                                 Logger.LogInformation($"[ftl] EVENT DISCONNECTED [{eventMsg.error_code}][{eventMsg.reason}]");
+                                                Cts.Cancel();
+
                                                 break;
                                             }
                                         case StatusEventType.FTL_STATUS_EVENT_TYPE_DESTROYED:
