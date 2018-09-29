@@ -21,6 +21,9 @@ namespace Momiji.Core.Ftl
         private CancellationTokenSource logCancel = new CancellationTokenSource();
         private Task logTask;
 
+        private long lastAudioUsec;
+        private long lastVideoUsec;
+
         public FtlIngest(string streamKey, ILoggerFactory loggerFactory, Timer timer, bool connect = true)
         {
             LoggerFactory = loggerFactory;
@@ -122,7 +125,8 @@ namespace Momiji.Core.Ftl
 
         public void Execute(OpusOutputBuffer source)
         {
-            long time = (long)source.Log.GetFirstTime();
+            //long time = (long)source.Log.GetFirstTime();
+            long time = Timer.USec;
             source.Log.Add("[ftl] start ftl_ingest_send_media_dts AUDIO", Timer.USecDouble);
 
             var sent = 0;
@@ -140,22 +144,25 @@ namespace Momiji.Core.Ftl
             source.Log.Add($"[ftl] end ftl_ingest_send_media_dts AUDIO [{sent}][{source.Wrote}][{new DateTime(time * 10, DateTimeKind.Utc):HH:mm:ss ffffff}]", Timer.USecDouble);
             if (false)
             {
+                var now = Timer.USecDouble;
                 var log = "AUDIO ";
-                double? temp = null;
+                /*double? temp = null;
                 source.Log.Copy().ForEach((a) =>
                 {
                     var lap = temp == null ? 0 : (a.time - temp);
                     log += $"\n{a.label}:{lap},";
                     temp = a.time;
-                });
-                Logger.LogInformation($"[ftl] {source.Log.GetSpentTime()} {log}");
+                });*/
+                Logger.LogInformation($"[{new DateTime(time * 10, DateTimeKind.Utc):HH:mm:ss ffffff}] [ftl] {log} {source.Log.GetSpentTime()} {time - lastAudioUsec}");
+                lastAudioUsec = time;
             }
             source.Log.Clear();
         }
 
         public void Execute(H264OutputBuffer source)
         {
-            long time = (long)source.Log.GetFirstTime();
+            //long time = (long)source.Log.GetFirstTime();
+            long time = Timer.USec;
             foreach (var nuls in source.LayerNuls)
             {
                 for (var idx = 0; idx < nuls.Count; idx++)
@@ -182,14 +189,15 @@ namespace Momiji.Core.Ftl
             if (false)
             {
                 var log = "VIDEO ";
-                double? temp = null;
+                /*double? temp = null;
                 source.Log.Copy().ForEach((a) =>
                 {
                     var lap = temp == null ? 0 : (a.time - temp);
                     log += $"\n{a.label}:{lap},";
                     temp = a.time;
-                });
-                Logger.LogInformation($"[ftl] {source.Log.GetSpentTime()} {log}");
+                });*/
+                Logger.LogInformation($"[{new DateTime(time * 10, DateTimeKind.Utc):HH:mm:ss ffffff}] [ftl] {log} {source.Log.GetSpentTime()} {time - lastVideoUsec}");
+                lastVideoUsec = time;
             }
             source.Log.Clear();
         }

@@ -554,6 +554,12 @@ namespace Momiji.Core.Vst
                 Logger.LogInformation("[vst] stop");
                 Close();
 
+                if (audioMasterCallBack != null)
+                {
+                    audioMasterCallBack.Dispose();
+                    audioMasterCallBack = null;
+                }
+
                 if (dll != null && !dll.IsInvalid)
                 {
                     dll.Dispose();

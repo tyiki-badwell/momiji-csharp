@@ -616,6 +616,12 @@ namespace Momiji.Interop.H264
         }
 
     //typedef void (*WelsTraceCallback) (void* ctx, int level, const char* string);
+    [UnmanagedFunctionPointer(CallingConvention.Cdecl, CharSet = CharSet.Ansi, SetLastError = false)]
+    internal delegate void WelsTraceCallback(
+        [In]IntPtr	ctx,
+        [In]int level,
+        [In]IntPtr string_
+    );
 
     [SecurityPermission(SecurityAction.InheritanceDemand, UnmanagedCode = true)]
     [SecurityPermission(SecurityAction.Demand, UnmanagedCode = true)]

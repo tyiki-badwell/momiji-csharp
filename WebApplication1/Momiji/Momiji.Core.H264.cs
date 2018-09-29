@@ -86,8 +86,8 @@ namespace Momiji.Core.H264
         private Timer Timer { get; }
 
         private bool disposed = false;
-        private SVCEncoder Encoder { get; set; }
-        private SFrameBSInfoBuffer sFrameBSInfoBuffer { get; }
+        private SVCEncoder Encoder;
+        private SFrameBSInfoBuffer sFrameBSInfoBuffer;
 
         private int PicWidth { get; }
         private int PicHeight { get; }
@@ -102,7 +102,7 @@ namespace Momiji.Core.H264
         private ISVCEncoderVtbl.ForceIntraFrameProc ForceIntraFrame;
         private ISVCEncoderVtbl.SetOptionProc SetOption;
         private ISVCEncoderVtbl.GetOptionProc GetOption;
-
+        
         public H264Encoder(
             int picWidth,
             int picHeight,
@@ -189,6 +189,16 @@ namespace Momiji.Core.H264
                 }
             }
 
+            using (var param = new PinnedBuffer<int[]>(new int[1]))
+            {
+                param.Target[0] = (1 << 5);
+            //    SetOption(Encoder, ENCODER_OPTION.ENCODER_OPTION_TRACE_LEVEL, param.AddrOfPinnedObject);
+            }
+                
+            /*
+            welsTraceCallback = new PinnedDelegate<WelsTraceCallback>(TraceCallBack);
+            SetOption(Encoder, ENCODER_OPTION.ENCODER_OPTION_TRACE_CALLBACK, welsTraceCallback.FunctionPointer);
+            */
             sFrameBSInfoBuffer = new SFrameBSInfoBuffer();
         }
 
@@ -217,6 +227,7 @@ namespace Momiji.Core.H264
                 if (sFrameBSInfoBuffer != null)
                 {
                     sFrameBSInfoBuffer.Dispose();
+                    sFrameBSInfoBuffer = null;
                 }
             }
 

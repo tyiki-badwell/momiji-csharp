@@ -1,10 +1,10 @@
 ﻿using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using Momiji.Core;
+using Momiji.Core.FFT;
 using Momiji.Core.Ftl;
 using Momiji.Core.H264;
 using Momiji.Core.Opus;
-using Momiji.Core.FFT;
 using Momiji.Core.Vst;
 using Momiji.Core.Wave;
 using Momiji.Core.WebMidi;
@@ -17,8 +17,6 @@ using System.Runtime.InteropServices;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Threading.Tasks.Dataflow;
-using Momiji.Core.Trans;
-using System.Diagnostics;
 
 namespace Momiji.Test.Run
 {
@@ -36,10 +34,10 @@ namespace Momiji.Test.Run
     {
         public int bufferCount = 3;
 
-        public int width = 1280;
-        public int height = 720;
+        public int width = 128;
+        public int height = 72;
         public int targetBitrate = 5_000_000;
-        public float maxFrameRate = 30.0f;
+        public float maxFrameRate = 60.0f;
         public int intraFrameIntervalUs = 1_000_000;
         
         public string effectName = "Synth1 VST.dll";
@@ -75,7 +73,7 @@ namespace Momiji.Test.Run
         private IConfiguration Configuration { get; }
         private ILoggerFactory LoggerFactory { get; }
         private ILogger Logger { get; }
-        private String StreamKey { get; }
+        private string StreamKey { get; }
 
         private CancellationTokenSource processCancel;
         private Task processTask;
@@ -97,7 +95,7 @@ namespace Momiji.Test.Run
                 return false;
             }
             processCancel = new CancellationTokenSource();
-            processTask = Loop3(param, processCancel);
+            processTask = Loop1(param, processCancel);
             return true;
         }
 
@@ -308,7 +306,7 @@ namespace Momiji.Test.Run
                     using (var videoWaiter = new Waiter(timer, videoInterval, ct))
                     using (var vstBufferPool = new BufferPool<VstBuffer<float>>(param.bufferCount, () => { return new VstBuffer<float>(blockSize, 2); }))
                     using (var pcmPool = new BufferPool<PcmBuffer<float>>(param.bufferCount, () => { return new PcmBuffer<float>(blockSize, 2); }))
-                    using (var audioPool = new BufferPool<OpusOutputBuffer>(param.bufferCount, () => { return new OpusOutputBuffer(5000); }))
+                    using (var audioPool = new BufferPool<OpusOutputBuffer>(param.bufferCount * 5, () => { return new OpusOutputBuffer(5000); }))
                     using (var pcmDummyPool = new BufferPool<PcmBuffer<float>>(param.bufferCount, () => { return new PcmBuffer<float>(blockSize, 2); }))
                     using (var bmpPool = new BufferPool<H264InputBuffer>(param.bufferCount, () => { return new H264InputBuffer(param.width, param.height); }))
                     using (var videoPool = new BufferPool<H264OutputBuffer>(param.bufferCount * 2, () => { return new H264OutputBuffer(200000); }))
@@ -317,7 +315,6 @@ namespace Momiji.Test.Run
                     using (var opus = new OpusEncoder(SamplingRate.Sampling48000, Channels.Stereo, LoggerFactory, timer))
                     using (var fft = new FFTEncoder(param.width, param.height, param.maxFrameRate, LoggerFactory, timer))
                     using (var h264 = new H264Encoder(param.width, param.height, param.targetBitrate, param.maxFrameRate, LoggerFactory, timer))
-                    //using (var h264 = new H264File(LoggerFactory))
                     {
                         var vstToPcmOutput = vstBufferPool.MakeBufferBlock();
                         var pcmToOpusOutput = pcmPool.MakeBufferBlock();
