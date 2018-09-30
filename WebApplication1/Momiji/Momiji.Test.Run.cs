@@ -97,11 +97,6 @@ namespace Momiji.Test.Run
             processCancel = new CancellationTokenSource();
             processTask = Loop3(param, processCancel);
 
-            processTask.ContinueWith((result) => {
-                Stop();
-                Start(param);
-            });
-
             return true;
         }
 
