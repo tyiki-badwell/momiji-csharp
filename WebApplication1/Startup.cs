@@ -29,6 +29,7 @@ namespace WebApplication1
         public void ConfigureServices(IServiceCollection services)
         {
             services.AddMvc();
+            //IHostedService ではCancellationTokenを受けるが、エラー時にスレッドをまとめて止めるためにCancelを発行できないのでイマイチ
             services.AddSingleton<IRunner, Runner>();
             services.Configure<Param>(Configuration.GetSection("Param"));
         }
