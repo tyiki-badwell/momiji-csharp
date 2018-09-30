@@ -177,7 +177,7 @@ namespace Momiji.Test.Run
 
                         var effect = vst.AddEffect(param.effectName);
 
-                        using (var ftl = new FtlIngest(StreamKey, LoggerFactory, timer, processCancel))
+                        using (var ftl = new FtlIngest(StreamKey, LoggerFactory, timer))
                         {
                             ftl.Connect();
 
@@ -332,7 +332,7 @@ namespace Momiji.Test.Run
                         
                         var effect = vst.AddEffect(param.effectName);
 
-                        using (var ftl = new FtlIngest(StreamKey, LoggerFactory, timer, processCancel, true))
+                        using (var ftl = new FtlIngest(StreamKey, LoggerFactory, timer, true))
                         {
                             ftl.Connect();
 

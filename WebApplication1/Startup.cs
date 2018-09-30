@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Hosting;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 using Momiji.Interop;
 using Momiji.Interop.Kernel32;
 using Momiji.Test.Run;
@@ -29,10 +30,11 @@ namespace WebApplication1
         {
             services.AddMvc();
             services.AddSingleton<IRunner, Runner>();
+            services.Configure<Param>(Configuration.GetSection("Param"));
         }
 
         // This method gets called by the runtime. Use this method to configure the HTTP request pipeline.
-        public void Configure(IApplicationBuilder app, IHostingEnvironment env)
+        public void Configure(IApplicationBuilder app, IHostingEnvironment env, IApplicationLifetime appLifetime, IOptions<Param> param)
         {
             var dllPathBase =
                 Path.Combine(
@@ -60,6 +62,15 @@ namespace WebApplication1
                 routes.MapRoute(
                     name: "default",
                     template: "{controller=Home}/{action=Index}/{id?}");
+            });
+
+            appLifetime.ApplicationStarted.Register(() => {
+                app.ApplicationServices.GetService<IRunner>().Start(param.Value);
+                Logger.LogInformation("ApplicationStarted");
+            });
+            appLifetime.ApplicationStopped.Register(() => {
+                app.ApplicationServices.GetService<IRunner>().Stop();
+                Logger.LogInformation("ApplicationStopped");
             });
         }
     }

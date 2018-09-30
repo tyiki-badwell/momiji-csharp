@@ -1,6 +1,7 @@
 ﻿using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 using Momiji.Core.WebMidi;
 using Momiji.Test.Run;
 using System.Diagnostics;
@@ -13,10 +14,12 @@ namespace WebApplication1.Controllers
         private IConfiguration Configuration { get; }
         private ILoggerFactory LoggerFactory { get; }
         private ILogger Logger { get; }
+        private Param Param { get; }
 
-        public HomeController(IConfiguration configuration, ILoggerFactory loggerFactory)
+        public HomeController(IConfiguration configuration, ILoggerFactory loggerFactory, IOptions<Param> param)
         {
             Configuration = configuration;
+            Param = param.Value;
             LoggerFactory = loggerFactory;
             Logger = LoggerFactory.CreateLogger<HomeController>();
         }
@@ -27,11 +30,10 @@ namespace WebApplication1.Controllers
             runner.Note(midiMessage);
             return Ok("{\"result\":\"OK\"}");
         }
-
+        /*
         public IActionResult Start([FromServices]IRunner runner)
         {
-            Param param = new Param();
-            if (runner.Start(param))
+            if (runner.Start(Param))
             {
                 ViewData["Message"] = "OK.";
             }
@@ -45,8 +47,7 @@ namespace WebApplication1.Controllers
         
         public IActionResult Start2([FromServices]IRunner runner)
         {
-            Param param = new Param();
-            if (runner.Start2(param))
+            if (runner.Start2(Param))
             {
                 ViewData["Message"] = "OK.";
             }
@@ -70,10 +71,9 @@ namespace WebApplication1.Controllers
             }
             return View("Stop");
         }
-        
-        public IActionResult Index([FromServices]IRunner runner)
+        */
+        public IActionResult Index()
         {
-            Start(runner);
             return View("Index");
         }
 

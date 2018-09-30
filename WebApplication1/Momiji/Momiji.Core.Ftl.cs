@@ -15,7 +15,6 @@ namespace Momiji.Core.Ftl
         private ILoggerFactory LoggerFactory { get; }
         private ILogger Logger { get; }
         private Timer Timer { get; }
-        private CancellationTokenSource Cts { get; }
 
         private bool disposed = false;
         private PinnedBuffer<Handle> handle;
@@ -25,12 +24,11 @@ namespace Momiji.Core.Ftl
         private long lastAudioUsec;
         private long lastVideoUsec;
 
-        public FtlIngest(string streamKey, ILoggerFactory loggerFactory, Timer timer, CancellationTokenSource cts, bool connect = true)
+        public FtlIngest(string streamKey, ILoggerFactory loggerFactory, Timer timer, bool connect = true)
         {
             LoggerFactory = loggerFactory;
             Logger = LoggerFactory.CreateLogger<FtlIngest>();
             Timer = timer;
-            Cts = cts;
 
             IngestParams param;
             param.stream_key = streamKey;
@@ -59,6 +57,8 @@ namespace Momiji.Core.Ftl
                     handle = null;
                     throw new Exception($"ftl_ingest_create error:{status}");
                 }
+
+                logTask = PrintTrace(logCancel, handle);
             }
         }
 
@@ -84,20 +84,24 @@ namespace Momiji.Core.Ftl
                     Logger.LogInformation($"ftl_ingest_destroy:{status}");
 
                     logCancel.Cancel();
-                    try
+                    if (logTask != null)
                     {
-                        logTask.Wait();
-                    }
-                    catch (AggregateException e)
-                    {
-                        foreach (var v in e.InnerExceptions)
+                        try
                         {
-                            Logger.LogInformation($"FtlIngest Log Exception:{e.Message} {v.Message}");
+                            logTask.Wait();
                         }
-                    }
-                    finally
-                    {
-                        logCancel.Dispose();
+                        catch (AggregateException e)
+                        {
+                            foreach (var v in e.InnerExceptions)
+                            {
+                                Logger.LogInformation($"FtlIngest Log Exception:{e.Message} {v.Message}");
+                            }
+                        }
+                        finally
+                        {
+                            logCancel.Dispose();
+                        }
+                        logTask = null;
                     }
 
                     handle.Dispose();
@@ -114,8 +118,6 @@ namespace Momiji.Core.Ftl
             {
                 return;
             }
-
-            logTask = PrintTrace(logCancel, handle);
 
             var status = Handle.ftl_ingest_connect(handle.AddrOfPinnedObject);
             Logger.LogInformation($"ftl_ingest_connect:{status}");
@@ -261,8 +263,10 @@ namespace Momiji.Core.Ftl
                                         case StatusEventType.FTL_STATUS_EVENT_TYPE_DISCONNECTED:
                                             {
                                                 Logger.LogInformation($"[ftl] EVENT DISCONNECTED [{eventMsg.error_code}][{eventMsg.reason}]");
-                                                Cts.Cancel();
-
+                                                if (!disposed)
+                                                {
+                                                    Connect();
+                                                }
                                                 break;
                                             }
                                         case StatusEventType.FTL_STATUS_EVENT_TYPE_DESTROYED:
