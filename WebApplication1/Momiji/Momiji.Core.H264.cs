@@ -300,7 +300,7 @@ namespace Momiji.Core.H264
             {
                 throw new H264Exception($"too large {Length} max {maxLength}");
             }
-
+            //var temp = new Span<byte>((void*)Destination, (int)maxLength);
             var temp = new byte[Length];
             Marshal.Copy(Source, temp, 0, (int)Length);
             Marshal.Copy(temp, 0, Destination, (int)Length);

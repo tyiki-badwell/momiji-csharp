@@ -1,10 +1,11 @@
 ﻿using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
+using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
-using Momiji.Interop;
 using Momiji.Interop.Kernel32;
 using Momiji.Test.Run;
 using System;
@@ -21,22 +22,7 @@ namespace WebApplication1
         {
             Configuration = configuration;
             Logger = loggerFactory.CreateLogger<Startup>();
-        }
 
-        public IConfiguration Configuration { get; }
-
-        // This method gets called by the runtime. Use this method to add services to the container.
-        public void ConfigureServices(IServiceCollection services)
-        {
-            services.AddMvc();
-            //IHostedService ではCancellationTokenを受けるが、エラー時にスレッドをまとめて止めるためにCancelを発行できないのでイマイチ
-            services.AddSingleton<IRunner, Runner>();
-            services.Configure<Param>(Configuration.GetSection("Param"));
-        }
-
-        // This method gets called by the runtime. Use this method to configure the HTTP request pipeline.
-        public void Configure(IApplicationBuilder app, IHostingEnvironment env, IApplicationLifetime appLifetime, IOptions<Param> param)
-        {
             var dllPathBase =
                 Path.Combine(
                     Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location),
@@ -45,18 +31,42 @@ namespace WebApplication1
                 );
             Logger.LogInformation($"call SetDllDirectory({dllPathBase})");
             DLLMethod.SetDllDirectory(dllPathBase);
+        }
 
+        public IConfiguration Configuration { get; }
+
+        public void ConfigureServices(IServiceCollection services)
+        {
+            services.Configure<CookiePolicyOptions>(options =>
+            {
+                // This lambda determines whether user consent for non-essential cookies is needed for a given request.
+                options.CheckConsentNeeded = context => true;
+                options.MinimumSameSitePolicy = SameSiteMode.None;
+            });
+
+            services.AddMvc()
+                .SetCompatibilityVersion(CompatibilityVersion.Version_2_1);
+
+            //IHostedService ではCancellationTokenを受けるが、エラー時にスレッドをまとめて止めるためにCancelを発行できないのでイマイチ
+            services.AddSingleton<IRunner, Runner>();
+            services.Configure<Param>(Configuration.GetSection("Param"));
+        }
+
+        public void Configure(IApplicationBuilder app, IHostingEnvironment env, IApplicationLifetime appLifetime, IOptions<Param> param)
+        {
             if (env.IsDevelopment())
             {
-                app.UseBrowserLink();
                 app.UseDeveloperExceptionPage();
             }
             else
             {
                 app.UseExceptionHandler("/Home/Error");
+                app.UseHsts();
             }
 
+            app.UseHttpsRedirection();
             app.UseStaticFiles();
+            app.UseCookiePolicy();
 
             app.UseMvc(routes =>
             {
