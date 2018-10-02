@@ -290,21 +290,19 @@ namespace Momiji.Core.H264
             dest.Log.Add("[h264] end copy frame", Timer.USecDouble);
         }
 
-        private void CopyMemory(
+        private unsafe void CopyMemory(
             IntPtr Destination,
-            long maxLength,
+            int maxLength,
             IntPtr Source,
-            long Length)
+            int Length)
         {
             if (maxLength < Length)
             {
                 throw new H264Exception($"too large {Length} max {maxLength}");
             }
-            //var temp = new Span<byte>((void*)Destination, (int)maxLength);
-            var temp = new byte[Length];
-            Marshal.Copy(Source, temp, 0, (int)Length);
-            Marshal.Copy(temp, 0, Destination, (int)Length);
-            temp = null;
+            var destSpan = new Span<byte>((byte*)Destination, maxLength);
+            var sourceSpan = new Span<byte>((byte*)Source, Length);
+            sourceSpan.CopyTo(destSpan);
         }
 
     }

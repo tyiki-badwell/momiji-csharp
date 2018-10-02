@@ -71,6 +71,7 @@ namespace Momiji.Core.Ftl
         protected virtual void Dispose(bool disposing)
         {
             if (disposed) return;
+            disposed = true;
 
             if (disposing)
             {
@@ -108,8 +109,6 @@ namespace Momiji.Core.Ftl
                     handle = null;
                 }
             }
-
-            disposed = true;
         }
 
         public void Connect()
@@ -146,18 +145,18 @@ namespace Momiji.Core.Ftl
                 );
             }
             source.Log.Add($"[ftl] end ftl_ingest_send_media_dts AUDIO [{sent}][{source.Wrote}][{new DateTime(time * 10, DateTimeKind.Utc):HH:mm:ss ffffff}]", Timer.USecDouble);
-            if (false)
+            if (Logger.IsEnabled(LogLevel.Debug))
             {
                 var now = Timer.USecDouble;
                 var log = "AUDIO ";
-                /*double? temp = null;
+                double? temp = null;
                 source.Log.Copy().ForEach((a) =>
                 {
                     var lap = temp == null ? 0 : (a.time - temp);
                     log += $"\n{a.label}:{lap},";
                     temp = a.time;
-                });*/
-                Logger.LogInformation($"[{new DateTime(time * 10, DateTimeKind.Utc):HH:mm:ss ffffff}] [ftl] {log} {source.Log.GetSpentTime()} {time - lastAudioUsec}");
+                });
+                Logger.LogDebug($"[{new DateTime(time * 10, DateTimeKind.Utc):HH:mm:ss ffffff}] [ftl] {log} {source.Log.GetSpentTime()} {time - lastAudioUsec}");
                 lastAudioUsec = time;
             }
             source.Log.Clear();
@@ -190,17 +189,17 @@ namespace Momiji.Core.Ftl
                     time++;
                 }
             }
-            if (false)
+            if (Logger.IsEnabled(LogLevel.Debug))
             {
                 var log = "VIDEO ";
-                /*double? temp = null;
+                double? temp = null;
                 source.Log.Copy().ForEach((a) =>
                 {
                     var lap = temp == null ? 0 : (a.time - temp);
                     log += $"\n{a.label}:{lap},";
                     temp = a.time;
-                });*/
-                Logger.LogInformation($"[{new DateTime(time * 10, DateTimeKind.Utc):HH:mm:ss ffffff}] [ftl] {log} {source.Log.GetSpentTime()} {time - lastVideoUsec}");
+                });
+                Logger.LogDebug($"[{new DateTime(time * 10, DateTimeKind.Utc):HH:mm:ss ffffff}] [ftl] {log} {source.Log.GetSpentTime()} {time - lastVideoUsec}");
                 lastVideoUsec = time;
             }
             source.Log.Clear();

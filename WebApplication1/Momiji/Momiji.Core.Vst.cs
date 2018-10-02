@@ -410,13 +410,14 @@ namespace Momiji.Core.Vst
                 blockSize
             );
             source.Log.Add("[vst] end processReplacing", Timer.USecDouble);
+            unsafe
             {
                 dest.Log.Marge(source.Log);
 
-                var target = dest.Target;
                 var targetIdx = 0;
-                var left = source[0];
-                var right = source[1];
+                var target = new Span<T>(dest.Target);
+                var left = new Span<T>(source[0]);
+                var right = new Span<T>(source[1]);
 
                 dest.Log.Add("[to pcm] start", Timer.USecDouble);
                 for (var idx = 0; idx < left.Length; idx++)
