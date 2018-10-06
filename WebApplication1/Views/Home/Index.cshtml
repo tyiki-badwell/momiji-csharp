@@ -94,6 +94,7 @@
                     },
                     body: JSON.stringify(temp)
                 });
+                console.log(temp);
             }
         }, 1);
 
@@ -135,7 +136,10 @@
                         if (event.target.value === input.id) {
                             input.open();
                             input.onmidimessage = function (short) {
-                                pool.push(short);
+                                pool.push({
+                                    "receivedTime": window.performance.timing.navigationStart + (short.receivedTime || short.timeStamp),
+                                    "data": Array.from(short.data)
+                                });
                             }
                         } else {
                             input.onmidimessage = undefined;

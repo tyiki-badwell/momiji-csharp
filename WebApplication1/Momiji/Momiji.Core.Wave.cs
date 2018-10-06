@@ -361,7 +361,7 @@ namespace Momiji.Core.Wave
                         double? temp = null;
                         source.Log.Copy().ForEach((a) => {
                             var lap = temp == null ? 0 : (a.time - temp);
-                            log += $"\n{a.label}:{lap},";
+                            log += $"\n[{ new DateTime((long)(a.time * 10), DateTimeKind.Utc):HH:mm:ss ffffff}][{lap:0000000000.000}]{a.label}";
                             temp = a.time;
                         });
                         Logger.LogInformation($"[wave] {source.Log.GetSpentTime()} {log}");

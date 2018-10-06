@@ -349,7 +349,8 @@ namespace Momiji.Core.Vst
                 {
                     while (midiEventQueue.TryReceive(out MIDIMessageEvent midiEvent))
                     {
-                        source.Log.Add("[vst] midiEvent", midiEvent.receivedTime);
+                        //source.Log.Add($"[vst] midiEvent {midiEvent.data}", DateTimeOffset.FromUnixTimeMilliseconds((long)midiEvent.receivedTime));
+                        source.Log.Add($"[vst] midiEvent {midiEvent.data}", midiEvent.receivedTime); //TODO UTCに直す
                         list.Add(midiEvent);
                     }
                 }

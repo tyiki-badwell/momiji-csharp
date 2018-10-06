@@ -691,19 +691,8 @@ namespace Momiji.Test.Run
             foreach (var item in midiMessage)
             {
                 Logger.LogInformation($"note {DateTimeOffset.FromUnixTimeMilliseconds((long)item.receivedTime).ToUniversalTime()}");
+                //new DateTime((long)(a.time * 10), DateTimeKind.Utc);
 
-                var vstEvent = new VstMidiEvent
-                {
-                    type = VstEvent.VstEventTypes.kVstMidiType,
-                    byteSize = Marshal.SizeOf<VstMidiEvent>(),
-                    deltaFrames = 0,
-                    flags = VstMidiEvent.VstMidiEventFlags.kVstMidiEventIsRealtime,
-
-                    midiData0 = item.data[0],
-                    midiData1 = item.data[1],
-                    midiData2 = item.data[2],
-                    midiData3 = 0x00
-                };
                 midiEventInput.Post(item);
             }
         }
