@@ -117,8 +117,8 @@ namespace Momiji.Interop.Vst
 
     }
 
-   [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Ansi)]
-    public class AEffect
+    [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Ansi)]
+    unsafe public struct AEffect
     {
         //-------------------------------------------------------------------------------------------------------
         /** Basic dispatcher Opcodes (Host to Plug-in) */
@@ -306,7 +306,7 @@ namespace Momiji.Interop.Vst
         public IntPtr processDoubleReplacing;
 
         [MarshalAs(UnmanagedType.ByValArray, SizeConst = 56)]
-        char[] future;  //< reserved for future use (please zero)
+        public fixed char future[56];  //< reserved for future use (please zero)
                         //-------------------------------------------------------------------------------------------------------
 
         [UnmanagedFunctionPointer(CallingConvention.Cdecl, CharSet = CharSet.Ansi, SetLastError = false)]

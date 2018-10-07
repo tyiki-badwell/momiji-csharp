@@ -147,16 +147,14 @@ namespace Momiji.Core.Ftl
             source.Log.Add($"[ftl] end ftl_ingest_send_media_dts AUDIO [{sent}][{source.Wrote}][{new DateTime(time * 10, DateTimeKind.Utc):HH:mm:ss ffffff}]", Timer.USecDouble);
             if (Logger.IsEnabled(LogLevel.Debug))
             {
-                var now = Timer.USecDouble;
                 var log = "AUDIO ";
                 double? temp = null;
-                source.Log.Copy().ForEach((a) =>
-                {
+                source.Log.Copy().ForEach((a) => {
                     var lap = temp == null ? 0 : (a.time - temp);
-                    log += $"\n{a.label}:{lap},";
+                    log += $"\n[{ new DateTime((long)(a.time * 10), DateTimeKind.Utc):HH:mm:ss ffffff}][{lap:0000000000.000}]{a.label}";
                     temp = a.time;
                 });
-                Logger.LogDebug($"[{new DateTime(time * 10, DateTimeKind.Utc):HH:mm:ss ffffff}] [ftl] {log} {source.Log.GetSpentTime()} {time - lastAudioUsec}");
+                Logger.LogInformation($"[ftl] {source.Log.GetSpentTime()} {time - lastAudioUsec} {log}");
                 lastAudioUsec = time;
             }
             source.Log.Clear();
@@ -193,13 +191,12 @@ namespace Momiji.Core.Ftl
             {
                 var log = "VIDEO ";
                 double? temp = null;
-                source.Log.Copy().ForEach((a) =>
-                {
+                source.Log.Copy().ForEach((a) => {
                     var lap = temp == null ? 0 : (a.time - temp);
-                    log += $"\n{a.label}:{lap},";
+                    log += $"\n[{ new DateTime((long)(a.time * 10), DateTimeKind.Utc):HH:mm:ss ffffff}][{lap:0000000000.000}]{a.label}";
                     temp = a.time;
                 });
-                Logger.LogDebug($"[{new DateTime(time * 10, DateTimeKind.Utc):HH:mm:ss ffffff}] [ftl] {log} {source.Log.GetSpentTime()} {time - lastVideoUsec}");
+                Logger.LogInformation($"[ftl] {source.Log.GetSpentTime()} {time - lastVideoUsec} {log}");
                 lastVideoUsec = time;
             }
             source.Log.Clear();

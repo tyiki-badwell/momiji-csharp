@@ -47,12 +47,10 @@ namespace WebApplication1
             services.AddMvc()
                 .SetCompatibilityVersion(CompatibilityVersion.Version_2_1);
 
-            //IHostedService ではCancellationTokenを受けるが、エラー時にスレッドをまとめて止めるためにCancelを発行できないのでイマイチ
             services.AddSingleton<IRunner, Runner>();
-            services.Configure<Param>(Configuration.GetSection("Param"));
         }
 
-        public void Configure(IApplicationBuilder app, IHostingEnvironment env, IApplicationLifetime appLifetime, IOptions<Param> param)
+        public void Configure(IApplicationBuilder app, IHostingEnvironment env, IApplicationLifetime appLifetime)
         {
             if (env.IsDevelopment())
             {
@@ -76,7 +74,7 @@ namespace WebApplication1
             });
 
             appLifetime.ApplicationStarted.Register(() => {
-                app.ApplicationServices.GetService<IRunner>().Start(param.Value);
+                app.ApplicationServices.GetService<IRunner>().Start();
                 Logger.LogInformation("ApplicationStarted");
             });
             appLifetime.ApplicationStopped.Register(() => {
