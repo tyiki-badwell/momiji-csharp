@@ -27,7 +27,7 @@ namespace Momiji.Core.Wave
 
     public class PcmBuffer<T> : PinnedBuffer<T[]> where T : struct
     {
-        public PcmBuffer(Int32 blockSize, int channels) : base(new T[blockSize * channels])
+        public PcmBuffer(int blockSize, int channels) : base(new T[blockSize * channels])
         {
         }
     }
@@ -35,9 +35,9 @@ namespace Momiji.Core.Wave
     public class WaveOutShort : WaveOut<short>
     {
         public WaveOutShort(
-            UInt32 deviceID,
-            UInt16 channels,
-            UInt32 samplesPerSecond,
+            uint deviceID,
+            ushort channels,
+            uint samplesPerSecond,
             WaveFormatExtensiblePart.SPEAKER channelMask,
             ILoggerFactory loggerFactory,
             Timer timer
@@ -56,9 +56,9 @@ namespace Momiji.Core.Wave
     public class WaveOutFloat : WaveOut<float>
     {
         public WaveOutFloat(
-            UInt32 deviceID,
-            UInt16 channels,
-            UInt32 samplesPerSecond,
+            uint deviceID,
+            ushort channels,
+            uint samplesPerSecond,
             WaveFormatExtensiblePart.SPEAKER channelMask,
             ILoggerFactory loggerFactory,
             Timer timer
@@ -111,9 +111,9 @@ namespace Momiji.Core.Wave
         }
 
         public WaveOut(
-            UInt32 deviceID,
-            UInt16 channels,
-            UInt32 samplesPerSecond,
+            uint deviceID,
+            ushort channels,
+            uint samplesPerSecond,
             WaveFormatExtensiblePart.SPEAKER channelMask,
             Guid formatSubType, 
             ILoggerFactory loggerFactory,
@@ -265,13 +265,13 @@ namespace Momiji.Core.Wave
             return source;
         }
 
-        static public UInt32 GetNumDevices()
+        static public uint GetNumDevices()
         {
             return WaveOutMethod.waveOutGetNumDevs();
         }
 
         static public WaveOutCapabilities GetCapabilities(
-            System.UInt32 deviceID
+            uint deviceID
         )
         {
             var caps = new WaveOutCapabilities();
