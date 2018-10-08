@@ -25,7 +25,7 @@ namespace Momiji.Core.Vst
         private bool disposed = false;
         private List<PinnedBuffer<T[]>> list = new List<PinnedBuffer<T[]>>();
 
-        public VstBuffer(Int32 blockSize, int channels) : base(new IntPtr[channels])
+        public VstBuffer(int blockSize, int channels) : base(new IntPtr[channels])
         {
             for (var i = 0; i < channels; i++)
             {
@@ -69,12 +69,12 @@ namespace Momiji.Core.Vst
 
         private PinnedBuffer<VstTimeInfo> vstTimeInfo;
 
-        public Int32 SamplingRate { get; }
-        public Int32 BlockSize { get; }
+        public int SamplingRate { get; }
+        public int BlockSize { get; }
 
         public AudioMaster(
-            Int32 samplingRate,
-            Int32 blockSize,
+            int samplingRate,
+            int blockSize,
             ILoggerFactory loggerFactory,
             Timer timer
         )
@@ -141,10 +141,10 @@ namespace Momiji.Core.Vst
         internal IntPtr AudioMasterCallBackProc(
             IntPtr/*AEffect^*/		aeffectPtr,
             AudioMaster.Opcodes opcode,
-            Int32 index,
+            int index,
             IntPtr value,
             IntPtr ptr,
-            Single opt
+            float opt
         )
         {
             switch (opcode)
@@ -182,7 +182,7 @@ namespace Momiji.Core.Vst
         private bool disposed = false;
         private DLL dll;
         internal IntPtr AEffectPtr { get; private set; }
-        internal ERect EditorRect { get; private set; }
+        //internal ERect EditorRect { get; private set; }
 
         private AEffect.DispatcherProc Dispatcher { get; }
         private AEffect.SetParameterProc SetParameter { get; }
@@ -332,8 +332,7 @@ namespace Momiji.Core.Vst
                 {
                     while (midiEventQueue.TryReceive(out MIDIMessageEvent midiEvent))
                     {
-                        //source.Log.Add($"[vst] midiEvent {midiEvent.data}", DateTimeOffset.FromUnixTimeMilliseconds((long)midiEvent.receivedTime));
-                        source.Log.Add($"[vst] midiEvent {midiEvent.data}", midiEvent.receivedTime); //TODO UTCに直す
+                        source.Log.Add($"[vst] midiEvent {midiEvent.data}", midiEvent.receivedTime * 1000);
                         list.Add(midiEvent);
                     }
                 }

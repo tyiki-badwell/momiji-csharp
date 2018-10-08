@@ -94,14 +94,14 @@ namespace Momiji.Core.H264
         private int TargetBitrate { get; }
         private float MaxFrameRate { get; }
 
-        private ISVCEncoderVtbl.InitializeProc Initialize;
-        private ISVCEncoderVtbl.GetDefaultParamsProc GetDefaultParams;
-        private ISVCEncoderVtbl.UninitializeProc Uninitialize;
-        private ISVCEncoderVtbl.EncodeFrameProc EncodeFrame;
-        private ISVCEncoderVtbl.EncodeParameterSetsProc EncodeParameterSets;
-        private ISVCEncoderVtbl.ForceIntraFrameProc ForceIntraFrame;
-        private ISVCEncoderVtbl.SetOptionProc SetOption;
-        private ISVCEncoderVtbl.GetOptionProc GetOption;
+        private readonly ISVCEncoderVtbl.InitializeProc Initialize;
+        private readonly ISVCEncoderVtbl.GetDefaultParamsProc GetDefaultParams;
+        private readonly ISVCEncoderVtbl.UninitializeProc Uninitialize;
+        private readonly ISVCEncoderVtbl.EncodeFrameProc EncodeFrame;
+        private readonly ISVCEncoderVtbl.EncodeParameterSetsProc EncodeParameterSets;
+        private readonly ISVCEncoderVtbl.ForceIntraFrameProc ForceIntraFrame;
+        private readonly ISVCEncoderVtbl.SetOptionProc SetOption;
+        private readonly ISVCEncoderVtbl.GetOptionProc GetOption;
         
         public H264Encoder(
             int picWidth,
@@ -271,7 +271,7 @@ namespace Momiji.Core.H264
                 sFrameBSInfoBuffer.Target.iFrameSizeInBytes
             );
 
-            var sizeOfInt32 = Marshal.SizeOf<Int32>();
+            var sizeOfInt32 = Marshal.SizeOf<int>();
             var offset = 0;
             for (var idx = 0; idx < sFrameBSInfoBuffer.Target.iLayerNum; idx++)
             {

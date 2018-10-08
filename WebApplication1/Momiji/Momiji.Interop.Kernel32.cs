@@ -5,7 +5,7 @@ using System.Security.Permissions;
 
 namespace Momiji.Interop.Kernel32
 {
-    public enum ACCESS_TYPES : UInt32
+    public enum ACCESS_TYPES : uint
     {
         //  The following are masks for the predefined standard access types
         DELETE = 0x00010000,
@@ -65,7 +65,7 @@ namespace Momiji.Interop.Kernel32
 
     };
 
-    public enum SHARE_MODE : UInt32
+    public enum SHARE_MODE : uint
     {
         FILE_SHARE_NONE = 0x00000000,
         FILE_SHARE_READ = 0x00000001,
@@ -73,7 +73,7 @@ namespace Momiji.Interop.Kernel32
         FILE_SHARE_DELETE = 0x00000004,
     };
 
-    public enum CREATION_DISPOSITION : UInt32
+    public enum CREATION_DISPOSITION : uint
     {
         CREATE_NEW = 1,
         CREATE_ALWAYS = 2,
@@ -82,7 +82,7 @@ namespace Momiji.Interop.Kernel32
         TRUNCATE_EXISTING = 5,
     };
 
-    public enum FLAG_AND_ATTRIBUTE : UInt32
+    public enum FLAG_AND_ATTRIBUTE : uint
     {
         FILE_ATTRIBUTE_READONLY = 0x00000001,
         FILE_ATTRIBUTE_HIDDEN = 0x00000002,
@@ -122,7 +122,7 @@ namespace Momiji.Interop.Kernel32
         }
 
         [ReliabilityContract(Consistency.WillNotCorruptState, Cer.MayFail)]
-        protected override Boolean ReleaseHandle()
+        protected override bool ReleaseHandle()
         {
             return FreeLibrary(handle);
         }
@@ -134,7 +134,7 @@ namespace Momiji.Interop.Kernel32
 
         [DllImport("kernel32.dll", CallingConvention = CallingConvention.Cdecl, SetLastError = true)]
         [ReliabilityContract(Consistency.WillNotCorruptState, Cer.MayFail)]
-        private static extern Boolean FreeLibrary(
+        private static extern bool FreeLibrary(
             [In]   IntPtr hModule
         );
 
@@ -149,7 +149,7 @@ namespace Momiji.Interop.Kernel32
         );
 
         [DllImport("kernel32.dll", CallingConvention = CallingConvention.Cdecl, CharSet = CharSet.Unicode, SetLastError = true)]
-        internal static extern Boolean SetDllDirectory(
+        internal static extern bool SetDllDirectory(
             [In]   string lpPathName
         );
     }

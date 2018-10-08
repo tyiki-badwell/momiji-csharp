@@ -6,7 +6,7 @@ using System.Security.Permissions;
 
 namespace Momiji.Interop.Wave
 {
-    public enum MMRESULT : System.UInt32
+    public enum MMRESULT : uint
     {
         NOERROR = 0,
 
@@ -20,7 +20,7 @@ namespace Momiji.Interop.Wave
 
     public class DriverCallBack
     {
-        public enum TYPE : System.UInt64
+        public enum TYPE : ulong
         {
             TYPEMASK = 0x00070000L, // callback type mask
             NULL = 0x00000000L, // no callback 
@@ -38,7 +38,7 @@ namespace Momiji.Interop.Wave
             WAVE_MAPPED_DEFAULT_COMMUNICATION_DEVICE = 0x0010,
         };
 
-        public enum MM_EXT_WINDOW_MESSAGE : System.UInt32
+        public enum MM_EXT_WINDOW_MESSAGE : uint
         {
             WOM_OPEN = 0x3BB,   // waveform output
             WOM_CLOSE = 0x3BC,
@@ -77,7 +77,7 @@ namespace Momiji.Interop.Wave
     {
         // flags for dwFlags field of WAVEHDR
         [Flags]
-        public enum FLAG : System.UInt32
+        public enum FLAG : uint
         {
             DONE = 0x00000001,  // done bit
             PREPARED = 0x00000002,  // set if this header has been prepared
@@ -87,11 +87,11 @@ namespace Momiji.Interop.Wave
         }
 
         public IntPtr data;            // pointer to locked data buffer
-        public UInt32 bufferLength;    // length of data buffer
-        public UInt32 bytesRecorded;   // used for input only
+        public uint bufferLength;    // length of data buffer
+        public uint bytesRecorded;   // used for input only
         public IntPtr user;            // for client's use
         public FLAG flags;         // assorted flags (see defines)
-        public UInt32 loops;           // loop control counter
+        public uint loops;           // loop control counter
         public IntPtr next;            // reserved for driver
         public IntPtr reserved;        // reserved for driver
 
@@ -103,7 +103,7 @@ namespace Momiji.Interop.Wave
 
     //defines for dwFormat field of WAVEINCAPS and WAVEOUTCAPS
     [Flags]
-    public enum WAVE_FORMAT : System.UInt32
+    public enum WAVE_FORMAT : uint
     {
         FORMAT_INVALID = 0x00000000,    // invalid format
         FORMAT_1M08 = 0x00000001,   // 11.025 kHz, Mono,   8-bit 
@@ -137,7 +137,7 @@ namespace Momiji.Interop.Wave
     {
         //flags for dwSupport field of WAVEOUTCAPS
         [Flags]
-        public enum WAVECAPS : System.UInt32
+        public enum WAVECAPS : uint
         {
             PITCH = 0x0001, // supports pitch control
             PLAYBACKRATE = 0x0002,  // supports playback rate control
@@ -147,14 +147,14 @@ namespace Momiji.Interop.Wave
             SAMPLEACCURATE = 0x0020,
         }
 
-        public System.UInt16 manufacturerID;
-        public System.UInt16 productID;
-        public System.UInt32 driverVersion;
+        public ushort manufacturerID;
+        public ushort productID;
+        public uint driverVersion;
         [MarshalAs(UnmanagedType.ByValTStr, SizeConst = 32)]
         public string productName;
         public WAVE_FORMAT formats;
-        public System.UInt16 channels;
-        public System.UInt16 reserved1;
+        public ushort channels;
+        public ushort reserved1;
         public WAVECAPS support;
         public Guid manufacturerGuid;      // for extensible MID mapping 
         public Guid productGuid;           // for extensible PID mapping
@@ -185,7 +185,7 @@ namespace Momiji.Interop.Wave
     public struct WaveFormatEx
     {
         // flags for wFormatTag field of WAVEFORMAT
-        public enum FORMAT : UInt16
+        public enum FORMAT : ushort
         {
             PCM = 0x0001,
             ADPCM = 0x0002,
@@ -195,12 +195,12 @@ namespace Momiji.Interop.Wave
         }
 
         public FORMAT formatType;                  // format type
-        public UInt16 channels;                    // number of channels (i.e. mono, stereo...)
-        public UInt32 samplesPerSecond;            // sample rate
-        public UInt32 averageBytesPerSecond;       // for buffer estimation
-        public UInt16 blockAlign;                  // block size of data
-        public UInt16 bitsPerSample;               // Number of bits per sample of mono data
-        public UInt16 size;                        // The count in bytes of the size of extra information (after cbSize)
+        public ushort channels;                    // number of channels (i.e. mono, stereo...)
+        public uint samplesPerSecond;            // sample rate
+        public uint averageBytesPerSecond;       // for buffer estimation
+        public ushort blockAlign;                  // block size of data
+        public ushort bitsPerSample;               // Number of bits per sample of mono data
+        public ushort size;                        // The count in bytes of the size of extra information (after cbSize)
 
         public override string ToString()
         {
@@ -212,10 +212,10 @@ namespace Momiji.Interop.Wave
     public struct WaveFormat
     {
         public WaveFormatEx.FORMAT formatType;                // format type
-        public UInt16 channels;                // number of channels (i.e. mono, stereo...)
-        public UInt32 samplesPerSecond;        // sample rate
-        public UInt32 averageBytesPerSecond;   // for buffer estimation
-        public UInt16 blockAlign;              // block size of data
+        public ushort channels;                // number of channels (i.e. mono, stereo...)
+        public uint samplesPerSecond;        // sample rate
+        public uint averageBytesPerSecond;   // for buffer estimation
+        public ushort blockAlign;              // block size of data
 
         public override string ToString()
         {
@@ -228,7 +228,7 @@ namespace Momiji.Interop.Wave
     public struct PcmWaveFormat
     {
         public WaveFormat wf;
-        public UInt16 bitsPerSample;               // Number of bits per sample of mono data
+        public ushort bitsPerSample;               // Number of bits per sample of mono data
 
         public override string ToString()
         {
@@ -249,7 +249,7 @@ namespace Momiji.Interop.Wave
     public struct WaveFormatExtensiblePart
     {
         [Flags]
-        public enum SPEAKER : UInt32
+        public enum SPEAKER : uint
         {
             FRONT_LEFT = 0x00000001,
             FRONT_RIGHT = 0x00000002,
@@ -273,7 +273,7 @@ namespace Momiji.Interop.Wave
             ALL = 0x80000000,   // Used to specify that any possible permutation of speaker configurations
         }
 
-        public UInt16 validBitsPerSample;
+        public ushort validBitsPerSample;
         public SPEAKER channelMask;
         public Guid subFormat;
 
@@ -313,17 +313,18 @@ namespace Momiji.Interop.Wave
         }
 
         [ReliabilityContract(Consistency.WillNotCorruptState, Cer.MayFail)]
-        protected override Boolean ReleaseHandle()
+        protected override bool ReleaseHandle()
         {
             Trace.WriteLine("waveOutClose");
             MMRESULT mmResult = waveOutClose(handle);
             return (mmResult == MMRESULT.NOERROR);
         }
 
+#pragma warning disable IDE1006 // 命名スタイル
         [DllImport("winmm.dll", CallingConvention = CallingConvention.Cdecl, CharSet = CharSet.Unicode, SetLastError = true)]
         internal static extern MMRESULT waveOutOpen(
             [Out]  out WaveOut phwo,
-            [In]   UInt32 uDeviceID,
+            [In]   uint uDeviceID,
             [In]   ref WaveFormatExtensible pwfx,
             //[In][MarshalAs(UnmanagedType.FunctionPtr)]DriverCallBack.Delegate dwCallback,
             [In]   IntPtr/*DriverCallBack.Delegate*/ dwCallback,
@@ -335,59 +336,61 @@ namespace Momiji.Interop.Wave
         private static extern MMRESULT waveOutClose(
             [In]   IntPtr hwo
         );
+#pragma warning restore IDE1006 // 命名スタイル
     }
 
     public static class WaveOutMethod
     {
+#pragma warning disable IDE1006 // 命名スタイル
         [DllImport("winmm.dll", CallingConvention = CallingConvention.Cdecl, CharSet = CharSet.Unicode, SetLastError = true)]
-        internal static extern System.UInt32 waveOutGetNumDevs();
+        internal static extern uint waveOutGetNumDevs();
 
         [DllImport("winmm.dll", CallingConvention = CallingConvention.Cdecl, CharSet = CharSet.Unicode, SetLastError = true)]
         internal static extern MMRESULT waveOutGetDevCaps(
-            [In]   System.UInt32 uDeviceID,
+            [In]   uint uDeviceID,
             [In, Out]  ref WaveOutCapabilities pwoc,
-            [In]   System.UInt32 cbwoc
+            [In]   uint cbwoc
         );
 
         [DllImport("winmm.dll", CallingConvention = CallingConvention.Cdecl, CharSet = CharSet.Unicode, SetLastError = true)]
         internal static extern MMRESULT waveOutGetVolume(
             [In]   WaveOut hwo,
-            [Out]  out System.UInt32 pdwVolume
+            [Out]  out uint pdwVolume
 
         );
 
         [DllImport("winmm.dll", CallingConvention = CallingConvention.Cdecl, CharSet = CharSet.Unicode, SetLastError = true)]
         internal static extern MMRESULT waveOutSetVolume(
             [In]   WaveOut hwo,
-            [In]   System.UInt32 pdwVolume
+            [In]   uint pdwVolume
         );
 
         [DllImport("winmm.dll", CallingConvention = CallingConvention.Cdecl, CharSet = CharSet.Unicode, SetLastError = true)]
         internal static extern MMRESULT waveOutGetErrorText(
             [In]   MMRESULT mmrError,
             [Out]  System.Text.StringBuilder pszText,
-            [In]   System.UInt32 cchText
+            [In]   uint cchText
         );
 
         [DllImport("winmm.dll", CallingConvention = CallingConvention.Cdecl, CharSet = CharSet.Unicode, SetLastError = true)]
         internal static extern MMRESULT waveOutPrepareHeader(
             [In]   this WaveOut hwo,
             [In]   IntPtr pwh,
-            [In]   UInt32 cbwh
+            [In]   uint cbwh
         );
 
         [DllImport("winmm.dll", CallingConvention = CallingConvention.Cdecl, CharSet = CharSet.Unicode, SetLastError = true)]
         internal static extern MMRESULT waveOutUnprepareHeader(
             [In]   this WaveOut hwo,
             [In]   IntPtr pwh,
-            [In]   UInt32 cbwh
+            [In]   uint cbwh
         );
 
         [DllImport("winmm.dll", CallingConvention = CallingConvention.Cdecl, CharSet = CharSet.Unicode, SetLastError = true)]
         internal static extern MMRESULT waveOutWrite(
             [In]   this WaveOut hwo,
             [In]   IntPtr pwh,
-            [In]   UInt32 cbwh
+            [In]   uint cbwh
         );
 
         [DllImport("winmm.dll", CallingConvention = CallingConvention.Cdecl, CharSet = CharSet.Unicode, SetLastError = true)]
@@ -420,5 +423,6 @@ namespace Momiji.Interop.Wave
         WINMMAPI MMRESULT WINAPI waveOutGetID( __in HWAVEOUT hwo, __out LPUINT puDeviceID);
         WINMMAPI MMRESULT WINAPI waveOutMessage( __in_opt HWAVEOUT hwo, __in UINT uMsg, __in DWORD_PTR dw1, __in DWORD_PTR dw2);
         */
+#pragma warning restore IDE1006 // 命名スタイル
     }
 }

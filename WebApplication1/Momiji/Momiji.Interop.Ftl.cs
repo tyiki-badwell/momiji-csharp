@@ -138,6 +138,7 @@ namespace Momiji.Interop.Ftl
     {
         public IntPtr priv;
 
+#pragma warning disable IDE1006 // 命名スタイル
         //FTL_API ftl_status_t ftl_init();
         [DllImport("ftl.dll", CallingConvention = CallingConvention.Cdecl)]
         internal static extern Status ftl_init();
@@ -214,7 +215,7 @@ namespace Momiji.Interop.Ftl
         uint64_t max_encoding_bitrate
     );
     */
-
+#pragma warning restore IDE1006 // 命名スタイル
     }
 
     [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Ansi)]

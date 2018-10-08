@@ -28,13 +28,13 @@ namespace Momiji.Test.WaveFile
         private Task processTask;
 
         public WaveFile(
-            UInt32 deviceID,
-            UInt16 channels,
-            UInt32 samplesPerSecond,
-            UInt16 bitsPerSample,
+            uint deviceID,
+            ushort channels,
+            uint samplesPerSecond,
+            ushort bitsPerSample,
             WaveFormatExtensiblePart.SPEAKER channelMask,
             Guid formatSubType,
-            UInt32 samplesPerBuffer,
+            uint samplesPerBuffer,
             ILoggerFactory loggerFactory
         )
         {

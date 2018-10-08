@@ -155,26 +155,18 @@ namespace Momiji.Test.Run
                     using (var timer = new Core.Timer())
                     using (var audioWaiter = new Waiter(timer, audioInterval, ct))
                     using (var videoWaiter = new Waiter(timer, videoInterval, ct))
-                    using (var vstBufferPool = new BufferPool<VstBuffer<float>>(Param.BufferCount, () => { return new VstBuffer<float>(blockSize, 2); }))
-                    using (var pcmPool = new BufferPool<PcmBuffer<float>>(Param.BufferCount, () => { return new PcmBuffer<float>(blockSize, 2); }))
-                    using (var audioPool = new BufferPool<OpusOutputBuffer>(Param.BufferCount, () => { return new OpusOutputBuffer(5000); }))
-                    using (var pcmDummyPool = new BufferPool<PcmBuffer<float>>(Param.BufferCount, () => { return new PcmBuffer<float>(blockSize, 2); }))
-                    using (var bmpPool = new BufferPool<H264InputBuffer>(Param.BufferCount, () => { return new H264InputBuffer(Param.Width, Param.Height); }))
-                    using (var videoPool = new BufferPool<H264OutputBuffer>(Param.BufferCount, () => { return new H264OutputBuffer(200000); }))
+                    using (var vstBufferPool = new BufferPool<VstBuffer<float>>(Param.BufferCount, () => { return new VstBuffer<float>(blockSize, 2); }, LoggerFactory))
+                    using (var pcmPool = new BufferPool<PcmBuffer<float>>(Param.BufferCount, () => { return new PcmBuffer<float>(blockSize, 2); }, LoggerFactory))
+                    using (var audioPool = new BufferPool<OpusOutputBuffer>(Param.BufferCount, () => { return new OpusOutputBuffer(5000); }, LoggerFactory))
+                    using (var pcmDummyPool = new BufferPool<PcmBuffer<float>>(Param.BufferCount, () => { return new PcmBuffer<float>(blockSize, 2); }, LoggerFactory))
+                    using (var bmpPool = new BufferPool<H264InputBuffer>(Param.BufferCount, () => { return new H264InputBuffer(Param.Width, Param.Height); }, LoggerFactory))
+                    using (var videoPool = new BufferPool<H264OutputBuffer>(Param.BufferCount, () => { return new H264OutputBuffer(200000); }, LoggerFactory))
                     using (var vst = new AudioMaster<float>(Param.SamplingRate, blockSize, LoggerFactory, timer))
                     //using (var toPcm = new ToPcm<float>(LoggerFactory, timer))
                     using (var opus = new OpusEncoder(SamplingRate.Sampling48000, Channels.Stereo, LoggerFactory, timer))
                     using (var fft = new FFTEncoder(Param.Width, Param.Height, Param.MaxFrameRate, LoggerFactory, timer))
                     using (var h264 = new H264Encoder(Param.Width, Param.Height, Param.TargetBitrate, Param.MaxFrameRate, LoggerFactory, timer))
                     {
-                        var vstToPcmOutput = vstBufferPool.MakeBufferBlock();
-                        var pcmToOpusOutput = pcmPool.MakeBufferBlock();
-                        var audioToFtlInput = audioPool.MakeBufferBlock();
-
-                        var pcmToBmpOutput = pcmDummyPool.MakeBufferBlock();
-                        var bmpToVideoOutput = bmpPool.MakeBufferBlock();
-                        var videoToFtlInput = videoPool.MakeBufferBlock();
-
                         var effect = vst.AddEffect(Param.EffectName);
 
                         using (var ftl = new FtlIngest(StreamKey, LoggerFactory, timer))
@@ -189,27 +181,27 @@ namespace Momiji.Test.Run
                                     {
                                         buffer.Log.Clear();
                                         buffer.Log.Add("[audio] start pcm input get", timer.USecDouble);
-                                        var pcm = pcmToOpusOutput.Receive(ct);
+                                        var pcm = pcmPool.Receive(ct);
                                         buffer.Log.Add("[audio] end pcm input get", timer.USecDouble);
                                         audioWaiter.Wait();
                                         buffer.Log.Add("[audio] start", timer.USecDouble);
 
                                         //VST
                                         effect.Execute(buffer, pcm, midiEventInput);
-                                        vstToPcmOutput.Post(buffer);
+                                        vstBufferPool.Post(buffer);
 
                                         //PCM
 
                                         //OPUS
                                         buffer.Log.Add("[audio] start ftl input get", timer.USecDouble);
-                                        var audio = audioToFtlInput.Receive(ct);
+                                        var audio = audioPool.Receive(ct);
                                         buffer.Log.Add("[audio] end ftl input get", timer.USecDouble);
                                         opus.Execute(pcm, audio);
-                                        pcmToOpusOutput.Post(pcm);
+                                        pcmPool.Post(pcm);
 
                                         //FTL
                                         ftl.Execute(audio);
-                                        audioToFtlInput.Post(audio);
+                                        audioPool.Post(audio);
                                     },
                                     new ExecutionDataflowBlockOptions
                                     {
@@ -217,7 +209,7 @@ namespace Momiji.Test.Run
                                         MaxDegreeOfParallelism = 1
                                     });
                                 taskSet.Add(audioWorkerBlock.Completion);
-                                vstToPcmOutput.LinkTo(audioWorkerBlock);
+                                vstBufferPool.LinkTo(audioWorkerBlock);
                             }
 
                             {
@@ -226,23 +218,23 @@ namespace Momiji.Test.Run
                                     new ActionBlock<PcmBuffer<float>>(buffer =>
                                     {
                                         buffer.Log.Clear();
-                                        var bmp = bmpToVideoOutput.Receive(ct);
+                                        var bmp = bmpPool.Receive(ct);
                                         videoWaiter.Wait();
                                         buffer.Log.Add("[video] start", timer.USecDouble);
 
                                         //FFT
                                         fft.Execute(buffer, bmp);
-                                        pcmToBmpOutput.Post(buffer);
+                                        pcmDummyPool.Post(buffer);
 
                                         //YUV
 
                                         //H264
                                         buffer.Log.Add("[video] start ftl input get", timer.USecDouble);
-                                        var video = videoToFtlInput.Receive(ct);
+                                        var video = videoPool.Receive(ct);
                                         buffer.Log.Add("[video] end ftl input get", timer.USecDouble);
                                         var insertIntraFrame = (intraFrameCount <= 0);
                                         h264.Execute(bmp, video, insertIntraFrame);
-                                        bmpToVideoOutput.Post(bmp);
+                                        bmpPool.Post(bmp);
                                         if (insertIntraFrame)
                                         {
                                             intraFrameCount = Param.IntraFrameIntervalUs;
@@ -251,7 +243,7 @@ namespace Momiji.Test.Run
 
                                         //FTL
                                         ftl.Execute(video);
-                                        videoToFtlInput.Post(video);
+                                        videoPool.Post(video);
                                     },
                                     new ExecutionDataflowBlockOptions
                                     {
@@ -259,7 +251,7 @@ namespace Momiji.Test.Run
                                         MaxDegreeOfParallelism = 1
                                     });
                                 taskSet.Add(videoWorkerBlock.Completion);
-                                pcmToBmpOutput.LinkTo(videoWorkerBlock);
+                                pcmDummyPool.LinkTo(videoWorkerBlock);
                             }
 
                             while (taskSet.Count > 0)
@@ -310,26 +302,18 @@ namespace Momiji.Test.Run
                     using (var timer = new Core.Timer())
                     using (var audioWaiter = new Waiter(timer, audioInterval, ct))
                     using (var videoWaiter = new Waiter(timer, videoInterval, ct))
-                    using (var vstBufferPool = new BufferPool<VstBuffer<float>>(Param.BufferCount, () => { return new VstBuffer<float>(blockSize, 2); }))
-                    using (var pcmPool = new BufferPool<PcmBuffer<float>>(Param.BufferCount, () => { return new PcmBuffer<float>(blockSize, 2); }))
-                    using (var audioPool = new BufferPool<OpusOutputBuffer>(Param.BufferCount * 5, () => { return new OpusOutputBuffer(5000); }))
-                    using (var pcmDummyPool = new BufferPool<PcmBuffer<float>>(Param.BufferCount, () => { return new PcmBuffer<float>(blockSize, 2); }))
-                    using (var bmpPool = new BufferPool<H264InputBuffer>(Param.BufferCount, () => { return new H264InputBuffer(Param.Width, Param.Height); }))
-                    using (var videoPool = new BufferPool<H264OutputBuffer>(Param.BufferCount * 2, () => { return new H264OutputBuffer(200000); }))
+                    using (var vstBufferPool = new BufferPool<VstBuffer<float>>(Param.BufferCount, () => { return new VstBuffer<float>(blockSize, 2); }, LoggerFactory))
+                    using (var pcmPool = new BufferPool<PcmBuffer<float>>(Param.BufferCount, () => { return new PcmBuffer<float>(blockSize, 2); }, LoggerFactory))
+                    using (var audioPool = new BufferPool<OpusOutputBuffer>(Param.BufferCount * 5, () => { return new OpusOutputBuffer(5000); }, LoggerFactory))
+                    using (var pcmDummyPool = new BufferPool<PcmBuffer<float>>(Param.BufferCount, () => { return new PcmBuffer<float>(blockSize, 2); }, LoggerFactory))
+                    using (var bmpPool = new BufferPool<H264InputBuffer>(Param.BufferCount, () => { return new H264InputBuffer(Param.Width, Param.Height); }, LoggerFactory))
+                    using (var videoPool = new BufferPool<H264OutputBuffer>(Param.BufferCount * 2, () => { return new H264OutputBuffer(200000); }, LoggerFactory))
                     using (var vst = new AudioMaster<float>(Param.SamplingRate, blockSize, LoggerFactory, timer))
                     //using (var toPcm = new ToPcm<float>(LoggerFactory, timer))
                     using (var opus = new OpusEncoder(SamplingRate.Sampling48000, Channels.Stereo, LoggerFactory, timer))
                     using (var fft = new FFTEncoder(Param.Width, Param.Height, Param.MaxFrameRate, LoggerFactory, timer))
                     using (var h264 = new H264Encoder(Param.Width, Param.Height, Param.TargetBitrate, Param.MaxFrameRate, LoggerFactory, timer))
                     {
-                        var vstToPcmOutput = vstBufferPool.MakeBufferBlock();
-                        var pcmToOpusOutput = pcmPool.MakeBufferBlock();
-                        var audioToFtlInput = audioPool.MakeBufferBlock();
-
-                        var pcmToBmpOutput = pcmDummyPool.MakeBufferBlock();
-                        var bmpToVideoOutput = bmpPool.MakeBufferBlock();
-                        var videoToFtlInput = videoPool.MakeBufferBlock();
-                        
                         var effect = vst.AddEffect(Param.EffectName);
 
                         using (var ftl = new FtlIngest(StreamKey, LoggerFactory, timer, true))
@@ -343,13 +327,13 @@ namespace Momiji.Test.Run
                                     new TransformBlock<VstBuffer<float>, PcmBuffer<float>>(buffer =>
                                     {
                                         buffer.Log.Clear();
-                                        var pcm = pcmToOpusOutput.Receive(ct);
+                                        var pcm = pcmPool.Receive(ct);
                                         audioWaiter.Wait();
                                         buffer.Log.Add("[audio] start", timer.USecDouble);
 
                                         //VST
                                         effect.Execute(buffer, pcm, midiEventInput);
-                                        vstToPcmOutput.Post(buffer);
+                                        vstBufferPool.Post(buffer);
                                         return pcm;
                                     },
                                     new ExecutionDataflowBlockOptions
@@ -358,16 +342,16 @@ namespace Momiji.Test.Run
                                         MaxDegreeOfParallelism = 1
                                     });
                                 taskSet.Add(vstBlock.Completion);
-                                vstToPcmOutput.LinkTo(vstBlock);
+                                vstBufferPool.LinkTo(vstBlock);
 
                                 var opusBlock =
                                     new TransformBlock<PcmBuffer<float>, OpusOutputBuffer>(buffer =>
                                     {
                                         buffer.Log.Add("[audio] opus input get", timer.USecDouble);
-                                        var audio = audioToFtlInput.Receive(ct);
+                                        var audio = audioPool.Receive(ct);
                                         buffer.Log.Add("[audio] ftl output get", timer.USecDouble);
                                         opus.Execute(buffer, audio);
-                                        pcmToOpusOutput.Post(buffer);
+                                        pcmPool.Post(buffer);
                                         return audio;
                                     },
                                     new ExecutionDataflowBlockOptions
@@ -384,7 +368,7 @@ namespace Momiji.Test.Run
                                         //FTL
                                         buffer.Log.Add("[audio] ftl input get", timer.USecDouble);
                                         ftl.Execute(buffer);
-                                        audioToFtlInput.Post(buffer);
+                                        audioPool.Post(buffer);
                                     },
                                     new ExecutionDataflowBlockOptions
                                     {
@@ -402,7 +386,7 @@ namespace Momiji.Test.Run
                                     new TransformBlock<PcmBuffer<float>, H264InputBuffer>(buffer =>
                                     {
                                         buffer.Log.Clear();
-                                        var bmp = bmpToVideoOutput.Receive(ct);
+                                        var bmp = bmpPool.Receive(ct);
                                         bmp.Log.Clear();
 
                                         videoWaiter.Wait();
@@ -410,7 +394,7 @@ namespace Momiji.Test.Run
 
                                         //FFT
                                         fft.Execute(buffer, bmp);
-                                        pcmToBmpOutput.Post(buffer);
+                                        pcmDummyPool.Post(buffer);
                                         return bmp;
                                     },
                                     new ExecutionDataflowBlockOptions
@@ -419,18 +403,18 @@ namespace Momiji.Test.Run
                                         MaxDegreeOfParallelism = 1
                                     });
                                 taskSet.Add(fftBlock.Completion);
-                                pcmToBmpOutput.LinkTo(fftBlock);
+                                pcmDummyPool.LinkTo(fftBlock);
 
                                 var h264Block =
                                     new TransformBlock<H264InputBuffer, H264OutputBuffer>(buffer =>
                                     {
                                         //H264
                                         buffer.Log.Add("[video] h264 input get", timer.USecDouble);
-                                        var video = videoToFtlInput.Receive(ct);
+                                        var video = videoPool.Receive(ct);
                                         buffer.Log.Add("[video] ftl output get", timer.USecDouble);
                                         var insertIntraFrame = (intraFrameCount <= 0);
                                         h264.Execute(buffer, video, insertIntraFrame);
-                                        bmpToVideoOutput.Post(buffer);
+                                        bmpPool.Post(buffer);
                                         if (insertIntraFrame)
                                         {
                                             intraFrameCount = Param.IntraFrameIntervalUs;
@@ -452,7 +436,7 @@ namespace Momiji.Test.Run
                                         //FTL
                                         buffer.Log.Add("[video] ftl input get", timer.USecDouble);
                                         ftl.Execute(buffer);
-                                        videoToFtlInput.Post(buffer);
+                                        videoPool.Post(buffer);
                                     },
                                     new ExecutionDataflowBlockOptions
                                     {
@@ -515,12 +499,9 @@ namespace Momiji.Test.Run
                     var blockSize = (int)(Param.SamplingRate * Param.SampleLength);
                     var audioInterval = 1_000_000.0 * Param.SampleLength;
 
-                    using (var vstBufferPool = new BufferPool<VstBuffer<float>>(Param.BufferCount * 5, () => { return new VstBuffer<float>(blockSize, 2); }))
-                    using (var pcmPool = new BufferPool<PcmBuffer<float>>(Param.BufferCount * 5, () => { return new PcmBuffer<float>(blockSize, 2); }))
+                    using (var vstBufferPool = new BufferPool<VstBuffer<float>>(Param.BufferCount, () => { return new VstBuffer<float>(blockSize, 2); }, LoggerFactory))
+                    using (var pcmPool = new BufferPool<PcmBuffer<float>>(Param.BufferCount, () => { return new PcmBuffer<float>(blockSize, 2); }, LoggerFactory))
                     {
-                        var vstToPcmInput = vstBufferPool.MakeBufferBlock();
-                        var pcmToWaveOutput = pcmPool.MakeBufferBlock();
-
                         using (var timer = new Core.Timer())
                         using (var w = new Waiter(timer, audioInterval, ct))
                         using (var vst = new AudioMaster<float>(Param.SamplingRate, blockSize, LoggerFactory, timer))
@@ -543,7 +524,7 @@ namespace Momiji.Test.Run
                                 {
                                     buffer.Log.Clear();
                                     var beforeReceiveTime = timer.USecDouble;
-                                    var pcm = pcmToWaveOutput.Receive(ct);
+                                    var pcm = pcmPool.Receive(ct);
                                     buffer.Log.Add("[vst] receive", beforeReceiveTime);
                                     buffer.Log.Add("[vst] receive ok", timer.USecDouble);
                                     w.Wait();
@@ -553,7 +534,7 @@ namespace Momiji.Test.Run
 
                                     //VST
                                     effect.Execute(buffer, pcm, midiEventInput);
-                                    vstToPcmInput.Post(buffer);
+                                    vstBufferPool.Post(buffer);
                                     return pcm;
                                 },
                                 new ExecutionDataflowBlockOptions
@@ -562,7 +543,7 @@ namespace Momiji.Test.Run
                                     MaxDegreeOfParallelism = 1
                                 });
                             taskSet.Add(vstAction.Completion);
-                            vstToPcmInput.LinkTo(vstAction);
+                            vstBufferPool.LinkTo(vstAction);
 
                             var waveAction =
                                 new ActionBlock<PcmBuffer<float>>(buffer =>
@@ -579,7 +560,7 @@ namespace Momiji.Test.Run
                             vstAction.LinkTo(waveAction);
                             
                             taskSet.Add(wave.Release(
-                                pcmToWaveOutput,
+                                pcmPool,
                                 ct
                             ));
 
@@ -624,12 +605,9 @@ namespace Momiji.Test.Run
                     var blockSize = (int)(Param.SamplingRate * Param.SampleLength);
                     var audioInterval = 1_000_000.0 * Param.SampleLength;
 
-                    using (var vstBufferPool = new BufferPool<VstBuffer<float>>(Param.BufferCount, () => { return new VstBuffer<float>(blockSize, 2); }))
-                    using (var pcmPool = new BufferPool<PcmBuffer<float>>(Param.BufferCount, () => { return new PcmBuffer<float>(blockSize, 2); }))
+                    using (var vstBufferPool = new BufferPool<VstBuffer<float>>(Param.BufferCount, () => { return new VstBuffer<float>(blockSize, 2); }, LoggerFactory))
+                    using (var pcmPool = new BufferPool<PcmBuffer<float>>(Param.BufferCount, () => { return new PcmBuffer<float>(blockSize, 2); }, LoggerFactory))
                     {
-                        var vstToPcmOutput = vstBufferPool.MakeBufferBlock();
-                        var pcmToWaveOutput = pcmPool.MakeBufferBlock();
-                        
                         using (var timer = new Core.Timer())
                         using (var w = new Waiter(timer, audioInterval, ct))
                         using (var vst = new AudioMaster<float>(Param.SamplingRate, blockSize, LoggerFactory, timer))
@@ -650,12 +628,12 @@ namespace Momiji.Test.Run
                                 new ActionBlock<VstBuffer<float>>(buffer =>
                                 {
                                     buffer.Log.Clear();
-                                    var pcm = pcmToWaveOutput.Receive(ct);
+                                    var pcm = pcmPool.Receive(ct);
                                     w.Wait();
 
                                     //VST
                                     effect.Execute(buffer, pcm, midiEventInput);
-                                    vstToPcmOutput.Post(buffer);
+                                    vstBufferPool.Post(buffer);
 
                                     //WAVEOUT
                                     wave.Execute(pcm, ct);
@@ -666,10 +644,10 @@ namespace Momiji.Test.Run
                                     MaxDegreeOfParallelism = 1
                                 });
                             taskSet.Add(workerBlock.Completion);
-                            vstToPcmOutput.LinkTo(workerBlock);
+                            vstBufferPool.LinkTo(workerBlock);
 
                             taskSet.Add(wave.Release(
-                                pcmToWaveOutput,
+                                pcmPool,
                                 ct
                             ));
 
@@ -704,8 +682,6 @@ namespace Momiji.Test.Run
             foreach (var item in midiMessage)
             {
                 Logger.LogInformation($"note {DateTimeOffset.FromUnixTimeMilliseconds((long)item.receivedTime).ToUniversalTime()}");
-                //new DateTime((long)(a.time * 10), DateTimeKind.Utc);
-
                 midiEventInput.Post(item);
             }
         }

@@ -82,9 +82,7 @@ namespace Momiji.Core.Wave
 
         private bool disposed = false;
 
-        private BufferPool<PinnedBuffer<WaveHeader>> headerPool = 
-            new BufferPool<PinnedBuffer<WaveHeader>>(10, () => { return new PinnedBuffer<WaveHeader>(new WaveHeader()); });
-        private BufferBlock<PinnedBuffer<WaveHeader>> headerQueue = null;
+        private BufferPool<PinnedBuffer<WaveHeader>> headerPool;
         private BufferBlock<IntPtr> releaseQueue = new BufferBlock<IntPtr>();
 
         private IDictionary<IntPtr, PinnedBuffer<WaveHeader>> headerBusyPool = new ConcurrentDictionary<IntPtr, PinnedBuffer<WaveHeader>>();
@@ -140,7 +138,7 @@ namespace Momiji.Core.Wave
             format.exp.channelMask = channelMask;
             format.exp.subFormat = formatSubType;
 
-            headerQueue = headerPool.MakeBufferBlock();
+            headerPool = new BufferPool<PinnedBuffer<WaveHeader>>(2, () => { return new PinnedBuffer<WaveHeader>(new WaveHeader()); }, LoggerFactory);
 
             driverCallBack = new PinnedDelegate<DriverCallBack.Delegate>(new DriverCallBack.Delegate(DriverCallBackProc));
 
@@ -216,7 +214,7 @@ namespace Momiji.Core.Wave
 
         private IntPtr Prepare(PcmBuffer<T> source, CancellationToken ct)
         {
-            var header = headerQueue.Receive(ct);
+            var header = headerPool.Receive(ct);
             {
                 var waveHeader = header.Target;
                 waveHeader.data = source.AddrOfPinnedObject;
@@ -237,7 +235,7 @@ namespace Momiji.Core.Wave
                 );
             if (mmResult != MMRESULT.NOERROR)
             {
-                headerQueue.Post(header);
+                headerPool.Post(header);
                 throw new WaveException(mmResult);
             }
             headerBusyPool.Add(header.AddrOfPinnedObject, header);
@@ -260,7 +258,7 @@ namespace Momiji.Core.Wave
             }
 
             dataBusyPool.Remove(header.Target.data, out PcmBuffer<T> source);
-            headerQueue.Post(header);
+            headerPool.Post(header);
 
             return source;
         }
@@ -361,7 +359,7 @@ namespace Momiji.Core.Wave
                         double? temp = null;
                         source.Log.Copy().ForEach((a) => {
                             var lap = temp == null ? 0 : (a.time - temp);
-                            log += $"\n[{ new DateTime((long)(a.time * 10), DateTimeKind.Utc):HH:mm:ss ffffff}][{lap:0000000000.000}]{a.label}";
+                            log += $"\n[{ new DateTime((long)(a.time * 10), DateTimeKind.Utc):yyyy/MM/dd HH:mm:ss ffffff}][{a.time:0000000000.000}][{lap:0000000000.000}]{a.label}";
                             temp = a.time;
                         });
                         Logger.LogInformation($"[wave] {source.Log.GetSpentTime()} {log}");

@@ -7,13 +7,14 @@ namespace Momiji.Core
     public class Timer : IDisposable
     {
         private bool disposed = false;
+        
+        private double StartUsec { get; }
 
-        private double startUsec;
         private Stopwatch stopwatch;
 
         public Timer()
         {
-            startUsec = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds() * 1000.0;
+            StartUsec = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds() * 1000.0;
             stopwatch = Stopwatch.StartNew();
         }
 
@@ -27,7 +28,7 @@ namespace Momiji.Core
         {
             get
             {
-                return startUsec + (((double)stopwatch.ElapsedTicks / Stopwatch.Frequency) * 1_000_000.0);
+                return StartUsec + (((double)stopwatch.ElapsedTicks / Stopwatch.Frequency) * 1_000_000.0);
             }
         }
 

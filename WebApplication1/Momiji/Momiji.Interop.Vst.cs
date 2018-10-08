@@ -6,7 +6,7 @@ namespace Momiji.Interop.Vst
     //-------------------------------------------------------------------------------------------------------
     /** String length limits (in characters excl. 0 byte) */
     //-------------------------------------------------------------------------------------------------------
-    public enum VstStringConstants : Int32
+    public enum VstStringConstants : int
     {
         //-------------------------------------------------------------------------------------------------------
         kVstMaxProgNameLen = 24,    //< used for #effGetProgramName, #effSetProgramName, #effGetProgramNameIndexed
@@ -31,7 +31,7 @@ namespace Momiji.Interop.Vst
         //-------------------------------------------------------------------------------------------------------
         /** Basic dispatcher Opcodes (Plug-in to Host) */
         //-------------------------------------------------------------------------------------------------------
-        public enum Opcodes : Int32
+        public enum Opcodes : int
         {
             //-------------------------------------------------------------------------------------------------------
             audioMasterAutomate = 0,    ///< [index]: parameter index [opt]: parameter value  @see AudioEffect::setParameterAutomated
@@ -109,10 +109,10 @@ namespace Momiji.Interop.Vst
         internal delegate IntPtr CallBack(
             [In]IntPtr/*AEffect^*/		effect,
             [In]Opcodes opcode,
-            [In]Int32 index,
+            [In]int index,
             [In]IntPtr value,
             [In]IntPtr ptr,
-            [In]Single opt
+            [In]float opt
         );
 
     }
@@ -123,7 +123,7 @@ namespace Momiji.Interop.Vst
         //-------------------------------------------------------------------------------------------------------
         /** Basic dispatcher Opcodes (Host to Plug-in) */
         //-------------------------------------------------------------------------------------------------------
-        public enum Opcodes : Int32
+        public enum Opcodes : int
         {
             effOpen = 0,        ///< no arguments  @see AudioEffect::open
             effClose,           ///< no arguments  @see AudioEffect::close
@@ -244,7 +244,7 @@ namespace Momiji.Interop.Vst
         /** AEffect flags */
         //-------------------------------------------------------------------------------------------------------
         [Flags]
-        public enum VstAEffectFlags : Int32
+        public enum VstAEffectFlags : int
         {
             //-------------------------------------------------------------------------------------------------------
             effFlagsHasEditor = 1 << 0,         //< set if the plug-in provides a custom editor
@@ -263,7 +263,7 @@ namespace Momiji.Interop.Vst
         };
 
         //-------------------------------------------------------------------------------------------------------
-        public Int32 magic;            //< must be #kEffectMagic ('VstP')
+        public int magic;            //< must be #kEffectMagic ('VstP')
 
         /** Host to Plug-in dispatcher @see AudioEffect::dispatcher */
         public IntPtr dispatcher;
@@ -277,27 +277,27 @@ namespace Momiji.Interop.Vst
         /** Returns current value of automatable parameter @see AudioEffect::getParameter*/
         public IntPtr getParameter;
 
-        public Int32 numPrograms;  //< number of programs
-        public Int32 numParams;    //< all programs are assumed to have numParams parameters
-        public Int32 numInputs;    //< number of audio inputs
-        public Int32 numOutputs;   //< number of audio outputs
+        public int numPrograms;  //< number of programs
+        public int numParams;    //< all programs are assumed to have numParams parameters
+        public int numInputs;    //< number of audio inputs
+        public int numOutputs;   //< number of audio outputs
 
         public VstAEffectFlags flags;      //< @see VstAEffectFlags
 
         public IntPtr resvd1;      //< reserved for Host, must be 0
         public IntPtr resvd2;      //< reserved for Host, must be 0
 
-        public Int32 initialDelay; //< for algorithms which need input in the first place (Group delay or latency in Samples). This value should be initialized in a resume state.
+        public int initialDelay; //< for algorithms which need input in the first place (Group delay or latency in Samples). This value should be initialized in a resume state.
 
-        public Int32 realQualitiesDeprecated;  //< \deprecated unused member
-        public Int32 offQualitiesDeprecated;   //< \deprecated unused member
-        public Single ioRatioDeprecated;       //< \deprecated unused member
+        public int realQualitiesDeprecated;  //< \deprecated unused member
+        public int offQualitiesDeprecated;   //< \deprecated unused member
+        public float ioRatioDeprecated;       //< \deprecated unused member
 
         public IntPtr _object;          //< #AudioEffect class pointer
         public IntPtr user;            //< user-defined pointer
 
-        public Int32 uniqueID;     //< registered unique identifier (register it at Steinberg 3rd party support Web). This is used to identify a plug-in during save+load of preset and project.
-        public Int32 version;      //< plug-in version (example 1100 for version 1.1.0.0)
+        public int uniqueID;     //< registered unique identifier (register it at Steinberg 3rd party support Web). This is used to identify a plug-in during save+load of preset and project.
+        public int version;      //< plug-in version (example 1100 for version 1.1.0.0)
 
         /** Process audio samples in replacing mode @see AudioEffect::processReplacing */
         public IntPtr processReplacing;
@@ -319,10 +319,10 @@ namespace Momiji.Interop.Vst
         internal delegate IntPtr DispatcherProc(
             [In]IntPtr/*AEffect^*/		effect,
             [In]Opcodes opcode,
-            [In]Int32 index,
+            [In]int index,
             [In]IntPtr value,
             [In]IntPtr ptr,
-            [In]Single opt
+            [In]float opt
         );
 
         [UnmanagedFunctionPointer(CallingConvention.Cdecl, CharSet = CharSet.Ansi, SetLastError = false)]
@@ -330,7 +330,7 @@ namespace Momiji.Interop.Vst
             [In]IntPtr/*AEffect^*/		effect,
             [In]IntPtr inputs,
             [In]IntPtr outputs,
-            [In]Int32 sampleFrames
+            [In]int sampleFrames
         );
 
         [UnmanagedFunctionPointer(CallingConvention.Cdecl, CharSet = CharSet.Ansi, SetLastError = false)]
@@ -338,20 +338,20 @@ namespace Momiji.Interop.Vst
             [In]IntPtr/*AEffect^*/		effect,
             [In]IntPtr inputs,
             [In]IntPtr outputs,
-            [In]Int32 sampleFrames
+            [In]int sampleFrames
         );
 
         [UnmanagedFunctionPointer(CallingConvention.Cdecl, CharSet = CharSet.Ansi, SetLastError = false)]
         internal delegate void SetParameterProc(
             [In]IntPtr/*AEffect^*/		effect,
-            [In]Int32 index,
-            [In]Single parameter
+            [In]int index,
+            [In]float parameter
         );
 
         [UnmanagedFunctionPointer(CallingConvention.Cdecl, CharSet = CharSet.Ansi, SetLastError = false)]
-        internal delegate Single GetParameterProc(
+        internal delegate float GetParameterProc(
             [In]IntPtr/*AEffect^*/		effect,
-            [In]Int32 index
+            [In]int index
         );
     };
 
@@ -363,7 +363,7 @@ namespace Momiji.Interop.Vst
     public struct VstParameterProperties
     {
         [FlagsAttribute]
-        public enum VstParameterFlags : Int32
+        public enum VstParameterFlags : int
         {
             //-------------------------------------------------------------------------------------------------------
             kVstParameterIsSwitch = 1 << 0, ///< parameter is a switch (on/off)
@@ -377,17 +377,17 @@ namespace Momiji.Interop.Vst
         };
 
         //-------------------------------------------------------------------------------------------------------
-        public Single stepFloat;           //< Single step
-        public Single smallStepFloat;      //< small Single step
-        public Single largeStepFloat;      //< large Single step
-        [MarshalAs(UnmanagedType.ByValTStr, SizeConst = (Int32)(VstStringConstants.kVstMaxLabelLen))]
+        public float stepFloat;           //< Single step
+        public float smallStepFloat;      //< small Single step
+        public float largeStepFloat;      //< large Single step
+        [MarshalAs(UnmanagedType.ByValTStr, SizeConst = (int)(VstStringConstants.kVstMaxLabelLen))]
         public string label;        //< parameter label
         public VstParameterFlags flags;                //< @see VstParameterFlags
-        public Int32 minInteger;       //< integer minimum
-        public Int32 maxInteger;       //< integer maximum
-        public Int32 stepInteger;      //< integer step
-        public Int32 largeStepInteger; //< large integer step
-        [MarshalAs(UnmanagedType.ByValTStr, SizeConst = (Int32)(VstStringConstants.kVstMaxShortLabelLen))]
+        public int minInteger;       //< integer minimum
+        public int maxInteger;       //< integer maximum
+        public int stepInteger;      //< integer step
+        public int largeStepInteger; //< large integer step
+        [MarshalAs(UnmanagedType.ByValTStr, SizeConst = (int)(VstStringConstants.kVstMaxShortLabelLen))]
         public string shortLabel;       //< short label, recommended: 6 + delimiter
 
         // The following are for remote controller display purposes.
@@ -395,7 +395,7 @@ namespace Momiji.Interop.Vst
         // Host can scan all parameters, and find out in what order
         // to display them:
 
-        public Int16 displayIndex;     //< index where this parameter should be displayed (starting with 0)
+        public short displayIndex;     //< index where this parameter should be displayed (starting with 0)
 
         // Host can also possibly display the parameter group (category), such as...
         // ---------------------------
@@ -404,10 +404,10 @@ namespace Momiji.Interop.Vst
         // ---------------------------
         // ...if the plug-in supports it (flag #kVstParameterSupportsDisplayCategory)
 
-        public Int16 category;         //< 0: no category, else group index + 1
-        public Int16 numParametersInCategory;          //< number of parameters in category
-        public Int16 reserved;         //< zero
-        [MarshalAs(UnmanagedType.ByValTStr, SizeConst = (Int32)(VstStringConstants.kVstMaxCategLabelLen))]
+        public short category;         //< 0: no category, else group index + 1
+        public short numParametersInCategory;          //< number of parameters in category
+        public short reserved;         //< zero
+        [MarshalAs(UnmanagedType.ByValTStr, SizeConst = (int)(VstStringConstants.kVstMaxCategLabelLen))]
         public string categoryLabel;        //< category label, e.g. "Osc 1" 
 
         [MarshalAs(UnmanagedType.ByValArray, SizeConst = 16)]
@@ -419,7 +419,7 @@ namespace Momiji.Interop.Vst
     //-------------------------------------------------------------------------------------------------------
     /** Speaker Arrangement Types*/
     //-------------------------------------------------------------------------------------------------------
-    public enum VstSpeakerArrangementType : Int32
+    public enum VstSpeakerArrangementType : int
     {
         //-------------------------------------------------------------------------------------------------------
         kSpeakerArrUserDefined = -2,//< user defined
@@ -464,7 +464,7 @@ namespace Momiji.Interop.Vst
     public struct VstPinProperties
     {
         [FlagsAttribute]
-        public enum VstPinPropertiesFlags : Int32
+        public enum VstPinPropertiesFlags : int
         {
             //-------------------------------------------------------------------------------------------------------
             kVstPinIsActive = 1 << 0,       //< pin is active, ignored by Host
@@ -474,11 +474,11 @@ namespace Momiji.Interop.Vst
         };
 
         //-------------------------------------------------------------------------------------------------------
-        [MarshalAs(UnmanagedType.ByValTStr, SizeConst = (Int32)(VstStringConstants.kVstMaxLabelLen))]
+        [MarshalAs(UnmanagedType.ByValTStr, SizeConst = (int)(VstStringConstants.kVstMaxLabelLen))]
         public string label;                //< pin name
         public VstPinPropertiesFlags flags;                //< @see VstPinPropertiesFlags
         public VstSpeakerArrangementType arrangementType;  //< @see VstSpeakerArrangementType
-        [MarshalAs(UnmanagedType.ByValTStr, SizeConst = (Int32)(VstStringConstants.kVstMaxShortLabelLen))]
+        [MarshalAs(UnmanagedType.ByValTStr, SizeConst = (int)(VstStringConstants.kVstMaxShortLabelLen))]
         public string shortLabel;           //< short name (recommended: 6 + delimiter)
 
         [MarshalAs(UnmanagedType.ByValArray, SizeConst = 48)]
@@ -498,7 +498,7 @@ namespace Momiji.Interop.Vst
         //-------------------------------------------------------------------------------------------------------
         /** VstEvent Types used by #VstEvent. */
         //-------------------------------------------------------------------------------------------------------
-        public enum VstEventTypes : Int32
+        public enum VstEventTypes : int
         {
             //-------------------------------------------------------------------------------------------------------
             kVstMidiType = 1,                   //< MIDI event  @see VstMidiEvent
@@ -520,7 +520,7 @@ namespace Momiji.Interop.Vst
         //-------------------------------------------------------------------------------------------------------
         /** Flags used in #VstMidiEvent. */
         //-------------------------------------------------------------------------------------------------------
-        public enum VstMidiEventFlags : Int32
+        public enum VstMidiEventFlags : int
         {
             //-------------------------------------------------------------------------------------------------------
             kVstMidiEventIsRealtime = 1 << 0    //< means that this event is played life (not in playback from a sequencer track).\n This allows the Plug-In to handle these flagged events with higher priority, especially when the Plug-In has a big latency (AEffect::initialDelay)
@@ -529,19 +529,19 @@ namespace Momiji.Interop.Vst
 
         //-------------------------------------------------------------------------------------------------------
         public VstEvent.VstEventTypes type;          ///< #kVstMidiType
-        public Int32 byteSize;      ///< sizeof (VstMidiEvent)
-        public Int32 deltaFrames;   ///< sample frames related to the current block start sample position
+        public int byteSize;      ///< sizeof (VstMidiEvent)
+        public int deltaFrames;   ///< sample frames related to the current block start sample position
         public VstMidiEventFlags flags;         ///< @see VstMidiEventFlags
-        public Int32 noteLength;    ///< (in sample frames) of entire note, if available, else 0
-        public Int32 noteOffset;    ///< offset (in sample frames) into note from note start if available, else 0
-        public Byte midiData0;      //< 1 to 3 MIDI bytes; midiData[3] is reserved (zero)
-        public Byte midiData1;
-        public Byte midiData2;
-        public Byte midiData3;
-        public Byte detune;            ///< -64 to +63 cents; for scales other than 'well-tempered' ('microtuning')
-        public Byte noteOffVelocity;   ///< Note Off Velocity [0, 127]
-        public Byte reserved1;         ///< zero (Reserved for future use)
-        public Byte reserved2;         ///< zero (Reserved for future use)
+        public int noteLength;    ///< (in sample frames) of entire note, if available, else 0
+        public int noteOffset;    ///< offset (in sample frames) into note from note start if available, else 0
+        public byte midiData0;      //< 1 to 3 MIDI bytes; midiData[3] is reserved (zero)
+        public byte midiData1;
+        public byte midiData2;
+        public byte midiData3;
+        public byte detune;            ///< -64 to +63 cents; for scales other than 'well-tempered' ('microtuning')
+        public byte noteOffVelocity;   ///< Note Off Velocity [0, 127]
+        public byte reserved1;         ///< zero (Reserved for future use)
+        public byte reserved2;         ///< zero (Reserved for future use)
         //-------------------------------------------------------------------------------------------------------
         override public string ToString()
         {
@@ -556,7 +556,7 @@ namespace Momiji.Interop.Vst
     public struct VstEvents
     {
         //-------------------------------------------------------------------------------------------------------
-        public Int32 numEvents;        //< number of Events in array
+        public int numEvents;        //< number of Events in array
         public IntPtr reserved;        //< zero (Reserved for future use)
                                        //IntPtr	events;			//VstEvent* events[2];	///< event pointer array, variable size
                                        //-------------------------------------------------------------------------------------------------------
@@ -582,7 +582,7 @@ namespace Momiji.Interop.Vst
         /** Flags used in #VstTimeInfo. */
         //-------------------------------------------------------------------------------------------------------
         [Flags]
-        public enum VstTimeInfoFlags : Int32
+        public enum VstTimeInfoFlags : int
         {
             //-------------------------------------------------------------------------------------------------------
             kVstTransportChanged = 1,       ///< indicates that play, cycle or record state has changed
@@ -605,7 +605,7 @@ namespace Momiji.Interop.Vst
         //-------------------------------------------------------------------------------------------------------
         /** SMPTE Frame Rates. */
         //-------------------------------------------------------------------------------------------------------
-        public enum VstSmpteFrameRate : Int32
+        public enum VstSmpteFrameRate : int
         {
             //-------------------------------------------------------------------------------------------------------
             kVstSmpte24fps = 0,     ///< 24 fps
@@ -625,19 +625,19 @@ namespace Momiji.Interop.Vst
         };
 
         //-------------------------------------------------------------------------------------------------------
-        public Double samplePos;               ///< current Position in audio samples (always valid)
-        public Double sampleRate;              ///< current Sample Rate in Herz (always valid)
-        public Double nanoSeconds;             ///< System Time in nanoseconds (10^-9 second)
-        public Double ppqPos;                  ///< Musical Position, in Quarter Note (1.0 equals 1 Quarter Note)
-        public Double tempo;                   ///< current Tempo in BPM (Beats Per Minute)
-        public Double barStartPos;             ///< last Bar Start Position, in Quarter Note
-        public Double cycleStartPos;           ///< Cycle Start (left locator), in Quarter Note
-        public Double cycleEndPos;             ///< Cycle End (right locator), in Quarter Note
-        public Int32 timeSigNumerator;     ///< Time Signature Numerator (e.g. 3 for 3/4)
-        public Int32 timeSigDenominator;   ///< Time Signature Denominator (e.g. 4 for 3/4)
-        public Int32 smpteOffset;          ///< SMPTE offset (in SMPTE subframes (bits; 1/80 of a frame)). The current SMPTE position can be calculated using #samplePos, #sampleRate, and #smpteFrameRate.
+        public double samplePos;               ///< current Position in audio samples (always valid)
+        public double sampleRate;              ///< current Sample Rate in Herz (always valid)
+        public double nanoSeconds;             ///< System Time in nanoseconds (10^-9 second)
+        public double ppqPos;                  ///< Musical Position, in Quarter Note (1.0 equals 1 Quarter Note)
+        public double tempo;                   ///< current Tempo in BPM (Beats Per Minute)
+        public double barStartPos;             ///< last Bar Start Position, in Quarter Note
+        public double cycleStartPos;           ///< Cycle Start (left locator), in Quarter Note
+        public double cycleEndPos;             ///< Cycle End (right locator), in Quarter Note
+        public int timeSigNumerator;     ///< Time Signature Numerator (e.g. 3 for 3/4)
+        public int timeSigDenominator;   ///< Time Signature Denominator (e.g. 4 for 3/4)
+        public int smpteOffset;          ///< SMPTE offset (in SMPTE subframes (bits; 1/80 of a frame)). The current SMPTE position can be calculated using #samplePos, #sampleRate, and #smpteFrameRate.
         public VstSmpteFrameRate smpteFrameRate;       ///< @see VstSmpteFrameRate
-        public Int32 samplesToNextClock;   ///< MIDI Clock Resolution (24 Per Quarter Note), can be negative (nearest clock)
+        public int samplesToNextClock;   ///< MIDI Clock Resolution (24 Per Quarter Note), can be negative (nearest clock)
         public VstTimeInfoFlags flags;                 ///< @see VstTimeInfoFlags
         //-------------------------------------------------------------------------------------------------------
     };
@@ -652,8 +652,8 @@ namespace Momiji.Interop.Vst
         //-------------------------------------------------------------------------------------------------------
         public IntPtr inputs;                      //< float** input audio buffers
         public IntPtr outputs;                 //< float** output audio buffers
-        public Int32 numSamplesInput;          //< number of incoming samples
-        public Int32 numSamplesOutput;         //< number of outgoing samples
+        public int numSamplesInput;          //< number of incoming samples
+        public int numSamplesOutput;         //< number of outgoing samples
         public IntPtr numSamplesInputProcessed;    //< Int32* number of samples actually processed of input
         public IntPtr numSamplesOutputProcessed;   //< Int32* number of samples actually processed of output
                                                    //-------------------------------------------------------------------------------------------------------
@@ -666,10 +666,10 @@ namespace Momiji.Interop.Vst
     public struct ERect
     {
         //-------------------------------------------------------------------------------------------------------
-        public Int16 top;       ///< top coordinate
-        public Int16 left;      ///< left coordinate
-        public Int16 bottom;    ///< bottom coordinate
-        public Int16 right;     ///< right coordinate
+        public short top;       ///< top coordinate
+        public short left;      ///< left coordinate
+        public short bottom;    ///< bottom coordinate
+        public short right;     ///< right coordinate
         //-------------------------------------------------------------------------------------------------------
     };
 

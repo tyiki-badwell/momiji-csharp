@@ -199,6 +199,7 @@ namespace Momiji.Interop.Opus
             return true;
         }
 
+#pragma warning disable IDE1006 // 命名スタイル
         [DllImport("opus.dll", CallingConvention = CallingConvention.StdCall)]
         internal static extern Encoder
             opus_encoder_create(
@@ -212,11 +213,12 @@ namespace Momiji.Interop.Opus
         private static extern void opus_encoder_destroy(
             [In] IntPtr st
         );
-
+#pragma warning restore IDE1006 // 命名スタイル
     }
 
     public static class EncoderMethod
     {
+#pragma warning disable IDE1006 // 命名スタイル
         [DllImport("opus.dll", CallingConvention = CallingConvention.StdCall)]
         internal static extern int opus_encoder_get_size(
             [In] Channels channels
@@ -271,5 +273,6 @@ namespace Momiji.Interop.Opus
         internal static extern int opus_packet_get_nb_channels(
             [In] IntPtr data
         );
+#pragma warning restore IDE1006 // 命名スタイル
     }
 }

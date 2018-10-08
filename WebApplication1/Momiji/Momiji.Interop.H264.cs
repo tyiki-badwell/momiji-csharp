@@ -9,8 +9,8 @@ namespace Momiji.Interop.H264
         /**
         * @brief Option types introduced in SVC encoder application
         */
-        public enum ENCODER_OPTION : Int32
-        { 
+        public enum ENCODER_OPTION : int
+    { 
             ENCODER_OPTION_DATAFORMAT = 0,
             ENCODER_OPTION_IDR_INTERVAL,               ///< IDR period,0/-1 means no Intra period (only the first frame); lager than 0 means the desired IDR period, must be multiple of (2^temporal_layer)
             ENCODER_OPTION_SVC_ENCODE_PARAM_BASE,      ///< structure of Base Param
@@ -54,8 +54,8 @@ namespace Momiji.Interop.H264
         /**
         * @brief Encoder usage type
         */
-        public enum EUsageType : Int32
-        { 
+        public enum EUsageType : int
+    { 
             CAMERA_VIDEO_REAL_TIME,      ///< camera video for real-time communication
             SCREEN_CONTENT_REAL_TIME,    ///< screen content signal
             CAMERA_VIDEO_NON_REAL_TIME,
@@ -65,8 +65,8 @@ namespace Momiji.Interop.H264
         /**
         * @brief Enumulate the complexity mode
         */
-        public enum ECOMPLEXITY_MODE : Int32
-        {
+        public enum ECOMPLEXITY_MODE : int
+    {
             LOW_COMPLEXITY = 0,              ///< the lowest compleixty,the fastest speed,
             MEDIUM_COMPLEXITY,          ///< medium complexity, medium speed,medium quality
             HIGH_COMPLEXITY             ///< high complexity, lowest speed, high quality
@@ -74,8 +74,8 @@ namespace Momiji.Interop.H264
         /**
          * @brief Enumulate for the stategy of SPS/PPS strategy
          */
-        public enum EParameterSetStrategy : Int32
-        {
+        public enum EParameterSetStrategy : int
+    {
             CONSTANT_ID = 0,           ///< constant id in SPS/PPS
             INCREASING_ID = 0x01,      ///< SPS/PPS id increases at each IDR
             SPS_LISTING = 0x02,       ///< using SPS in the existing list if possible
@@ -85,8 +85,8 @@ namespace Momiji.Interop.H264
         /**
         * @brief Enumerate the type of rate control mode
         */
-        public enum RC_MODES : Int32
-        {
+        public enum RC_MODES : int
+    {
             RC_QUALITY_MODE = 0,     ///< quality mode
             RC_BITRATE_MODE = 1,     ///< bitrate mode
             RC_BUFFERBASED_MODE = 2, ///< no bitrate control,only using buffer status,adjust the video quality
@@ -97,8 +97,8 @@ namespace Momiji.Interop.H264
         /**
         * @brief Enumerate the type of profile id
         */
-        public enum EProfileIdc : Int32
-        {
+        public enum EProfileIdc : int
+    {
             PRO_UNKNOWN = 0,
             PRO_BASELINE = 66,
             PRO_MAIN = 77,
@@ -115,8 +115,8 @@ namespace Momiji.Interop.H264
         /**
         * @brief Enumerate the type of level id
         */
-        public enum ELevelIdc : Int32
-        {
+        public enum ELevelIdc : int
+    {
             LEVEL_UNKNOWN = 0,
             LEVEL_1_0 = 10,
             LEVEL_1_B = 9,
@@ -139,8 +139,8 @@ namespace Momiji.Interop.H264
         /**
          * @brief Enumerate the type of slice mode
          */
-        public enum SliceModeEnum : Int32
-        {
+        public enum SliceModeEnum : int
+    {
             SM_SINGLE_SLICE = 0, ///< | SliceNum==1
             SM_FIXEDSLCNUM_SLICE = 1, ///< | according to SliceNum        | enabled dynamic slicing for multi-thread
             SM_RASTER_SLICE = 2, ///< | according to SlicesAssign    | need input of MB numbers each slice. In addition, if other constraint in SSliceArgument is presented, need to follow the constraints. Typically if MB num and slice size are both constrained, re-encoding may be involved.
@@ -150,8 +150,8 @@ namespace Momiji.Interop.H264
         /**
         * @brief Enumerate the type of sample aspect ratio
         */
-        public enum ESampleAspectRatio : Int32
-        {
+        public enum ESampleAspectRatio : int
+    {
             ASP_UNSPECIFIED = 0,
             ASP_1x1 = 1,
             ASP_12x11 = 2,
@@ -172,8 +172,8 @@ namespace Momiji.Interop.H264
         /**
         * @brief Enumerate the type of video format
         */
-        public enum EVideoFormatType : UInt32
-        {
+        public enum EVideoFormatType : uint
+    {
             videoFormatRGB = 1,             ///< rgb color formats
             videoFormatRGBA = 2,
             videoFormatRGB555 = 3,
@@ -198,8 +198,8 @@ namespace Momiji.Interop.H264
         /**
         * @brief Enumerate  video frame type
         */
-        public enum EVideoFrameType : Int32
-        {
+        public enum EVideoFrameType : int
+    {
             videoFrameTypeInvalid,    ///< encoder not ready or parameters are invalidate
             videoFrameTypeIDR,        ///< IDR frame in H.264
             videoFrameTypeI,          ///< I frame type

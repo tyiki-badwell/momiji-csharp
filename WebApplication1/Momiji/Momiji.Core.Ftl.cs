@@ -154,7 +154,7 @@ namespace Momiji.Core.Ftl
                     log += $"\n[{ new DateTime((long)(a.time * 10), DateTimeKind.Utc):HH:mm:ss ffffff}][{lap:0000000000.000}]{a.label}";
                     temp = a.time;
                 });
-                Logger.LogInformation($"[ftl] {source.Log.GetSpentTime()} {time - lastAudioUsec} {log}");
+                Logger.LogDebug($"[ftl] {source.Log.GetSpentTime()} {time - lastAudioUsec} {log}");
                 lastAudioUsec = time;
             }
             source.Log.Clear();
@@ -196,7 +196,7 @@ namespace Momiji.Core.Ftl
                     log += $"\n[{ new DateTime((long)(a.time * 10), DateTimeKind.Utc):HH:mm:ss ffffff}][{lap:0000000000.000}]{a.label}";
                     temp = a.time;
                 });
-                Logger.LogInformation($"[ftl] {source.Log.GetSpentTime()} {time - lastVideoUsec} {log}");
+                Logger.LogDebug($"[ftl] {source.Log.GetSpentTime()} {time - lastVideoUsec} {log}");
                 lastVideoUsec = time;
             }
             source.Log.Clear();
