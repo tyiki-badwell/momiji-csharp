@@ -679,7 +679,10 @@ namespace Momiji.Test.Run
 
         public void Note(MIDIMessageEvent[] midiMessage)
         {
-            foreach (var item in midiMessage)
+            List<MIDIMessageEvent> list = new List<MIDIMessageEvent>(midiMessage);
+            list.Sort((a, b) => (int)(a.receivedTime - b.receivedTime));
+            
+            foreach (var item in list)
             {
                 Logger.LogInformation($"note {DateTimeOffset.FromUnixTimeMilliseconds((long)item.receivedTime).ToUniversalTime()}");
                 midiEventInput.Post(item);
