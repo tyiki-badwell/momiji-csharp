@@ -66,54 +66,53 @@ namespace Momiji.Core.FFT
         {
             dest.Log.Marge(source.Log);
             dest.Log.Add("[fft] start", Timer.USecDouble);
-            var target = dest.Target;
+            unsafe
             {
-                var y = target.pData0;
-                var length = target.iPicWidth * target.iPicHeight;
-
-                var value = a;
-                a++;
-                if (a > 235)
+                var target = dest.Target;
                 {
-                    a = 16;
-                }
-                for (var idx = 0; idx < length; idx++)
-                {
-                    Marshal.WriteByte(y, (byte)value++);
-                    y += 1;
-                    if (value > 235)
+                    var length = target.iPicWidth * target.iPicHeight;
+                    var y = new Span<byte>((byte*)target.pData0, length);
+                    var value = a;
+                    a++;
+                    if (a > 235)
                     {
-                        value = 16;
+                        a = 16;
+                    }
+                    for (var idx = 0; idx < length; idx++)
+                    {
+                        y[idx] = (byte)value++;
+                        if (value > 235)
+                        {
+                            value = 16;
+                        }
                     }
                 }
-            }
 
-            {
-                var u = target.pData1;
-                var length = target.iPicWidth * target.iPicHeight >> 2;
-                var value = a;
-                for (var idx = 0; idx < length; idx++)
                 {
-                    Marshal.WriteByte(u, (byte)value++);
-                    u += 1;
-                    if (value > 235)
+                    var length = target.iPicWidth * target.iPicHeight >> 2;
+                    var u = new Span<byte>((byte*)target.pData1, length);
+                    var value = a;
+                    for (var idx = 0; idx < length; idx++)
                     {
-                        value = 16;
+                        u[idx] = (byte)value++;
+                        if (value > 235)
+                        {
+                            value = 16;
+                        }
                     }
                 }
-            }
 
-            {
-                var v = target.pData2;
-                var length = target.iPicWidth * target.iPicHeight >> 2;
-                var value = a;
-                for (var idx = 0; idx < length; idx++)
                 {
-                    Marshal.WriteByte(v, (byte)value++);
-                    v += 1;
-                    if (value > 235)
+                    var length = target.iPicWidth * target.iPicHeight >> 2;
+                    var v = new Span<byte>((byte*)target.pData2, length); 
+                    var value = a;
+                    for (var idx = 0; idx < length; idx++)
                     {
-                        value = 16;
+                        v[idx] = (byte)value++;
+                        if (value > 235)
+                        {
+                            value = 16;
+                        }
                     }
                 }
             }

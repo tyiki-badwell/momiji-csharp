@@ -33,6 +33,7 @@ namespace Momiji.Test.Run
     public class Param
     {
         public int BufferCount { get; set; }
+        public bool Connect { get; set; }
 
         public int Width { get; set; }
         public int Height { get; set; }
@@ -169,7 +170,7 @@ namespace Momiji.Test.Run
                     {
                         var effect = vst.AddEffect(Param.EffectName);
 
-                        using (var ftl = new FtlIngest(StreamKey, LoggerFactory, timer))
+                        using (var ftl = new FtlIngest(StreamKey, LoggerFactory, timer, Param.Connect))
                         {
                             ftl.Connect();
 
@@ -316,7 +317,7 @@ namespace Momiji.Test.Run
                     {
                         var effect = vst.AddEffect(Param.EffectName);
 
-                        using (var ftl = new FtlIngest(StreamKey, LoggerFactory, timer, true))
+                        using (var ftl = new FtlIngest(StreamKey, LoggerFactory, timer, Param.Connect))
                         {
                             ftl.Connect();
 
