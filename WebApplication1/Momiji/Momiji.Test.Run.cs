@@ -156,12 +156,12 @@ namespace Momiji.Test.Run
                     using (var timer = new Core.Timer())
                     using (var audioWaiter = new Waiter(timer, audioInterval, ct))
                     using (var videoWaiter = new Waiter(timer, videoInterval, ct))
-                    using (var vstBufferPool = new BufferPool<VstBuffer<float>>(Param.BufferCount, () => { return new VstBuffer<float>(blockSize, 2); }, LoggerFactory))
-                    using (var pcmPool = new BufferPool<PcmBuffer<float>>(Param.BufferCount, () => { return new PcmBuffer<float>(blockSize, 2); }, LoggerFactory))
-                    using (var audioPool = new BufferPool<OpusOutputBuffer>(Param.BufferCount, () => { return new OpusOutputBuffer(5000); }, LoggerFactory))
-                    using (var pcmDummyPool = new BufferPool<PcmBuffer<float>>(Param.BufferCount, () => { return new PcmBuffer<float>(blockSize, 2); }, LoggerFactory))
-                    using (var bmpPool = new BufferPool<H264InputBuffer>(Param.BufferCount, () => { return new H264InputBuffer(Param.Width, Param.Height); }, LoggerFactory))
-                    using (var videoPool = new BufferPool<H264OutputBuffer>(Param.BufferCount, () => { return new H264OutputBuffer(200000); }, LoggerFactory))
+                    using (var vstBufferPool = new BufferPool<VstBuffer<float>>(Param.BufferCount, () => new VstBuffer<float>(blockSize, 2), LoggerFactory))
+                    using (var pcmPool = new BufferPool<PcmBuffer<float>>(Param.BufferCount, () => new PcmBuffer<float>(blockSize, 2), LoggerFactory))
+                    using (var audioPool = new BufferPool<OpusOutputBuffer>(Param.BufferCount, () => new OpusOutputBuffer(5000), LoggerFactory))
+                    using (var pcmDummyPool = new BufferPool<PcmBuffer<float>>(Param.BufferCount, () => new PcmBuffer<float>(blockSize, 2), LoggerFactory))
+                    using (var bmpPool = new BufferPool<H264InputBuffer>(Param.BufferCount, () => new H264InputBuffer(Param.Width, Param.Height), LoggerFactory))
+                    using (var videoPool = new BufferPool<H264OutputBuffer>(Param.BufferCount, () => new H264OutputBuffer(200000), LoggerFactory))
                     using (var vst = new AudioMaster<float>(Param.SamplingRate, blockSize, LoggerFactory, timer))
                     //using (var toPcm = new ToPcm<float>(LoggerFactory, timer))
                     using (var opus = new OpusEncoder(SamplingRate.Sampling48000, Channels.Stereo, LoggerFactory, timer))
@@ -303,12 +303,12 @@ namespace Momiji.Test.Run
                     using (var timer = new Core.Timer())
                     using (var audioWaiter = new Waiter(timer, audioInterval, ct))
                     using (var videoWaiter = new Waiter(timer, videoInterval, ct))
-                    using (var vstBufferPool = new BufferPool<VstBuffer<float>>(Param.BufferCount, () => { return new VstBuffer<float>(blockSize, 2); }, LoggerFactory))
-                    using (var pcmPool = new BufferPool<PcmBuffer<float>>(Param.BufferCount, () => { return new PcmBuffer<float>(blockSize, 2); }, LoggerFactory))
-                    using (var audioPool = new BufferPool<OpusOutputBuffer>(Param.BufferCount * 5, () => { return new OpusOutputBuffer(5000); }, LoggerFactory))
-                    using (var pcmDummyPool = new BufferPool<PcmBuffer<float>>(Param.BufferCount, () => { return new PcmBuffer<float>(blockSize, 2); }, LoggerFactory))
-                    using (var bmpPool = new BufferPool<H264InputBuffer>(Param.BufferCount, () => { return new H264InputBuffer(Param.Width, Param.Height); }, LoggerFactory))
-                    using (var videoPool = new BufferPool<H264OutputBuffer>(Param.BufferCount * 2, () => { return new H264OutputBuffer(200000); }, LoggerFactory))
+                    using (var vstBufferPool = new BufferPool<VstBuffer<float>>(Param.BufferCount, () => new VstBuffer<float>(blockSize, 2), LoggerFactory))
+                    using (var pcmPool = new BufferPool<PcmBuffer<float>>(Param.BufferCount, () => new PcmBuffer<float>(blockSize, 2), LoggerFactory))
+                    using (var audioPool = new BufferPool<OpusOutputBuffer>(Param.BufferCount * 5, () => new OpusOutputBuffer(5000), LoggerFactory))
+                    using (var pcmDummyPool = new BufferPool<PcmBuffer<float>>(Param.BufferCount, () => new PcmBuffer<float>(blockSize, 2), LoggerFactory))
+                    using (var bmpPool = new BufferPool<H264InputBuffer>(Param.BufferCount, () => new H264InputBuffer(Param.Width, Param.Height), LoggerFactory))
+                    using (var videoPool = new BufferPool<H264OutputBuffer>(Param.BufferCount * 2, () => new H264OutputBuffer(200000), LoggerFactory))
                     using (var vst = new AudioMaster<float>(Param.SamplingRate, blockSize, LoggerFactory, timer))
                     //using (var toPcm = new ToPcm<float>(LoggerFactory, timer))
                     using (var opus = new OpusEncoder(SamplingRate.Sampling48000, Channels.Stereo, LoggerFactory, timer))
@@ -500,8 +500,8 @@ namespace Momiji.Test.Run
                     var blockSize = (int)(Param.SamplingRate * Param.SampleLength);
                     var audioInterval = 1_000_000.0 * Param.SampleLength;
 
-                    using (var vstBufferPool = new BufferPool<VstBuffer<float>>(Param.BufferCount, () => { return new VstBuffer<float>(blockSize, 2); }, LoggerFactory))
-                    using (var pcmPool = new BufferPool<PcmBuffer<float>>(Param.BufferCount, () => { return new PcmBuffer<float>(blockSize, 2); }, LoggerFactory))
+                    using (var vstBufferPool = new BufferPool<VstBuffer<float>>(Param.BufferCount, () => new VstBuffer<float>(blockSize, 2), LoggerFactory))
+                    using (var pcmPool = new BufferPool<PcmBuffer<float>>(Param.BufferCount, () => new PcmBuffer<float>(blockSize, 2), LoggerFactory))
                     {
                         using (var timer = new Core.Timer())
                         using (var w = new Waiter(timer, audioInterval, ct))
@@ -606,8 +606,8 @@ namespace Momiji.Test.Run
                     var blockSize = (int)(Param.SamplingRate * Param.SampleLength);
                     var audioInterval = 1_000_000.0 * Param.SampleLength;
 
-                    using (var vstBufferPool = new BufferPool<VstBuffer<float>>(Param.BufferCount, () => { return new VstBuffer<float>(blockSize, 2); }, LoggerFactory))
-                    using (var pcmPool = new BufferPool<PcmBuffer<float>>(Param.BufferCount, () => { return new PcmBuffer<float>(blockSize, 2); }, LoggerFactory))
+                    using (var vstBufferPool = new BufferPool<VstBuffer<float>>(Param.BufferCount, () => new VstBuffer<float>(blockSize, 2), LoggerFactory))
+                    using (var pcmPool = new BufferPool<PcmBuffer<float>>(Param.BufferCount, () => new PcmBuffer<float>(blockSize, 2), LoggerFactory))
                     {
                         using (var timer = new Core.Timer())
                         using (var w = new Waiter(timer, audioInterval, ct))
