@@ -4,6 +4,7 @@ using Momiji.Core.Wave;
 using Momiji.Core.WebMidi;
 using Momiji.Interop;
 using System;
+using System.Collections.Generic;
 using System.Drawing;
 using System.Drawing.Imaging;
 using System.Drawing.Text;
@@ -66,6 +67,9 @@ namespace Momiji.Core.FFT
             disposed = true;
         }
 
+        private List<string> list = new List<string>();
+        private Dictionary<byte, byte> note = new Dictionary<byte, byte>();
+
         public void Execute(
             PcmBuffer<float> source,
             H264InputBuffer dest,
@@ -75,14 +79,56 @@ namespace Momiji.Core.FFT
             dest.Log.Marge(source.Log);
             dest.Log.Add("[fft] start", Timer.USecDouble);
 
+            while (midiEventInput.TryReceive(out MIDIMessageEvent midiEvent))
+            {
+                list.Insert(0, 
+                    $"{DateTimeOffset.FromUnixTimeMilliseconds((long)midiEvent.receivedTime).ToUniversalTime():HH:mm:ss.fff} => " +
+                    $"{DateTimeOffset.FromUnixTimeMilliseconds(Timer.USec / 1000).ToUniversalTime():HH:mm:ss.fff} " +
+                    ((midiEvent.data.Length >= 1) ? $"{midiEvent.data[0]:X2}" : "") +
+                    ((midiEvent.data.Length >= 2) ? $"{midiEvent.data[1]:X2}" : "") +
+                    ((midiEvent.data.Length >= 3) ? $"{midiEvent.data[2]:X2}" : "") +
+                    ((midiEvent.data.Length >= 4) ? $"{midiEvent.data[3]:X2}" : "")
+                );
+                if (list.Count > 20)
+                {
+                    list.RemoveAt(20);
+                }
+
+                var m = midiEvent.data[0] & 0xF0;
+                var k = midiEvent.data[1];
+                var v = midiEvent.data[2];
+
+                if (m == 0x80 || (m == 0x90))
+                {
+                    note.Remove(k);
+                    if (m == 0x90 && v > 0)
+                    {
+                        note.Add(k, v);
+
+                    }
+                }
+            }
+
             using (var g = Graphics.FromImage(bitmap))
             using (var fontFamily = new FontFamily(GenericFontFamilies.Monospace))
             using (var font = new Font(fontFamily, 20.0f))
-            using (var black = new SolidBrush(Color.Green))
+            using (var black = new SolidBrush(Color.Black))
             using (var white = new SolidBrush(Color.White))
             {
                 g.FillRectangle(black, 0, 0, PicWidth, PicHeight);
-                g.DrawString("abcd", font, white, 0, 0);
+                foreach (var (k, v) in note)
+                {
+                    using (var pen = new SolidBrush(Color.FromArgb(v, v, 0)))
+                    {
+                        g.FillRectangle(pen, 0, k * 2, PicWidth, 2);
+                    }
+                }
+
+                var idx = 0;
+                foreach (var s in list)
+                {
+                    g.DrawString(s, font, white, 0, (idx++ * 20));
+                }
             }
             dest.Log.Add("[fft] drawn", Timer.USecDouble);
 
