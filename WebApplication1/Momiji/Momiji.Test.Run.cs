@@ -80,6 +80,8 @@ namespace Momiji.Test.Run
         private CancellationTokenSource processCancel;
         private Task processTask;
         private BufferBlock<MIDIMessageEvent> midiEventInput = new BufferBlock<MIDIMessageEvent>();
+        private BufferBlock<MIDIMessageEvent> midiEventOutput = new BufferBlock<MIDIMessageEvent>();
+        private BufferBlock<MIDIMessageEvent> audioOutput = new BufferBlock<MIDIMessageEvent>();
 
         public Runner(IConfiguration configuration, ILoggerFactory loggerFactory)
         {
@@ -135,7 +137,7 @@ namespace Momiji.Test.Run
 
             return true;
         }
-
+        /*
         private async Task Loop1(CancellationTokenSource processCancel)
         {
             var ct = processCancel.Token;
@@ -280,7 +282,7 @@ namespace Momiji.Test.Run
                 Logger.LogInformation("main loop end");
             }
         }
-
+        */
         private async Task Loop3(CancellationTokenSource processCancel)
         {
             var ct = processCancel.Token;
@@ -306,7 +308,7 @@ namespace Momiji.Test.Run
                     using (var vstBufferPool = new BufferPool<VstBuffer<float>>(Param.BufferCount, () => new VstBuffer<float>(blockSize, 2), LoggerFactory))
                     using (var pcmPool = new BufferPool<PcmBuffer<float>>(Param.BufferCount, () => new PcmBuffer<float>(blockSize, 2), LoggerFactory))
                     using (var audioPool = new BufferPool<OpusOutputBuffer>(Param.BufferCount * 5, () => new OpusOutputBuffer(5000), LoggerFactory))
-                    using (var pcmDummyPool = new BufferPool<PcmBuffer<float>>(Param.BufferCount, () => new PcmBuffer<float>(blockSize, 2), LoggerFactory))
+                    using (var pcmDummyPool = new BufferPool<PcmBuffer<float>>(0, () => new PcmBuffer<float>(blockSize, 2), LoggerFactory))
                     using (var bmpPool = new BufferPool<H264InputBuffer>(Param.BufferCount, () => new H264InputBuffer(Param.Width, Param.Height), LoggerFactory))
                     using (var videoPool = new BufferPool<H264OutputBuffer>(Param.BufferCount * 2, () => new H264OutputBuffer(200000), LoggerFactory))
                     using (var vst = new AudioMaster<float>(Param.SamplingRate, blockSize, LoggerFactory, timer))
@@ -333,7 +335,7 @@ namespace Momiji.Test.Run
                                         buffer.Log.Add("[audio] start", timer.USecDouble);
 
                                         //VST
-                                        effect.Execute(buffer, pcm, midiEventInput);
+                                        effect.Execute(buffer, pcm, midiEventInput, midiEventOutput);
                                         vstBufferPool.Post(buffer);
                                         return pcm;
                                     },
@@ -394,7 +396,7 @@ namespace Momiji.Test.Run
                                         buffer.Log.Add("[video] start", timer.USecDouble);
 
                                         //FFT
-                                        fft.Execute(buffer, bmp);
+                                        fft.Execute(buffer, bmp, midiEventOutput);
                                         pcmDummyPool.Post(buffer);
                                         return bmp;
                                     },
@@ -534,7 +536,7 @@ namespace Momiji.Test.Run
                                     beforeVstStart = now;
 
                                     //VST
-                                    effect.Execute(buffer, pcm, midiEventInput);
+                                    effect.Execute(buffer, pcm, midiEventInput, midiEventOutput);
                                     vstBufferPool.Post(buffer);
                                     return pcm;
                                 },
@@ -590,7 +592,7 @@ namespace Momiji.Test.Run
                 Logger.LogInformation("main loop end");
             }
         }
-
+        /*
         private async Task Loop22(CancellationTokenSource processCancel)
         {
             var ct = processCancel.Token;
@@ -677,7 +679,7 @@ namespace Momiji.Test.Run
                 Logger.LogInformation("main loop end");
             }
         }
-
+        */
         public void Note(MIDIMessageEvent[] midiMessage)
         {
             List<MIDIMessageEvent> list = new List<MIDIMessageEvent>(midiMessage);

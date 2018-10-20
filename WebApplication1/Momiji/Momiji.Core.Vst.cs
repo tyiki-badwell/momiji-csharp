@@ -319,7 +319,8 @@ namespace Momiji.Core.Vst
         public void Execute(
             VstBuffer<T> source,
             PcmBuffer<T> dest,
-            IReceivableSourceBlock<MIDIMessageEvent> midiEventQueue
+            IReceivableSourceBlock<MIDIMessageEvent> midiEventInput,
+            ITargetBlock<MIDIMessageEvent> midiEventOutput
         )
         {
             var blockSize = audioMaster.BlockSize;
@@ -330,10 +331,11 @@ namespace Momiji.Core.Vst
             {
                 var list = new List<MIDIMessageEvent>();
                 {
-                    while (midiEventQueue.TryReceive(out MIDIMessageEvent midiEvent))
+                    while (midiEventInput.TryReceive(out MIDIMessageEvent midiEvent))
                     {
                         source.Log.Add($"[vst] midiEvent {midiEvent.data}", midiEvent.receivedTime * 1000);
                         list.Add(midiEvent);
+                        midiEventOutput.Post(midiEvent);
                     }
                 }
 
