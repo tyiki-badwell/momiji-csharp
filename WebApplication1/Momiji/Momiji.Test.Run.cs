@@ -308,7 +308,7 @@ namespace Momiji.Test.Run
                     using (var vstBufferPool = new BufferPool<VstBuffer<float>>(Param.BufferCount, () => new VstBuffer<float>(blockSize, 2), LoggerFactory))
                     using (var pcmPool = new BufferPool<PcmBuffer<float>>(Param.BufferCount, () => new PcmBuffer<float>(blockSize, 2), LoggerFactory))
                     using (var audioPool = new BufferPool<OpusOutputBuffer>(Param.BufferCount * 5, () => new OpusOutputBuffer(5000), LoggerFactory))
-                    using (var pcmDummyPool = new BufferPool<PcmBuffer<float>>(0, () => new PcmBuffer<float>(blockSize, 2), LoggerFactory))
+                    using (var pcmDummyPool = new BufferPool<PcmBuffer<float>>(Param.BufferCount, () => new PcmBuffer<float>(blockSize, 2), LoggerFactory))
                     using (var bmpPool = new BufferPool<H264InputBuffer>(Param.BufferCount, () => new H264InputBuffer(Param.Width, Param.Height), LoggerFactory))
                     using (var videoPool = new BufferPool<H264OutputBuffer>(Param.BufferCount * 2, () => new H264OutputBuffer(200000), LoggerFactory))
                     using (var vst = new AudioMaster<float>(Param.SamplingRate, blockSize, LoggerFactory, timer))
