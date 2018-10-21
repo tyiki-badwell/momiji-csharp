@@ -383,7 +383,12 @@ namespace Momiji.Test.Run
                             }
 
                             {
-                                var intraFrameCount = 0.0;
+                                var midiDataStoreBlock =
+                                    new ActionBlock<MIDIMessageEvent>(buffer => {
+                                        fft.Receive(buffer);
+                                    });
+                                taskSet.Add(midiDataStoreBlock.Completion);
+                                midiEventOutput.LinkTo(midiDataStoreBlock);
 
                                 var fftBlock =
                                     new TransformBlock<PcmBuffer<float>, H264InputBuffer>(buffer =>
@@ -396,7 +401,7 @@ namespace Momiji.Test.Run
                                         buffer.Log.Add("[video] start", timer.USecDouble);
 
                                         //FFT
-                                        fft.Execute(buffer, bmp, midiEventOutput);
+                                        fft.Execute(buffer, bmp);
                                         pcmDummyPool.Post(buffer);
                                         return bmp;
                                     },
@@ -408,6 +413,7 @@ namespace Momiji.Test.Run
                                 taskSet.Add(fftBlock.Completion);
                                 pcmDummyPool.LinkTo(fftBlock);
 
+                                var intraFrameCount = 0.0;
                                 var h264Block =
                                     new TransformBlock<H264InputBuffer, H264OutputBuffer>(buffer =>
                                     {
@@ -536,7 +542,7 @@ namespace Momiji.Test.Run
                                     beforeVstStart = now;
 
                                     //VST
-                                    effect.Execute(buffer, pcm, midiEventInput, midiEventOutput);
+                                    effect.Execute(buffer, pcm, midiEventInput);
                                     vstBufferPool.Post(buffer);
                                     return pcm;
                                 },
