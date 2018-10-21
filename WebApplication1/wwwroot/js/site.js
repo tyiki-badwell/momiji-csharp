@@ -12,7 +12,11 @@ window.setInterval(() => {
             headers: {
                 "Content-Type": "application/json; charset=utf-8"
             },
-            body: JSON.stringify(temp)
+            body: JSON.stringify(temp),
+            mode: "same-origin",
+            credentials: "same-origin",
+            redirect: "error",
+            referrer: "client"
         });
         console.log(temp);
     }
