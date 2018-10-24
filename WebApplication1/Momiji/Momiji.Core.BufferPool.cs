@@ -19,6 +19,11 @@ namespace Momiji.Core
         
         public Task Completion => bufferBlock.Completion;
 
+        ~BufferPool()
+        {
+            Dispose(false);
+        }
+
         public void Dispose()
         {
             Dispose(true);

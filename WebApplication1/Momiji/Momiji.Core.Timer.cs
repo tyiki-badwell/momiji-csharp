@@ -18,6 +18,11 @@ namespace Momiji.Core
             stopwatch = Stopwatch.StartNew();
         }
 
+        ~Timer()
+        {
+            Dispose(false);
+        }
+
         public long USec {
             get {
                 return (long)USecDouble;
@@ -63,7 +68,7 @@ namespace Momiji.Core
         private double Interval { get; }
         private CancellationToken Ct { get; }
         private double Before;
-        private SemaphoreSlim S { get; }
+        private SemaphoreSlim S { get; set; }
 
         public Waiter(Timer timer, double interval, CancellationToken ct)
         {
@@ -72,6 +77,11 @@ namespace Momiji.Core
             Ct = ct;
             Before = Timer.USecDouble;
             S = new SemaphoreSlim(1);
+        }
+
+        ~Waiter()
+        {
+            Dispose(false);
         }
 
         public void Dispose()
@@ -86,7 +96,12 @@ namespace Momiji.Core
 
             if (disposing)
             {
+            }
+
+            if (S != null)
+            {
                 S.Dispose();
+                S = null;
             }
 
             disposed = true;

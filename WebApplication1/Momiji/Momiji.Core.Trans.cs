@@ -26,6 +26,11 @@ namespace Momiji.Core.Trans
             Timer = timer;
         }
 
+        ~ToPcm()
+        {
+            Dispose(false);
+        }
+
         public void Dispose()
         {
             Dispose(true);

@@ -105,6 +105,11 @@ namespace Momiji.Core.Vst
             timeInfo.flags = VstTimeInfo.VstTimeInfoFlags.kVstTempoValid | VstTimeInfo.VstTimeInfoFlags.kVstNanosValid;
         }
 
+        ~AudioMaster()
+        {
+            Dispose(false);
+        }
+
         public Effect<T> AddEffect(string library)
         {
             var effect = new Effect<T>(library, this, LoggerFactory, Timer);
@@ -314,6 +319,11 @@ namespace Momiji.Core.Vst
                     Marshal.GetDelegateForFunctionPointer<AEffect.ProcessDoubleProc>(aeffect.processDoubleReplacing);
             }
 
+        }
+
+        ~Effect()
+        {
+            Dispose(false);
         }
 
         public void Execute(
@@ -550,11 +560,11 @@ namespace Momiji.Core.Vst
         {
             if (disposed) return;
 
+            Logger.LogInformation("[vst] stop");
+            Close();
+
             if (disposing)
             {
-                Logger.LogInformation("[vst] stop");
-                Close();
-
                 if (audioMasterCallBack != null)
                 {
                     audioMasterCallBack.Dispose();

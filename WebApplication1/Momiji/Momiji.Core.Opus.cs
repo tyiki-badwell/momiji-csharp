@@ -48,6 +48,11 @@ namespace Momiji.Core.Opus
             }
         }
 
+        ~OpusEncoder()
+        {
+            Dispose(false);
+        }
+
         public void Dispose()
         {
             Dispose(true);
@@ -60,11 +65,18 @@ namespace Momiji.Core.Opus
 
             if (disposing)
             {
-                if (encoder != null && !encoder.IsInvalid)
+            }
+
+            if (encoder != null)
+            {
+                if (
+                    !encoder.IsInvalid
+                    && !encoder.IsClosed
+                )
                 {
                     encoder.Close();
-                    encoder = null;
                 }
+                encoder = null;
             }
 
             disposed = true;

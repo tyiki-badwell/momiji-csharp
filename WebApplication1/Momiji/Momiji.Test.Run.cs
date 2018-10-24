@@ -386,6 +386,11 @@ namespace Momiji.Test.Run
                                 var midiDataStoreBlock =
                                     new ActionBlock<MIDIMessageEvent>(buffer => {
                                         fft.Receive(buffer);
+                                    },
+                                    new ExecutionDataflowBlockOptions
+                                    {
+                                        CancellationToken = ct,
+                                        MaxDegreeOfParallelism = 1
                                     });
                                 taskSet.Add(midiDataStoreBlock.Completion);
                                 midiEventOutput.LinkTo(midiDataStoreBlock);

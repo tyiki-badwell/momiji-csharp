@@ -202,6 +202,11 @@ namespace Momiji.Core.H264
             sFrameBSInfoBuffer = new SFrameBSInfoBuffer();
         }
 
+        ~H264Encoder()
+        {
+            Dispose(false);
+        }
+
         public void Dispose()
         {
             Dispose(true);
@@ -214,21 +219,28 @@ namespace Momiji.Core.H264
 
             if (disposing)
             {
-                Logger.LogInformation("[h264] stop");
+            }
 
-                if (Encoder != null && !Encoder.IsInvalid)
+            Logger.LogInformation("[h264] stop");
+
+            if (Encoder != null)
+            {
+                if (
+                    !Encoder.IsInvalid
+                    && !Encoder.IsClosed
+                )
                 {
                     Uninitialize(Encoder);
-
                     Encoder.Close();
-                    Encoder = null;
                 }
 
-                if (sFrameBSInfoBuffer != null)
-                {
-                    sFrameBSInfoBuffer.Dispose();
-                    sFrameBSInfoBuffer = null;
-                }
+                Encoder = null;
+            }
+
+            if (sFrameBSInfoBuffer != null)
+            {
+                sFrameBSInfoBuffer.Dispose();
+                sFrameBSInfoBuffer = null;
             }
 
             disposed = true;

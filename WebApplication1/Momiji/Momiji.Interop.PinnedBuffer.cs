@@ -62,6 +62,11 @@ namespace Momiji.Interop
             Log = new BufferLog();
         }
 
+        ~PinnedBuffer()
+        {
+            Dispose(false);
+        }
+
         public void Dispose()
         {
             Dispose(true);
@@ -75,10 +80,11 @@ namespace Momiji.Interop
             if (disposing)
             {
                 Log.Clear();
-                if (handle.IsAllocated)
-                {
-                    handle.Free();
-                }
+            }
+
+            if (handle.IsAllocated)
+            {
+                handle.Free();
             }
 
             disposed = true;
@@ -112,6 +118,11 @@ namespace Momiji.Interop
             handle = GCHandle.Alloc(buffer, GCHandleType.Normal);
         }
 
+        ~PinnedDelegate()
+        {
+            Dispose(false);
+        }
+
         public void Dispose()
         {
             Dispose(true);
@@ -124,10 +135,11 @@ namespace Momiji.Interop
 
             if (disposing)
             {
-                if (handle.IsAllocated)
-                {
-                    handle.Free();
-                }
+            }
+
+            if (handle.IsAllocated)
+            {
+                handle.Free();
             }
 
             disposed = true;

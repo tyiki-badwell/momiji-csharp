@@ -49,6 +49,11 @@ namespace Momiji.Core.FFT
             bitmap = new Bitmap(PicWidth, PicHeight, PixelFormat.Format24bppRgb);
         }
 
+        ~FFTEncoder()
+        {
+            Dispose(false);
+        }
+
         public void Dispose()
         {
             Dispose(true);
@@ -61,7 +66,11 @@ namespace Momiji.Core.FFT
 
             if (disposing)
             {
-                bitmap.Dispose();
+                if (bitmap != null)
+                {
+                    bitmap.Dispose();
+                    bitmap = null;
+                }
             }
 
             disposed = true;

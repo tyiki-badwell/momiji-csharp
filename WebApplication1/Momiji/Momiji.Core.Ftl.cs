@@ -62,6 +62,11 @@ namespace Momiji.Core.Ftl
             }
         }
 
+        ~FtlIngest()
+        {
+            Dispose(false);
+        }
+
         public void Dispose()
         {
             Dispose(true);
@@ -75,39 +80,40 @@ namespace Momiji.Core.Ftl
 
             if (disposing)
             {
-                if (handle != null)
+            }
+
+            if (handle != null)
+            {
+                Status status;
+                status = Handle.ftl_ingest_disconnect(handle.AddrOfPinnedObject);
+                Logger.LogInformation($"ftl_ingest_disconnect:{status}");
+
+                status = Handle.ftl_ingest_destroy(handle.AddrOfPinnedObject);
+                Logger.LogInformation($"ftl_ingest_destroy:{status}");
+
+                logCancel.Cancel();
+                if (logTask != null)
                 {
-                    Status status;
-                    status = Handle.ftl_ingest_disconnect(handle.AddrOfPinnedObject);
-                    Logger.LogInformation($"ftl_ingest_disconnect:{status}");
-
-                    status = Handle.ftl_ingest_destroy(handle.AddrOfPinnedObject);
-                    Logger.LogInformation($"ftl_ingest_destroy:{status}");
-
-                    logCancel.Cancel();
-                    if (logTask != null)
+                    try
                     {
-                        try
-                        {
-                            logTask.Wait();
-                        }
-                        catch (AggregateException e)
-                        {
-                            foreach (var v in e.InnerExceptions)
-                            {
-                                Logger.LogInformation($"FtlIngest Log Exception:{e.Message} {v.Message}");
-                            }
-                        }
-                        finally
-                        {
-                            logCancel.Dispose();
-                        }
-                        logTask = null;
+                        logTask.Wait();
                     }
-
-                    handle.Dispose();
-                    handle = null;
+                    catch (AggregateException e)
+                    {
+                        foreach (var v in e.InnerExceptions)
+                        {
+                            Logger.LogInformation($"FtlIngest Log Exception:{e.Message} {v.Message}");
+                        }
+                    }
+                    finally
+                    {
+                        logCancel.Dispose();
+                    }
+                    logTask = null;
                 }
+
+                handle.Dispose();
+                handle = null;
             }
         }
 

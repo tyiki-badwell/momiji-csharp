@@ -161,6 +161,11 @@ namespace Momiji.Core.Wave
             }
         }
 
+        ~WaveOut()
+        {
+            Dispose(false);
+        }
+
         public void Dispose()
         {
             Dispose(true);
@@ -173,39 +178,44 @@ namespace Momiji.Core.Wave
 
             if (disposing)
             {
-                Logger.LogInformation("[wave] stop");
+            }
 
-                if (handle != null)
+            if (handle != null)
+            {
+                if (
+                    !handle.IsInvalid
+                    && !handle.IsClosed
+                )
                 {
-                    if (
-                        !handle.IsInvalid
-                        && !handle.IsClosed
-                    )
+                    Logger.LogInformation("[wave] stop");
+                    Reset();
+
+                    //バッファの開放待ち
+                    Logger.LogInformation($"[wave] wait busy buffers :{headerBusyPool.Count}");
+                    while (headerBusyPool.Count > 0)
                     {
-                        Reset();
-
-                        //バッファの開放待ち
-                        Logger.LogInformation($"[wave] wait busy buffers :{headerBusyPool.Count}");
-                        while (headerBusyPool.Count > 0)
+                        IntPtr headerPtr = IntPtr.Zero;
+                        while (releaseQueue.TryReceive(out headerPtr))
                         {
-                            IntPtr headerPtr = IntPtr.Zero;
-                            while(releaseQueue.TryReceive(out headerPtr))
-                            {
-                                Unprepare(headerPtr);
-                            }
-
-                            Thread.Sleep(1000);
+                            Unprepare(headerPtr);
                         }
-                        Logger.LogInformation($"[wave] wait end :{headerBusyPool.Count}");
 
-                        headerPool.Dispose();
-                        headerPool = null;
-
-                        handle.Close();
+                        Thread.Sleep(1000);
                     }
-                }
+                    Logger.LogInformation($"[wave] wait end :{headerBusyPool.Count}");
 
+                    headerPool.Dispose();
+                    headerPool = null;
+
+                    handle.Close();
+                }
+                handle = null;
+            }
+
+            if (driverCallBack != null)
+            {
                 driverCallBack.Dispose();
+                driverCallBack = null;
             }
 
             disposed = true;

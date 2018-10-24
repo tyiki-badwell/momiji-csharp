@@ -1,6 +1,7 @@
 ﻿using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
+using Momiji.Test.Run;
 using System.Diagnostics;
 using WebApplication1.Models;
 
@@ -21,6 +22,18 @@ namespace WebApplication1.Controllers
 
         public IActionResult Index()
         {
+            return View("Index");
+        }
+
+        public IActionResult Start([FromServices]IRunner runner)
+        {
+            runner.Start();
+            return View("Index");
+        }
+
+        public IActionResult Stop([FromServices]IRunner runner)
+        {
+            runner.Stop();
             return View("Index");
         }
 
