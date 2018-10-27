@@ -126,7 +126,7 @@ namespace Momiji.Core.FFT
             using (var white = new SolidBrush(Color.White))
             {
                 g.FillRectangle(black, 0, 0, PicWidth, PicHeight);
-                foreach (var (k, v) in note)
+                foreach (var (k, v) in new Dictionary<byte, byte>(note)) //排他を掛けてないのでコピー
                 {
                     using (var pen = new SolidBrush(Color.FromArgb(v, v, 0)))
                     {

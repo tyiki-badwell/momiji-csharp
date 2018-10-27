@@ -260,3 +260,4 @@ paket-files/
 __pycache__/
 *.pyc
 /WebApplication1/Properties/PublishProfiles
+/WebApplication1/lib/64/ftl.dll__
