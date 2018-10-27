@@ -1,82 +1,85 @@
-﻿@inject Microsoft.Extensions.Configuration.IConfiguration configuration
+﻿@using Microsoft.Extensions.Configuration
+@inject IConfiguration configuration
 @{
     ViewData["Title"] = "Home Page";
-    var width = configuration.GetSection("Param:Width").Value;
-    var height = configuration.GetSection("Param:Height").Value;
+
+    var param = new Momiji.Test.Run.Param();
+    configuration.GetSection("Param").Bind(param);
+}
+@if (!param.Local)
+{
+    <iframe allowfullscreen="true" src="https://mixer.com/embed/player/tyiki?disableLowLatency=0" width="@(param.Width)" height="@(param.Height)" />
+    <br />
 }
 
-
-<iframe allowfullscreen="true" src="https://mixer.com/embed/player/tyiki?disableLowLatency=0" width=@width height=@height> </iframe>
-
-<br />
 <select id="midiout"></select>
 <br />
 <table>
     <tr>
         <td>
             C<br />
+            <input type="button" value="ON" data-short-message1="0x90" data-short-message2="0x3C" data-short-message3="0x40" /><br />
+            <input type="button" value="OFF" data-short-message1="0x80" data-short-message2="0x3C" data-short-message3="0x40" />
+        </td>
+        <td>
+            C#<br />
+            <input type="button" value="ON" data-short-message1="0x90" data-short-message2="0x3D" data-short-message3="0x40" /><br />
+            <input type="button" value="OFF" data-short-message1="0x80" data-short-message2="0x3D" data-short-message3="0x40" />
+        </td>
+        <td>
+            D<br />
+            <input type="button" value="ON" data-short-message1="0x90" data-short-message2="0x3E" data-short-message3="0x40" /><br />
+            <input type="button" value="OFF" data-short-message1="0x80" data-short-message2="0x3E" data-short-message3="0x40" />
+        </td>
+        <td>
+            D#<br />
+            <input type="button" value="ON" data-short-message1="0x90" data-short-message2="0x3F" data-short-message3="0x40" /><br />
+            <input type="button" value="OFF" data-short-message1="0x80" data-short-message2="0x3F" data-short-message3="0x40" />
+        </td>
+        <td>
+            E<br />
             <input type="button" value="ON" data-short-message1="0x90" data-short-message2="0x40" data-short-message3="0x40" /><br />
             <input type="button" value="OFF" data-short-message1="0x80" data-short-message2="0x40" data-short-message3="0x40" />
         </td>
         <td>
-            C#<br />
+            F<br />
             <input type="button" value="ON" data-short-message1="0x90" data-short-message2="0x41" data-short-message3="0x40" /><br />
             <input type="button" value="OFF" data-short-message1="0x80" data-short-message2="0x41" data-short-message3="0x40" />
         </td>
         <td>
-            D<br />
+            F#<br />
             <input type="button" value="ON" data-short-message1="0x90" data-short-message2="0x42" data-short-message3="0x40" /><br />
             <input type="button" value="OFF" data-short-message1="0x80" data-short-message2="0x42" data-short-message3="0x40" />
         </td>
         <td>
-            D#<br />
+            G<br />
             <input type="button" value="ON" data-short-message1="0x90" data-short-message2="0x43" data-short-message3="0x40" /><br />
             <input type="button" value="OFF" data-short-message1="0x80" data-short-message2="0x43" data-short-message3="0x40" />
         </td>
         <td>
-            E<br />
+            G#<br />
             <input type="button" value="ON" data-short-message1="0x90" data-short-message2="0x44" data-short-message3="0x40" /><br />
             <input type="button" value="OFF" data-short-message1="0x80" data-short-message2="0x44" data-short-message3="0x40" />
         </td>
         <td>
-            F<br />
+            A<br />
             <input type="button" value="ON" data-short-message1="0x90" data-short-message2="0x45" data-short-message3="0x40" /><br />
             <input type="button" value="OFF" data-short-message1="0x80" data-short-message2="0x45" data-short-message3="0x40" />
         </td>
         <td>
-            F#<br />
+            A#<br />
             <input type="button" value="ON" data-short-message1="0x90" data-short-message2="0x46" data-short-message3="0x40" /><br />
             <input type="button" value="OFF" data-short-message1="0x80" data-short-message2="0x46" data-short-message3="0x40" />
         </td>
         <td>
-            G<br />
+            B<br />
             <input type="button" value="ON" data-short-message1="0x90" data-short-message2="0x47" data-short-message3="0x40" /><br />
             <input type="button" value="OFF" data-short-message1="0x80" data-short-message2="0x47" data-short-message3="0x40" />
         </td>
         <td>
-            G#<br />
+            C<br />
             <input type="button" value="ON" data-short-message1="0x90" data-short-message2="0x48" data-short-message3="0x40" /><br />
             <input type="button" value="OFF" data-short-message1="0x80" data-short-message2="0x48" data-short-message3="0x40" />
-        </td>
-        <td>
-            A<br />
-            <input type="button" value="ON" data-short-message1="0x90" data-short-message2="0x49" data-short-message3="0x40" /><br />
-            <input type="button" value="OFF" data-short-message1="0x80" data-short-message2="0x49" data-short-message3="0x40" />
-        </td>
-        <td>
-            A#<br />
-            <input type="button" value="ON" data-short-message1="0x90" data-short-message2="0x4A" data-short-message3="0x40" /><br />
-            <input type="button" value="OFF" data-short-message1="0x80" data-short-message2="0x4A" data-short-message3="0x40" />
-        </td>
-        <td>
-            B<br />
-            <input type="button" value="ON" data-short-message1="0x90" data-short-message2="0x4B" data-short-message3="0x40" /><br />
-            <input type="button" value="OFF" data-short-message1="0x80" data-short-message2="0x4B" data-short-message3="0x40" />
-        </td>
-        <td>
-            C<br />
-            <input type="button" value="ON" data-short-message1="0x90" data-short-message2="0x4C" data-short-message3="0x40" /><br />
-            <input type="button" value="OFF" data-short-message1="0x80" data-short-message2="0x4C" data-short-message3="0x40" />
         </td>
     </tr>
 </table>

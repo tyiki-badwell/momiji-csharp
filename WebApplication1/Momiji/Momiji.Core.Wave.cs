@@ -74,6 +74,15 @@ namespace Momiji.Core.Wave
         { }
     }
 
+    class WaveHeaderBuffer : PinnedBuffer<WaveHeader>
+    {
+        int Wrote { get; set; }
+
+        internal WaveHeaderBuffer() : base(new WaveHeader())
+        {
+        }
+    }
+
     public class WaveOut<T> : IDisposable where T : struct
     {
         private ILoggerFactory LoggerFactory { get; }
@@ -82,10 +91,10 @@ namespace Momiji.Core.Wave
 
         private bool disposed = false;
 
-        private BufferPool<PinnedBuffer<WaveHeader>> headerPool;
+        private BufferPool<WaveHeaderBuffer> headerPool;
         private BufferBlock<IntPtr> releaseQueue = new BufferBlock<IntPtr>();
 
-        private IDictionary<IntPtr, PinnedBuffer<WaveHeader>> headerBusyPool = new ConcurrentDictionary<IntPtr, PinnedBuffer<WaveHeader>>();
+        private IDictionary<IntPtr, WaveHeaderBuffer> headerBusyPool = new ConcurrentDictionary<IntPtr, WaveHeaderBuffer>();
         private IDictionary<IntPtr, PcmBuffer<T>> dataBusyPool = new ConcurrentDictionary<IntPtr, PcmBuffer<T>>();
 
         private PinnedDelegate<DriverCallBack.Delegate> driverCallBack;
@@ -104,6 +113,7 @@ namespace Momiji.Core.Wave
         {
             if (uMsg == DriverCallBack.MM_EXT_WINDOW_MESSAGE.WOM_DONE)
             {
+                Logger.LogInformation($"[wave] WOM_DONE {dw1}");
                 releaseQueue.Post(dw1);
             }
         }
@@ -138,7 +148,7 @@ namespace Momiji.Core.Wave
             format.exp.channelMask = channelMask;
             format.exp.subFormat = formatSubType;
 
-            headerPool = new BufferPool<PinnedBuffer<WaveHeader>>(2, () => { return new PinnedBuffer<WaveHeader>(new WaveHeader()); }, LoggerFactory);
+            headerPool = new BufferPool<WaveHeaderBuffer>(2, () => { return new WaveHeaderBuffer(); }, LoggerFactory);
 
             driverCallBack = new PinnedDelegate<DriverCallBack.Delegate>(new DriverCallBack.Delegate(DriverCallBackProc));
 
@@ -250,12 +260,14 @@ namespace Momiji.Core.Wave
             }
             headerBusyPool.Add(header.AddrOfPinnedObject, header);
             dataBusyPool.Add(source.AddrOfPinnedObject, source);
+
+            Logger.LogInformation($"[wave] prepare [{header.AddrOfPinnedObject}] [{dataBusyPool.Count}]");
             return header.AddrOfPinnedObject;
         }
 
         private PcmBuffer<T> Unprepare(IntPtr headerPtr)
         {
-            headerBusyPool.Remove(headerPtr, out PinnedBuffer<WaveHeader> header);
+            headerBusyPool.Remove(headerPtr, out WaveHeaderBuffer header);
 
             var mmResult =
                 handle.waveOutUnprepareHeader(
@@ -270,6 +282,7 @@ namespace Momiji.Core.Wave
             dataBusyPool.Remove(header.Target.data, out PcmBuffer<T> source);
             headerPool.Post(header);
 
+            Logger.LogInformation($"[wave] unprepare [{headerPtr}][{dataBusyPool.Count}]");
             return source;
         }
 
@@ -363,7 +376,7 @@ namespace Momiji.Core.Wave
                     var headerPtr = releaseQueue.Receive(ct);
                     var source = Unprepare(headerPtr);
                     source.Log.Add("[wave] unprepare", Timer.USecDouble);
-                    //if (false)
+                    if (Logger.IsEnabled(LogLevel.Debug))
                     {
                         var log = "";
                         double? temp = null;
@@ -372,7 +385,7 @@ namespace Momiji.Core.Wave
                             log += $"\n[{ new DateTime((long)(a.time * 10), DateTimeKind.Utc):yyyy/MM/dd HH:mm:ss ffffff}][{a.time:0000000000.000}][{lap:0000000000.000}]{a.label}";
                             temp = a.time;
                         });
-                        Logger.LogInformation($"[wave] {source.Log.GetSpentTime()} {log}");
+                        Logger.LogDebug($"[wave] {source.Log.GetSpentTime()} {log}");
                     }
                     sourceReleaseQueue.Post(source);
                 }

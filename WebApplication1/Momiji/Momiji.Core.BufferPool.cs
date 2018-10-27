@@ -55,7 +55,6 @@ namespace Momiji.Core
             {
                 return item;
             }
-            Logger.LogInformation($"Receive AddBuffer[{GenericTypeName}]");
             return AddBuffer();
         }
 
@@ -66,7 +65,6 @@ namespace Momiji.Core
             {
                 return true;
             }
-            Logger.LogInformation($"TryReceive AddBuffer[{GenericTypeName}]");
             item = AddBuffer();
             return true;
         }
@@ -128,6 +126,7 @@ namespace Momiji.Core
         {
             var buffer = A();
             list.Add(buffer);
+            Logger.LogInformation($"AddBuffer[{GenericTypeName}] [{list.Count}]");
             return buffer;
         }
 
@@ -135,23 +134,5 @@ namespace Momiji.Core
         {
             return ((ITargetBlock<T>)bufferBlock).OfferMessage(messageHeader, messageValue, source, consumeToAccept);
         }
-
-        /*
-        public BufferBlock<T> MakeBufferBlock()
-        {
-            var result = MakeEmptyBufferBlock();
-            foreach (var item in list)
-            {
-                result.Post(item);
-            }
-            return result;
-        }
-
-        /*
-        public BufferBlock<T> MakeEmptyBufferBlock()
-        {
-            return new BufferBlock<T>();
-        }
-        */
     }
 }
