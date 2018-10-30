@@ -46,8 +46,9 @@ namespace Momiji.Core.H264
 
             if (disposing)
             {
-                buffer.Dispose();
             }
+
+            buffer.Dispose();
 
             disposed = true;
 
@@ -67,15 +68,27 @@ namespace Momiji.Core.H264
 
     public class SFrameBSInfoBuffer : PinnedBuffer<SFrameBSInfo>
     {
-        public List<FieldInfo> LayerInfoList { get; }
-
         public SFrameBSInfoBuffer() : base(new SFrameBSInfo())
         {
-            LayerInfoList = new List<FieldInfo>();
-            for (var idx = 0; idx < 128; idx++)
+        }
+    }
+
+    static class SFrameBSInfoBufferExtensions
+    {
+        static private List<FieldInfo> layerInfoList;
+
+        public static SLayerBSInfo sLayerInfo(this SFrameBSInfoBuffer self, int index)
+        {
+            if (layerInfoList == null)
             {
-                LayerInfoList.Add(typeof(SFrameBSInfo).GetField($"sLayerInfo{idx:000}"));
+                var temp = new List<FieldInfo>();
+                for (var idx = 0; idx < 128; idx++)
+                {
+                    temp.Add(typeof(SFrameBSInfo).GetField($"sLayerInfo{idx:000}"));
+                }
+                layerInfoList = temp;
             }
+            return (SLayerBSInfo)layerInfoList[index].GetValue(self.Target);
         }
     }
 
@@ -287,7 +300,7 @@ namespace Momiji.Core.H264
             var offset = 0;
             for (var idx = 0; idx < sFrameBSInfoBuffer.Target.iLayerNum; idx++)
             {
-                var layer = (SLayerBSInfo)sFrameBSInfoBuffer.LayerInfoList[idx].GetValue(sFrameBSInfoBuffer.Target);
+                var layer = sFrameBSInfoBuffer.sLayerInfo(idx);
 
                 var nuls = new List<(int offset, int length)>();
                 dest.LayerNuls.Add(nuls);

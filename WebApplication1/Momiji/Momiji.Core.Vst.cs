@@ -41,8 +41,10 @@ namespace Momiji.Core.Vst
 
             if (disposing)
             {
-                list.ForEach(buffer => { buffer.Dispose(); });
             }
+
+            list.ForEach(buffer => { buffer.Dispose(); });
+            list.Clear();
 
             disposed = true;
 
@@ -130,15 +132,16 @@ namespace Momiji.Core.Vst
 
             if (disposing)
             {
-                Logger.LogInformation("[vst host] stop");
-                foreach (var (ptr, effect) in effectMap)
-                {
-                    Logger.LogInformation("[vst] try stop");
-                    effect.Dispose();
-                }
-                effectMap.Clear();
-                vstTimeInfo.Dispose();
             }
+
+            Logger.LogInformation("[vst host] stop");
+            foreach (var (ptr, effect) in effectMap)
+            {
+                Logger.LogInformation("[vst] try stop");
+                effect.Dispose();
+            }
+            effectMap.Clear();
+            vstTimeInfo.Dispose();
 
             disposed = true;
         }
@@ -565,21 +568,22 @@ namespace Momiji.Core.Vst
 
             if (disposing)
             {
-                if (audioMasterCallBack != null)
-                {
-                    audioMasterCallBack.Dispose();
-                    audioMasterCallBack = null;
-                }
-
-                if (dll != null && !dll.IsInvalid)
-                {
-                    dll.Dispose();
-                    dll = null;
-                }
-
-                events.Dispose();
-                eventList.Dispose();
             }
+
+            if (audioMasterCallBack != null)
+            {
+                audioMasterCallBack.Dispose();
+                audioMasterCallBack = null;
+            }
+
+            if (dll != null && !dll.IsInvalid)
+            {
+                dll.Dispose();
+                dll = null;
+            }
+
+            events.Dispose();
+            eventList.Dispose();
 
             disposed = true;
         }

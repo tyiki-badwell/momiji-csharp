@@ -49,11 +49,12 @@ namespace Momiji.Core
 
             if (disposing)
             {
-                if (stopwatch != null)
-                {
-                    stopwatch.Stop();
-                    stopwatch = null;
-                }
+            }
+
+            if (stopwatch != null)
+            {
+                stopwatch.Stop();
+                stopwatch = null;
             }
 
             disposed = true;

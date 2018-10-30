@@ -34,14 +34,15 @@ namespace Momiji.Core
         {
             if (disposed) return;
 
+            Logger.LogInformation($"Dispose buffer size[{list.Count}][{GenericTypeName}]");
+            foreach (var item in list)
+            {
+                item.Dispose();
+            }
+            list.Clear();
+
             if (disposing)
             {
-                Logger.LogInformation($"Dispose buffer size[{list.Count}][{GenericTypeName}]");
-                foreach (var item in list)
-                {
-                    item.Dispose();
-                }
-                list.Clear();
                 list = null;
             }
 

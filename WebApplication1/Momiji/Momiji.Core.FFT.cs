@@ -66,11 +66,12 @@ namespace Momiji.Core.FFT
 
             if (disposing)
             {
-                if (bitmap != null)
-                {
-                    bitmap.Dispose();
-                    bitmap = null;
-                }
+            }
+
+            if (bitmap != null)
+            {
+                bitmap.Dispose();
+                bitmap = null;
             }
 
             disposed = true;
