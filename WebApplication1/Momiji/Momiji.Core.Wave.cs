@@ -286,29 +286,6 @@ namespace Momiji.Core.Wave
             return source;
         }
 
-        static public uint GetNumDevices()
-        {
-            return WaveOutMethod.waveOutGetNumDevs();
-        }
-
-        static public WaveOutCapabilities GetCapabilities(
-            uint deviceID
-        )
-        {
-            var caps = new WaveOutCapabilities();
-            var mmResult =
-                WaveOutMethod.waveOutGetDevCaps(
-                    deviceID,
-                    ref caps,
-                    (uint)Marshal.SizeOf<WaveOutCapabilities>()
-                );
-            if (mmResult != MMRESULT.NOERROR)
-            {
-                throw new WaveException(mmResult);
-            }
-            return caps;
-        }
-
         public void Send(IntPtr headerPtr)
         {
             if (

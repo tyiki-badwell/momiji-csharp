@@ -114,7 +114,7 @@ namespace Momiji.Core
             if (left > 0)
             {
                 //セマフォで時間調整を行う
-                S.Wait((int)(left / 1000), Ct);
+                S.Wait(new TimeSpan((long)(left * 10)), Ct);
             }
             else
             {
