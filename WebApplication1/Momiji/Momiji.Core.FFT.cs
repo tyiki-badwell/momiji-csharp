@@ -114,11 +114,10 @@ namespace Momiji.Core.FFT
 
         public void Execute(
             PcmBuffer<float> source,
-            H264InputBuffer dest
+            Task<H264InputBuffer> destTask
         )
         {
-            dest.Log.Marge(source.Log);
-            dest.Log.Add("[fft] start", Timer.USecDouble);
+            source.Log.Add("[fft] start", Timer.USecDouble);
 
             using (var g = Graphics.FromImage(bitmap))
             using (var fontFamily = new FontFamily(GenericFontFamilies.Monospace))
@@ -143,11 +142,13 @@ namespace Momiji.Core.FFT
 
                 g.DrawString($"{DateTimeOffset.FromUnixTimeMilliseconds(Timer.USec / 1000).ToUniversalTime():HH:mm:ss.fff}", font, white, PicWidth - 200, PicHeight - 20);
             }
-            dest.Log.Add("[fft] drawn", Timer.USecDouble);
+            source.Log.Add("[fft] drawn", Timer.USecDouble);
 
             var bitmapData = bitmap.LockBits(new Rectangle(0, 0, PicWidth, PicHeight), ImageLockMode.ReadOnly, PixelFormat.Format24bppRgb);
             try
             {
+                var dest = destTask.Result;
+                dest.Log.Marge(source.Log);
                 unsafe
                 {
                     var target = dest.Target;
@@ -187,12 +188,12 @@ namespace Momiji.Core.FFT
                         hOdd = !hOdd;
                     }
                 }
+                dest.Log.Add("[fft] end", Timer.USecDouble);
             }
             finally
             {
                 bitmap.UnlockBits(bitmapData);
             }
-            dest.Log.Add("[fft] end", Timer.USecDouble);
         }
     }
 }

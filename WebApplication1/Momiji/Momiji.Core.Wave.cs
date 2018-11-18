@@ -113,8 +113,8 @@ namespace Momiji.Core.Wave
         {
             if (uMsg == DriverCallBack.MM_EXT_WINDOW_MESSAGE.WOM_DONE)
             {
-                Logger.LogInformation($"[wave] WOM_DONE {dw1}");
-                releaseQueue.Post(dw1);
+                Logger.LogDebug($"[wave] WOM_DONE {dw1}");
+                releaseQueue.SendAsync(dw1);
             }
         }
 
@@ -148,7 +148,7 @@ namespace Momiji.Core.Wave
             format.exp.channelMask = channelMask;
             format.exp.subFormat = formatSubType;
 
-            headerPool = new BufferPool<WaveHeaderBuffer>(2, () => { return new WaveHeaderBuffer(); }, LoggerFactory);
+            headerPool = new BufferPool<WaveHeaderBuffer>(1, () => { return new WaveHeaderBuffer(); }, LoggerFactory);
 
             driverCallBack = new PinnedDelegate<DriverCallBack.Delegate>(new DriverCallBack.Delegate(DriverCallBackProc));
 
@@ -255,7 +255,7 @@ namespace Momiji.Core.Wave
                 );
             if (mmResult != MMRESULT.NOERROR)
             {
-                headerPool.Post(header);
+                headerPool.SendAsync(header);
                 throw new WaveException(mmResult);
             }
             headerBusyPool.Add(header.AddrOfPinnedObject, header);
@@ -280,13 +280,13 @@ namespace Momiji.Core.Wave
             }
 
             dataBusyPool.Remove(header.Target.data, out PcmBuffer<T> source);
-            headerPool.Post(header);
+            headerPool.SendAsync(header);
 
             Logger.LogInformation($"[wave] unprepare [{headerPtr}][{dataBusyPool.Count}]");
             return source;
         }
 
-        public void Send(IntPtr headerPtr)
+        private void Send(IntPtr headerPtr)
         {
             if (
                 handle.IsInvalid
@@ -308,7 +308,7 @@ namespace Momiji.Core.Wave
             }
         }
 
-        public void Reset()
+        private void Reset()
         {
             if (
                 handle.IsInvalid
@@ -330,6 +330,7 @@ namespace Momiji.Core.Wave
             CancellationToken ct
         )
         {
+            Logger.LogInformation($"[wave] execute [{source.AddrOfPinnedObject}]");
             source.Log.Add("[wave] send start", Timer.USecDouble);
             var headerPtr = Prepare(source, ct);
             Send(headerPtr);
@@ -364,7 +365,8 @@ namespace Momiji.Core.Wave
                         });
                         Logger.LogDebug($"[wave] {source.Log.GetSpentTime()} {log}");
                     }
-                    sourceReleaseQueue.Post(source);
+                    Logger.LogInformation($"[wave] release [{source.AddrOfPinnedObject}]");
+                    sourceReleaseQueue.SendAsync(source);
                 }
                 Logger.LogInformation("[wave] release loop end");
             });

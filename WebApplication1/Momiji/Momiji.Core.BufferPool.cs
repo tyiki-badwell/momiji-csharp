@@ -61,13 +61,7 @@ namespace Momiji.Core
 
         public bool TryReceive(Predicate<T> filter, out T item)
         {
-            var result = bufferBlock.TryReceive(filter, out item);
-            if (result)
-            {
-                return true;
-            }
-            item = AddBuffer();
-            return true;
+            return bufferBlock.TryReceive(filter, out item);
         }
 
         public bool TryReceiveAll(out IList<T> items)
@@ -105,6 +99,11 @@ namespace Momiji.Core
             ((IReceivableSourceBlock<T>)bufferBlock).Fault(exception);
         }
 
+        public DataflowMessageStatus OfferMessage(DataflowMessageHeader messageHeader, T messageValue, ISourceBlock<T> source, bool consumeToAccept)
+        {
+            return ((ITargetBlock<T>)bufferBlock).OfferMessage(messageHeader, messageValue, source, consumeToAccept);
+        }
+
         public delegate T Allocator();
         private Allocator A { get; }
         private string GenericTypeName { get; }
@@ -119,7 +118,7 @@ namespace Momiji.Core
             A = a;
             for (var i = 0; i < size; i++)
             {
-                bufferBlock.Post(AddBuffer());
+                bufferBlock.SendAsync(AddBuffer());
             }
         }
 
@@ -129,11 +128,6 @@ namespace Momiji.Core
             list.Add(buffer);
             Logger.LogInformation($"AddBuffer[{GenericTypeName}] [{list.Count}]");
             return buffer;
-        }
-
-        public DataflowMessageStatus OfferMessage(DataflowMessageHeader messageHeader, T messageValue, ISourceBlock<T> source, bool consumeToAccept)
-        {
-            return ((ITargetBlock<T>)bufferBlock).OfferMessage(messageHeader, messageValue, source, consumeToAccept);
         }
     }
 }

@@ -8,6 +8,7 @@ using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Runtime.InteropServices;
+using System.Threading.Tasks;
 using System.Threading.Tasks.Dataflow;
 
 namespace Momiji.Core.Vst
@@ -331,7 +332,7 @@ namespace Momiji.Core.Vst
 
         public void Execute(
             VstBuffer<T> source,
-            PcmBuffer<T> dest,
+            Task<PcmBuffer<T>> destTask,
             IReceivableSourceBlock<MIDIMessageEvent> midiEventInput,
             ITargetBlock<MIDIMessageEvent> midiEventOutput = null
         )
@@ -350,7 +351,7 @@ namespace Momiji.Core.Vst
                         list.Add(midiEvent);
                         if (midiEventOutput != null)
                         {
-                            midiEventOutput.Post(midiEvent);
+                            midiEventOutput.SendAsync(midiEvent);
                         }
                     }
                 }
@@ -412,6 +413,7 @@ namespace Momiji.Core.Vst
                 blockSize
             );
             source.Log.Add("[vst] end processReplacing", Timer.USecDouble);
+            var dest = destTask.Result;
             unsafe
             {
                 dest.Log.Marge(source.Log);
