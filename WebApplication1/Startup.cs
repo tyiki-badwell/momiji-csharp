@@ -10,7 +10,10 @@ using Momiji.Interop.Kernel32;
 using Momiji.Test.Run;
 using System;
 using System.IO;
+using System.Net.WebSockets;
 using System.Reflection;
+using System.Threading;
+using System.Threading.Tasks;
 
 namespace WebApplication1
 {
@@ -64,6 +67,22 @@ namespace WebApplication1
             app.UseHttpsRedirection();
             app.UseStaticFiles();
             app.UseCookiePolicy();
+
+            app.Map("/ws", subApp => {
+                subApp.UseWebSockets();
+                subApp.Use(async (context, next) =>
+                {
+                    if (context.WebSockets.IsWebSocketRequest)
+                    {
+                        WebSocket webSocket = await context.WebSockets.AcceptWebSocketAsync();
+                        await app.ApplicationServices.GetService<IRunner>().Play(webSocket);
+                    }
+                    else
+                    {
+                        context.Response.StatusCode = 400;
+                    }
+                });
+            });
 
             app.UseMvc(routes =>
             {

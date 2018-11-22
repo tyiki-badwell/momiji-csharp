@@ -12,6 +12,7 @@ using Momiji.Interop.Opus;
 using Momiji.Interop.Wave;
 using System;
 using System.Collections.Generic;
+using System.Net.WebSockets;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Threading.Tasks.Dataflow;
@@ -25,7 +26,7 @@ namespace Momiji.Test.Run
 
         bool Start2();
         void Note(MIDIMessageEvent[] midiMessage);
-
+        Task Play(WebSocket webSocket);
     }
 
     public class Param
@@ -445,6 +446,11 @@ namespace Momiji.Test.Run
                 );
                 midiEventInput.SendAsync(item);
             }
+        }
+
+        public async Task Play(WebSocket webSocket)
+        {
+            await webSocket.SendAsync(new ReadOnlyMemory<byte>(), WebSocketMessageType.Binary, false, CancellationToken.None);
         }
     }
 }
