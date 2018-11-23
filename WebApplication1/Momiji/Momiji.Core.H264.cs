@@ -326,7 +326,7 @@ namespace Momiji.Core.H264
                 throw new H264Exception($"too large {Length} max {maxLength}");
             }
             var destSpan = new Span<byte>((byte*)Destination, maxLength);
-            var sourceSpan = new Span<byte>((byte*)Source, Length);
+            var sourceSpan = new ReadOnlySpan<byte>((byte*)Source, Length);
             sourceSpan.CopyTo(destSpan);
         }
 

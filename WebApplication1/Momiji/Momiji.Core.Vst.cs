@@ -420,8 +420,8 @@ namespace Momiji.Core.Vst
 
                 var targetIdx = 0;
                 var target = new Span<T>(dest.Target);
-                var left = new Span<T>(source[0]);
-                var right = new Span<T>(source[1]);
+                var left = new ReadOnlySpan<T>(source[0]);
+                var right = new ReadOnlySpan<T>(source[1]);
 
                 dest.Log.Add("[to pcm] start", Timer.USecDouble);
                 for (var idx = 0; idx < left.Length; idx++)

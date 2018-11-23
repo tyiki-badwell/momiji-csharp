@@ -85,11 +85,11 @@
         var ws = new WebSocket('ws://' + document.location.host + '/ws');
         ws.addEventListener('open', function (e) {
             console.log('open ok.');
+            ws.send("hello.");
         });
         ws.addEventListener('message', function (e) {
             console.log(e.data);
         });
-        ws.send("test");
     }
 
 };

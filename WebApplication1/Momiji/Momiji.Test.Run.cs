@@ -24,7 +24,6 @@ namespace Momiji.Test.Run
         bool Start();
         bool Stop();
 
-        bool Start2();
         void Note(MIDIMessageEvent[] midiMessage);
         Task Play(WebSocket webSocket);
     }
@@ -105,11 +104,11 @@ namespace Momiji.Test.Run
             processCancel = new CancellationTokenSource();
             if (Param.Local)
             {
-                processTask = Loop2(processCancel);
+                processTask = Loop2();
             }
             else
             {
-                processTask = Loop3(processCancel);
+                processTask = Loop3();
             }
 
             return true;
@@ -145,7 +144,7 @@ namespace Momiji.Test.Run
             return true;
         }
 
-        private async Task Loop3(CancellationTokenSource processCancel)
+        private async Task Loop3()
         {
             var ct = processCancel.Token;
 
@@ -316,18 +315,7 @@ namespace Momiji.Test.Run
             }
         }
 
-        public bool Start2()
-        {
-            if (processCancel != null)
-            {
-                return false;
-            }
-            processCancel = new CancellationTokenSource();
-            processTask = Loop2(processCancel);
-            return true;
-        }
-
-        private async Task Loop2(CancellationTokenSource processCancel)
+        private async Task Loop2()
         {
             var ct = processCancel.Token;
 
@@ -450,7 +438,22 @@ namespace Momiji.Test.Run
 
         public async Task Play(WebSocket webSocket)
         {
-            await webSocket.SendAsync(new ReadOnlyMemory<byte>(), WebSocketMessageType.Binary, false, CancellationToken.None);
+            var ct = processCancel.Token;
+            var text = new byte[] { 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 0 };
+            Logger.LogInformation("websocket start");
+            using (var timer = new Core.Timer())
+            using (var waiter = new Waiter(timer, 1000000, ct))
+            {
+                while (webSocket.State == WebSocketState.Open)
+                {
+                    var task = webSocket.SendAsync(text, WebSocketMessageType.Binary, false, ct);
+                    task.Wait();
+                    waiter.Wait();
+                    Logger.LogInformation("websocket send");
+                    //await webSocket.ReceiveAsync(text, ct);
+                }
+            }
+            Logger.LogInformation("websocket end");
         }
     }
 }

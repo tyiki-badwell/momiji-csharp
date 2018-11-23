@@ -261,7 +261,7 @@ namespace Momiji.Core.Wave
             headerBusyPool.Add(header.AddrOfPinnedObject, header);
             dataBusyPool.Add(source.AddrOfPinnedObject, source);
 
-            Logger.LogInformation($"[wave] prepare [{header.AddrOfPinnedObject}] [{dataBusyPool.Count}]");
+            Logger.LogDebug($"[wave] prepare [{header.AddrOfPinnedObject}] [{dataBusyPool.Count}]");
             return header.AddrOfPinnedObject;
         }
 
@@ -282,7 +282,7 @@ namespace Momiji.Core.Wave
             dataBusyPool.Remove(header.Target.data, out PcmBuffer<T> source);
             headerPool.SendAsync(header);
 
-            Logger.LogInformation($"[wave] unprepare [{headerPtr}][{dataBusyPool.Count}]");
+            Logger.LogDebug($"[wave] unprepare [{headerPtr}][{dataBusyPool.Count}]");
             return source;
         }
 
@@ -330,7 +330,7 @@ namespace Momiji.Core.Wave
             CancellationToken ct
         )
         {
-            Logger.LogInformation($"[wave] execute [{source.AddrOfPinnedObject}]");
+            Logger.LogDebug($"[wave] execute [{source.AddrOfPinnedObject}]");
             source.Log.Add("[wave] send start", Timer.USecDouble);
             var headerPtr = Prepare(source, ct);
             Send(headerPtr);
@@ -365,7 +365,7 @@ namespace Momiji.Core.Wave
                         });
                         Logger.LogDebug($"[wave] {source.Log.GetSpentTime()} {log}");
                     }
-                    Logger.LogInformation($"[wave] release [{source.AddrOfPinnedObject}]");
+                    Logger.LogDebug($"[wave] release [{source.AddrOfPinnedObject}]");
                     sourceReleaseQueue.SendAsync(source);
                 }
                 Logger.LogInformation("[wave] release loop end");
