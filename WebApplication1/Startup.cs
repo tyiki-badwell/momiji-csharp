@@ -74,8 +74,10 @@ namespace WebApplication1
                 {
                     if (context.WebSockets.IsWebSocketRequest)
                     {
-                        WebSocket webSocket = await context.WebSockets.AcceptWebSocketAsync();
-                        await app.ApplicationServices.GetService<IRunner>().Play(webSocket);
+                        using (var webSocket = await context.WebSockets.AcceptWebSocketAsync())
+                        {
+                            await app.ApplicationServices.GetService<IRunner>().Play(webSocket);
+                        }
                     }
                     else
                     {

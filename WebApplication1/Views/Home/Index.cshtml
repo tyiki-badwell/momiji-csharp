@@ -6,11 +6,16 @@
     var param = new Momiji.Test.Run.Param();
     configuration.GetSection("Param").Bind(param);
 }
-@if (!param.Local)
+@if (param.Local)
+{
+    <video id="video-area">v</video>
+    <audio id="audio-area">a</audio>
+}
+else
 {
     <iframe allowfullscreen="true" src="https://mixer.com/embed/player/tyiki?disableLowLatency=0" width="@(param.Width)" height="@(param.Height)"></iframe>
-    <br />
 }
+<br />
 
 <select id="midiout"></select>
 <br />

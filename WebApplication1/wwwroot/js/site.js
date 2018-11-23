@@ -79,4 +79,17 @@
         var midioutSelect = document.querySelector('#midiout');
         midioutSelect.remove();
     }
+
+    var audio = document.querySelector('#audio-area');
+    if (audio) {
+        var ws = new WebSocket('ws://' + document.location.host + '/ws');
+        ws.addEventListener('open', function (e) {
+            console.log('open ok.');
+        });
+        ws.addEventListener('message', function (e) {
+            console.log(e.data);
+        });
+        ws.send("test");
+    }
+
 };
