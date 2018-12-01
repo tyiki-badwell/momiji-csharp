@@ -438,21 +438,83 @@ namespace Momiji.Test.Run
 
         public async Task Play(WebSocket webSocket)
         {
-            var ct = processCancel.Token;
-            var text = new byte[] { 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 0 };
             Logger.LogInformation("websocket start");
-            using (var timer = new Core.Timer())
-            using (var waiter = new Waiter(timer, 1000000, ct))
+
+            var taskSet = new HashSet<Task>();
+            var ct = processCancel.Token;
+
+            taskSet.Add(Task.Run(() =>
             {
+                ct.ThrowIfCancellationRequested();
+
+                var buf = new byte[1024];
+
                 while (webSocket.State == WebSocketState.Open)
                 {
-                    var task = webSocket.SendAsync(text, WebSocketMessageType.Binary, false, ct);
-                    task.Wait();
-                    waiter.Wait();
-                    Logger.LogInformation("websocket send");
-                    //await webSocket.ReceiveAsync(text, ct);
+                    if (ct.IsCancellationRequested)
+                    {
+                        break;
+                    }
+                    Logger.LogInformation("websocket try receive");
+                    var task = webSocket.ReceiveAsync(buf, ct);
+                    task.Wait(ct);
+                    Logger.LogInformation($"websocket receive");
+
+                    var item = new MIDIMessageEvent();
+                    unsafe
+                    {
+                        var s = new Span<byte>(buf);
+                        fixed (byte* p = &s.GetPinnableReference()) {
+                            item.receivedTime = *(double*)p;
+                        }
+                        item.data = s.Slice(8, 4).ToArray();
+                    }
+                    midiEventInput.SendAsync(item);
+
+                    Logger.LogInformation(".");
+                }
+            }));
+
+            taskSet.Add(Task.Run(() =>
+            {
+                ct.ThrowIfCancellationRequested();
+
+                var text = new byte[] { 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 0 };
+
+                using (var timer = new Core.Timer())
+                using (var waiter = new Waiter(timer, 1000000, ct))
+                {
+                    while (webSocket.State == WebSocketState.Open)
+                    {
+                        if (ct.IsCancellationRequested)
+                        {
+                            break;
+                        }
+
+                        var task = webSocket.SendAsync(text, WebSocketMessageType.Binary, false, ct);
+                        task.Wait(ct);
+                        waiter.Wait();
+                        Logger.LogInformation("websocket send");
+                    }
+                }
+            }));
+
+            while (taskSet.Count > 0)
+            {
+                var any = Task.WhenAny(taskSet);
+                await any.ConfigureAwait(false);
+                var task = any.Result;
+                taskSet.Remove(task);
+                if (task.IsFaulted)
+                {
+                    processCancel.Cancel();
+                    foreach (var v in task.Exception.InnerExceptions)
+                    {
+                        Logger.LogInformation($"Process Exception:{task.Exception.Message} {v.Message}");
+                    }
                 }
             }
+
             Logger.LogInformation("websocket end");
         }
     }
