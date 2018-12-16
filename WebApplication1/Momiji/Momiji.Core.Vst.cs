@@ -210,6 +210,8 @@ namespace Momiji.Core.Vst
         private PinnedBuffer<byte[]> events;
         private PinnedBuffer<byte[]> eventList;
 
+        private double beforeTime;
+
         internal Effect(string library, AudioMaster<T> audioMaster, ILoggerFactory loggerFactory, Timer timer)
         {
             LoggerFactory = loggerFactory;
@@ -323,6 +325,7 @@ namespace Momiji.Core.Vst
                     Marshal.GetDelegateForFunctionPointer<AEffect.ProcessDoubleProc>(aeffect.processDoubleReplacing);
             }
 
+            beforeTime = Timer.USecDouble;
         }
 
         ~Effect()
@@ -337,6 +340,9 @@ namespace Momiji.Core.Vst
             ITargetBlock<MIDIMessageEvent> midiEventOutput = null
         )
         {
+            var nowTime = Timer.USecDouble;
+            Logger.LogInformation($"[vst] start {DateTimeOffset.FromUnixTimeMilliseconds((long)(nowTime / 1000)).ToUniversalTime():HH:mm:ss.fff} {nowTime - beforeTime}");
+
             var blockSize = audioMaster.BlockSize;
             var sizeVstEvents = Marshal.SizeOf<VstEvents>();
             var sizeVstMidiEvent = Marshal.SizeOf<VstMidiEvent>();
@@ -347,6 +353,13 @@ namespace Momiji.Core.Vst
                 {
                     while (midiEventInput.TryReceive(out MIDIMessageEvent midiEvent))
                     {
+                        Logger.LogInformation(
+                            $"note {DateTimeOffset.FromUnixTimeMilliseconds((long)(Timer.USecDouble/1000)).ToUniversalTime():HH:mm:ss.fff} {DateTimeOffset.FromUnixTimeMilliseconds((long)midiEvent.receivedTime).ToUniversalTime():HH:mm:ss.fff} => " +
+                            ((midiEvent.data.Length >= 1) ? $"{midiEvent.data[0]:X2}" : "") +
+                            ((midiEvent.data.Length >= 2) ? $"{midiEvent.data[1]:X2}" : "") +
+                            ((midiEvent.data.Length >= 3) ? $"{midiEvent.data[2]:X2}" : "") +
+                            ((midiEvent.data.Length >= 4) ? $"{midiEvent.data[3]:X2}" : "")
+                        );
                         source.Log.Add($"[vst] midiEvent {midiEvent.data}", midiEvent.receivedTime * 1000);
                         list.Add(midiEvent);
                         if (midiEventOutput != null)
@@ -376,7 +389,7 @@ namespace Momiji.Core.Vst
                         {
                             type = VstEvent.VstEventTypes.kVstMidiType,
                             byteSize = Marshal.SizeOf<VstMidiEvent>(),
-                            deltaFrames = 0,
+                            deltaFrames = 0, //TODO 計算して差分を入れる
                             flags = VstMidiEvent.VstMidiEventFlags.kVstMidiEventIsRealtime,
 
                             midiData0 = midiEvent.data[0],
@@ -402,6 +415,7 @@ namespace Momiji.Core.Vst
                         0
                     );
                     source.Log.Add("[vst] end effProcessEvents", Timer.USecDouble);
+                    Logger.LogInformation($"[vst] end effProcessEvents {DateTimeOffset.FromUnixTimeMilliseconds((long)(Timer.USecDouble/1000)).ToUniversalTime():HH:mm:ss.fff}");
                 }
             }
 
@@ -431,6 +445,8 @@ namespace Momiji.Core.Vst
                 }
                 dest.Log.Add("[to pcm] end", Timer.USecDouble);
             }
+
+            beforeTime = nowTime;
         }
 
         internal void Open()

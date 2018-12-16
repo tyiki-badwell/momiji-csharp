@@ -650,29 +650,36 @@ namespace Momiji.Test.Run
 
                 var buf = new byte[1024];
 
-                while (webSocket.State == WebSocketState.Open)
-                {
-                    if (ct.IsCancellationRequested)
+                using (var timer = new Core.Timer()) {
+                    while (webSocket.State == WebSocketState.Open)
                     {
-                        break;
-                    }
-                    Logger.LogInformation("websocket try receive");
-                    var task = webSocket.ReceiveAsync(buf, ct);
-                    task.Wait(ct);
-                    Logger.LogInformation("websocket receive");
-
-                    var item = new MIDIMessageEvent();
-                    unsafe
-                    {
-                        var s = new Span<byte>(buf);
-                        fixed (byte* p = &s.GetPinnableReference()) {
-                            item.receivedTime = *(double*)p;
+                        if (ct.IsCancellationRequested)
+                        {
+                            break;
                         }
-                        item.data = s.Slice(8, 4).ToArray();
-                    }
-                    midiEventInput.SendAsync(item);
+                        //Logger.LogInformation("websocket try receive");
+                        var task = webSocket.ReceiveAsync(buf, ct);
+                        task.Wait(ct);
 
-                    Logger.LogInformation(".");
+                        var item = new MIDIMessageEvent();
+                        unsafe
+                        {
+                            var s = new Span<byte>(buf);
+                            fixed (byte* p = &s.GetPinnableReference())
+                            {
+                                item.receivedTime = *(double*)p;
+                            }
+                            item.data = s.Slice(8, 4).ToArray();
+                        }
+                        Logger.LogInformation(
+                            $"note {DateTimeOffset.FromUnixTimeMilliseconds((long)(timer.USecDouble / 1000)).ToUniversalTime():HH:mm:ss.fff} {DateTimeOffset.FromUnixTimeMilliseconds((long)item.receivedTime).ToUniversalTime():HH:mm:ss.fff} => " +
+                            ((item.data.Length >= 1) ? $"{item.data[0]:X2}" : "") +
+                            ((item.data.Length >= 2) ? $"{item.data[1]:X2}" : "") +
+                            ((item.data.Length >= 3) ? $"{item.data[2]:X2}" : "") +
+                            ((item.data.Length >= 4) ? $"{item.data[3]:X2}" : "")
+                        );
+                        midiEventInput.SendAsync(item);
+                    }
                 }
             }));
 
