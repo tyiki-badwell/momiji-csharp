@@ -3,6 +3,9 @@
     public struct MIDIMessageEvent
     {
         public double receivedTime;
-        public byte[] data;
+        public byte data0;
+        public byte data1;
+        public byte data2;
+        public byte data3;
     }
 }

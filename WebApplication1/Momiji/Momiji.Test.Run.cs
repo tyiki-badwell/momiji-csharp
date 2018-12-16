@@ -619,16 +619,16 @@ namespace Momiji.Test.Run
             List<MIDIMessageEvent> list = new List<MIDIMessageEvent>(midiMessage);
             list.Sort((a, b) => (int)(a.receivedTime - b.receivedTime));
             
-            foreach (var item in list)
+            foreach (var midiEvent in list)
             {
                 Logger.LogInformation(
-                    $"note {DateTimeOffset.FromUnixTimeMilliseconds((long)item.receivedTime).ToUniversalTime():HH:mm:ss.fff} => " +
-                    ((item.data.Length >= 1) ? $"{item.data[0]:X2}" : "") +
-                    ((item.data.Length >= 2) ? $"{item.data[1]:X2}" : "") +
-                    ((item.data.Length >= 3) ? $"{item.data[2]:X2}" : "") +
-                    ((item.data.Length >= 4) ? $"{item.data[3]:X2}" : "")
+                    $"note {DateTimeOffset.FromUnixTimeMilliseconds((long)midiEvent.receivedTime).ToUniversalTime():HH:mm:ss.fff} => " +
+                    $"{midiEvent.data0:X2}" +
+                    $"{midiEvent.data1:X2}" +
+                    $"{midiEvent.data2:X2}" +
+                    $"{midiEvent.data3:X2}"
                 );
-                midiEventInput.SendAsync(item);
+                midiEventInput.SendAsync(midiEvent);
             }
         }
 
@@ -660,25 +660,30 @@ namespace Momiji.Test.Run
                         //Logger.LogInformation("websocket try receive");
                         var task = webSocket.ReceiveAsync(buf, ct);
                         task.Wait(ct);
+                        var result = task.Result;
+                        if (result.CloseStatus != null)
+                        {
+                            break;
+                        }
 
-                        var item = new MIDIMessageEvent();
+                        MIDIMessageEvent midiEvent;
                         unsafe
                         {
                             var s = new Span<byte>(buf);
                             fixed (byte* p = &s.GetPinnableReference())
                             {
-                                item.receivedTime = *(double*)p;
+                                midiEvent = *(MIDIMessageEvent*)p;
                             }
-                            item.data = s.Slice(8, 4).ToArray();
                         }
                         Logger.LogInformation(
-                            $"note {DateTimeOffset.FromUnixTimeMilliseconds((long)(timer.USecDouble / 1000)).ToUniversalTime():HH:mm:ss.fff} {DateTimeOffset.FromUnixTimeMilliseconds((long)item.receivedTime).ToUniversalTime():HH:mm:ss.fff} => " +
-                            ((item.data.Length >= 1) ? $"{item.data[0]:X2}" : "") +
-                            ((item.data.Length >= 2) ? $"{item.data[1]:X2}" : "") +
-                            ((item.data.Length >= 3) ? $"{item.data[2]:X2}" : "") +
-                            ((item.data.Length >= 4) ? $"{item.data[3]:X2}" : "")
+                            $"note {DateTimeOffset.FromUnixTimeMilliseconds((long)(timer.USecDouble / 1000)).ToUniversalTime():HH:mm:ss.fff} {DateTimeOffset.FromUnixTimeMilliseconds((long)midiEvent.receivedTime).ToUniversalTime():HH:mm:ss.fff} => " +
+                            $"{midiEvent.data0:X2}" +
+                            $"{midiEvent.data1:X2}" +
+                            $"{midiEvent.data2:X2}" +
+                            $"{midiEvent.data3:X2}"
                         );
-                        midiEventInput.SendAsync(item);
+                        midiEvent.receivedTime = timer.USecDouble / 1000;
+                        midiEventInput.SendAsync(midiEvent);
                     }
                 }
             }));
@@ -704,6 +709,8 @@ namespace Momiji.Test.Run
                 }
             }
             webSocketPool.Remove(webSocket);
+            webSocket.Dispose();
+            webSocket = null;
 
             Logger.LogInformation("websocket end");
         }

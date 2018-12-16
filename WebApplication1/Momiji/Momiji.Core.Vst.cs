@@ -343,6 +343,7 @@ namespace Momiji.Core.Vst
             var nowTime = Timer.USecDouble;
             Logger.LogInformation($"[vst] start {DateTimeOffset.FromUnixTimeMilliseconds((long)(nowTime / 1000)).ToUniversalTime():HH:mm:ss.fff} {nowTime - beforeTime}");
 
+            var samplingRate = audioMaster.SamplingRate;
             var blockSize = audioMaster.BlockSize;
             var sizeVstEvents = Marshal.SizeOf<VstEvents>();
             var sizeVstMidiEvent = Marshal.SizeOf<VstMidiEvent>();
@@ -351,20 +352,20 @@ namespace Momiji.Core.Vst
             {
                 var list = new List<MIDIMessageEvent>();
                 {
-                    while (midiEventInput.TryReceive(out MIDIMessageEvent midiEvent))
+                    while (midiEventInput.TryReceive(out MIDIMessageEvent item))
                     {
                         Logger.LogInformation(
-                            $"note {DateTimeOffset.FromUnixTimeMilliseconds((long)(Timer.USecDouble/1000)).ToUniversalTime():HH:mm:ss.fff} {DateTimeOffset.FromUnixTimeMilliseconds((long)midiEvent.receivedTime).ToUniversalTime():HH:mm:ss.fff} => " +
-                            ((midiEvent.data.Length >= 1) ? $"{midiEvent.data[0]:X2}" : "") +
-                            ((midiEvent.data.Length >= 2) ? $"{midiEvent.data[1]:X2}" : "") +
-                            ((midiEvent.data.Length >= 3) ? $"{midiEvent.data[2]:X2}" : "") +
-                            ((midiEvent.data.Length >= 4) ? $"{midiEvent.data[3]:X2}" : "")
+                            $"note {DateTimeOffset.FromUnixTimeMilliseconds((long)(Timer.USecDouble/1000)).ToUniversalTime():HH:mm:ss.fff} {DateTimeOffset.FromUnixTimeMilliseconds((long)item.receivedTime).ToUniversalTime():HH:mm:ss.fff} => " +
+                            $"{item.data0:X2}" +
+                            $"{item.data1:X2}" +
+                            $"{item.data2:X2}" +
+                            $"{item.data3:X2}"
                         );
-                        source.Log.Add($"[vst] midiEvent {midiEvent.data}", midiEvent.receivedTime * 1000);
-                        list.Add(midiEvent);
+                        source.Log.Add($"[vst] midiEvent {item.data0:X2}{item.data1:X2}{item.data2:X2}{item.data3:X2}", item.receivedTime * 1000);
+                        list.Add(item);
                         if (midiEventOutput != null)
                         {
-                            midiEventOutput.SendAsync(midiEvent);
+                            midiEventOutput.SendAsync(item);
                         }
                     }
                 }
@@ -389,14 +390,15 @@ namespace Momiji.Core.Vst
                         {
                             type = VstEvent.VstEventTypes.kVstMidiType,
                             byteSize = Marshal.SizeOf<VstMidiEvent>(),
-                            deltaFrames = 0, //TODO 計算して差分を入れる
+                            deltaFrames = (int)(samplingRate / (((midiEvent.receivedTime * 1000) - beforeTime) / 1000)),
                             flags = VstMidiEvent.VstMidiEventFlags.kVstMidiEventIsRealtime,
 
-                            midiData0 = midiEvent.data[0],
-                            midiData1 = midiEvent.data[1],
-                            midiData2 = midiEvent.data[2],
-                            midiData3 = 0x00
+                            midiData0 = midiEvent.data0,
+                            midiData1 = midiEvent.data1,
+                            midiData2 = midiEvent.data2,
+                            midiData3 = midiEvent.data3
                         };
+                        Logger.LogInformation($"[vst] deltaFrames {vstEvent.deltaFrames}");
 
                         //TODO 境界チェック
                         Marshal.StructureToPtr(vstEvent, eventListPtr, false);

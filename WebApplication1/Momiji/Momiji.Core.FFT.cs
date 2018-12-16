@@ -87,19 +87,19 @@ namespace Momiji.Core.FFT
             list.Insert(0,
                 $"{DateTimeOffset.FromUnixTimeMilliseconds((long)midiEvent.receivedTime).ToUniversalTime():HH:mm:ss.fff} => " +
                 $"{DateTimeOffset.FromUnixTimeMilliseconds(Timer.USec / 1000).ToUniversalTime():HH:mm:ss.fff} " +
-                ((midiEvent.data.Length >= 1) ? $"{midiEvent.data[0]:X2}" : "") +
-                ((midiEvent.data.Length >= 2) ? $"{midiEvent.data[1]:X2}" : "") +
-                ((midiEvent.data.Length >= 3) ? $"{midiEvent.data[2]:X2}" : "") +
-                ((midiEvent.data.Length >= 4) ? $"{midiEvent.data[3]:X2}" : "")
+                $"{midiEvent.data0:X2}" +
+                $"{midiEvent.data1:X2}" +
+                $"{midiEvent.data2:X2}" +
+                $"{midiEvent.data3:X2}"
             );
             if (list.Count > 20)
             {
                 list.RemoveAt(20);
             }
 
-            var m = midiEvent.data[0] & 0xF0;
-            var k = midiEvent.data[1];
-            var v = midiEvent.data[2];
+            var m = midiEvent.data0 & 0xF0;
+            var k = midiEvent.data1;
+            var v = midiEvent.data2;
 
             if (m == 0x80 || (m == 0x90))
             {
