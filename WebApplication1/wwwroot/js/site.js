@@ -46,8 +46,8 @@
             console.log(e);
         });
     }
-
-    const ws = new WebSocket('ws://' + document.location.host + '/ws');
+    
+    const ws = new WebSocket(((document.location.protocol === 'https:') ? 'wss://' : 'ws://') + document.location.host + '/ws');
     ws.addEventListener('close', (e) => {
         console.log(e);
     });
