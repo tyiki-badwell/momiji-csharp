@@ -11,6 +11,7 @@ using Momiji.Core.WebMidi;
 using Momiji.Interop.Opus;
 using Momiji.Interop.Wave;
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Net.WebSockets;
 using System.Threading;
@@ -80,8 +81,12 @@ namespace Momiji.Test.Run
         private Task processTask;
         private BufferBlock<MIDIMessageEvent> midiEventInput = new BufferBlock<MIDIMessageEvent>();
         private BufferBlock<MIDIMessageEvent> midiEventOutput = new BufferBlock<MIDIMessageEvent>();
-        private BufferBlock<MIDIMessageEvent> audioOutput = new BufferBlock<MIDIMessageEvent>();
 
+        private IDictionary<WebSocket, int> webSocketPool = new ConcurrentDictionary<WebSocket, int>();
+
+        //private BufferBlock<OpusOutputBuffer> audioOutput = new BufferBlock<OpusOutputBuffer>();
+        //private BufferBlock<H264OutputBuffer> videoOutput = new BufferBlock<H264OutputBuffer>();
+        
         public Runner(IConfiguration configuration, ILoggerFactory loggerFactory)
         {
             Configuration = configuration;
@@ -418,6 +423,197 @@ namespace Momiji.Test.Run
             }
         }
 
+        private async Task Loop1()
+        {
+            var ct = processCancel.Token;
+
+            Logger.LogInformation("main loop start");
+
+            try
+            {
+                await Task.Run(() =>
+                {
+                    ct.ThrowIfCancellationRequested();
+
+                    var blockSize = (int)(Param.SamplingRate * Param.SampleLength);
+
+                    var audioInterval = 1_000_000.0 * Param.SampleLength;
+                    var videoInterval = 1_000_000.0 / Param.MaxFrameRate;
+
+                    using (var timer = new Core.Timer())
+                    using (var audioWaiter = new Waiter(timer, audioInterval, ct))
+                    using (var videoWaiter = new Waiter(timer, videoInterval, ct))
+                    using (var vstBufferPool = new BufferPool<VstBuffer<float>>(Param.BufferCount, () => new VstBuffer<float>(blockSize, 2), LoggerFactory))
+                    using (var pcmPool = new BufferPool<PcmBuffer<float>>(Param.BufferCount, () => new PcmBuffer<float>(blockSize, 2), LoggerFactory))
+                    using (var audioPool = new BufferPool<OpusOutputBuffer>(Param.BufferCount, () => new OpusOutputBuffer(5000), LoggerFactory))
+                    using (var pcmDummyPool = new BufferPool<PcmBuffer<float>>(Param.BufferCount, () => new PcmBuffer<float>(blockSize, 2), LoggerFactory))
+                    using (var bmpPool = new BufferPool<H264InputBuffer>(Param.BufferCount, () => new H264InputBuffer(Param.Width, Param.Height), LoggerFactory))
+                    using (var videoPool = new BufferPool<H264OutputBuffer>(Param.BufferCount, () => new H264OutputBuffer(200000), LoggerFactory))
+                    using (var vst = new AudioMaster<float>(Param.SamplingRate, blockSize, LoggerFactory, timer))
+                    //using (var toPcm = new ToPcm<float>(LoggerFactory, timer))
+                    using (var opus = new OpusEncoder(SamplingRate.Sampling48000, Channels.Stereo, LoggerFactory, timer))
+                    using (var fft = new FFTEncoder(Param.Width, Param.Height, Param.MaxFrameRate, LoggerFactory, timer))
+                    using (var h264 = new H264Encoder(Param.Width, Param.Height, Param.TargetBitrate, Param.MaxFrameRate, LoggerFactory, timer))
+                    {
+                        var effect = vst.AddEffect(Param.EffectName);
+
+                        {
+                            var taskSet = new HashSet<Task>();
+                            var options = new ExecutionDataflowBlockOptions
+                            {
+                                CancellationToken = ct,
+                                MaxDegreeOfParallelism = 1
+                            };
+
+                            {
+                                var vstBlock =
+                                    new TransformBlock<VstBuffer<float>, PcmBuffer<float>>(buffer =>
+                                    {
+                                        buffer.Log.Clear();
+                                        var pcmTask = pcmPool.ReceiveAsync(ct);
+                                        audioWaiter.Wait();
+                                        buffer.Log.Add("[audio] start", timer.USecDouble);
+
+                                        //VST
+                                        effect.Execute(buffer, pcmTask, midiEventInput, midiEventOutput);
+                                        vstBufferPool.SendAsync(buffer);
+                                        return pcmTask;
+                                    }, options);
+                                taskSet.Add(vstBlock.Completion);
+                                vstBufferPool.LinkTo(vstBlock);
+
+                                var opusBlock =
+                                    new TransformBlock<PcmBuffer<float>, OpusOutputBuffer>(buffer =>
+                                    {
+                                        buffer.Log.Add("[audio] opus input get", timer.USecDouble);
+                                        var audio = audioPool.Receive(ct);
+                                        buffer.Log.Add("[audio] ftl output get", timer.USecDouble);
+                                        opus.Execute(buffer, audio);
+                                        pcmPool.SendAsync(buffer);
+                                        return audio;
+                                    }, options);
+                                taskSet.Add(opusBlock.Completion);
+                                vstBlock.LinkTo(opusBlock);
+
+                                var ftlBlock =
+                                    new ActionBlock<OpusOutputBuffer>(buffer =>
+                                    {
+                                        //FTL
+                                        buffer.Log.Add("[audio] ftl input get", timer.USecDouble);
+                                        var m = buffer.Target.AsMemory().Slice(0, buffer.Wrote);
+                                        foreach (var item in webSocketPool)
+                                        {
+                                            if (item.Key.State == WebSocketState.Open)
+                                            {
+                                                item.Key.SendAsync(m, WebSocketMessageType.Binary, true, ct);
+                                            }
+                                        }
+                                        audioPool.SendAsync(buffer);
+                                    }, options);
+                                taskSet.Add(ftlBlock.Completion);
+                                opusBlock.LinkTo(ftlBlock);
+                            }
+
+                            {
+                                var midiDataStoreBlock =
+                                    new ActionBlock<MIDIMessageEvent>(buffer => {
+                                        fft.Receive(buffer);
+                                    }, options);
+                                taskSet.Add(midiDataStoreBlock.Completion);
+                                midiEventOutput.LinkTo(midiDataStoreBlock);
+
+                                var fftBlock =
+                                    new TransformBlock<PcmBuffer<float>, H264InputBuffer>(buffer =>
+                                    {
+                                        buffer.Log.Clear();
+                                        var bmpTask = bmpPool.ReceiveAsync(ct);
+
+                                        videoWaiter.Wait();
+                                        buffer.Log.Add("[video] start", timer.USecDouble);
+
+                                        //FFT
+                                        fft.Execute(buffer, bmpTask);
+                                        pcmDummyPool.SendAsync(buffer);
+                                        return bmpTask;
+                                    }, options);
+                                taskSet.Add(fftBlock.Completion);
+                                pcmDummyPool.LinkTo(fftBlock);
+
+                                var intraFrameCount = 0.0;
+                                var h264Block =
+                                    new TransformBlock<H264InputBuffer, H264OutputBuffer>(buffer =>
+                                    {
+                                        //H264
+                                        buffer.Log.Add("[video] h264 input get", timer.USecDouble);
+                                        var video = videoPool.Receive(ct);
+                                        buffer.Log.Add("[video] ftl output get", timer.USecDouble);
+                                        var insertIntraFrame = (intraFrameCount <= 0);
+                                        h264.Execute(buffer, video, insertIntraFrame);
+                                        bmpPool.SendAsync(buffer);
+                                        if (insertIntraFrame)
+                                        {
+                                            intraFrameCount = Param.IntraFrameIntervalUs;
+                                        }
+                                        intraFrameCount -= videoInterval;
+                                        return video;
+                                    }, options);
+                                taskSet.Add(h264Block.Completion);
+                                fftBlock.LinkTo(h264Block);
+
+                                var ftlBlock =
+                                    new ActionBlock<H264OutputBuffer>(buffer =>
+                                    {
+                                        //FTL
+                                        buffer.Log.Add("[video] ftl input get", timer.USecDouble);
+                                        var length = 0;
+                                        foreach (var nuls in buffer.LayerNuls)
+                                        {
+                                            for (var idx = 0; idx < nuls.Count; idx++)
+                                            {
+                                                var nul = nuls[idx];
+                                                length += nul.length;
+                                            }
+                                        }
+                                        var m = buffer.Target.AsMemory().Slice(0, length);
+                                        foreach (var item in webSocketPool)
+                                        {
+                                            if (item.Key.State == WebSocketState.Open)
+                                            {
+                                                //item.Key.SendAsync(m, WebSocketMessageType.Binary, true, ct);
+                                            }
+                                        }
+                                        videoPool.SendAsync(buffer);
+                                    }, options);
+                                taskSet.Add(ftlBlock.Completion);
+                                h264Block.LinkTo(ftlBlock);
+                            }
+
+                            while (taskSet.Count > 0)
+                            {
+                                var any = Task.WhenAny(taskSet);
+                                any.ConfigureAwait(false);
+                                any.Wait();
+                                var task = any.Result;
+                                taskSet.Remove(task);
+                                if (task.IsFaulted)
+                                {
+                                    processCancel.Cancel();
+                                    foreach (var v in task.Exception.InnerExceptions)
+                                    {
+                                        Logger.LogInformation($"Process Exception:{task.Exception.Message} {v.Message}");
+                                    }
+                                }
+                            }
+                        }
+                    }
+                });
+            }
+            finally
+            {
+                Logger.LogInformation("main loop end");
+            }
+        }
+
         public void Note(MIDIMessageEvent[] midiMessage)
         {
             List<MIDIMessageEvent> list = new List<MIDIMessageEvent>(midiMessage);
@@ -438,6 +634,11 @@ namespace Momiji.Test.Run
 
         public async Task Play(WebSocket webSocket)
         {
+            if (processCancel == null)
+            {
+                return;
+            }
+
             Logger.LogInformation("websocket start");
 
             var taskSet = new HashSet<Task>();
@@ -458,7 +659,7 @@ namespace Momiji.Test.Run
                     Logger.LogInformation("websocket try receive");
                     var task = webSocket.ReceiveAsync(buf, ct);
                     task.Wait(ct);
-                    Logger.LogInformation($"websocket receive");
+                    Logger.LogInformation("websocket receive");
 
                     var item = new MIDIMessageEvent();
                     unsafe
@@ -475,29 +676,10 @@ namespace Momiji.Test.Run
                 }
             }));
 
-            taskSet.Add(Task.Run(() =>
+            if (Param.Local)
             {
-                ct.ThrowIfCancellationRequested();
-
-                var text = new byte[] { 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 0 };
-
-                using (var timer = new Core.Timer())
-                using (var waiter = new Waiter(timer, 1000000, ct))
-                {
-                    while (webSocket.State == WebSocketState.Open)
-                    {
-                        if (ct.IsCancellationRequested)
-                        {
-                            break;
-                        }
-
-                        var task = webSocket.SendAsync(text, WebSocketMessageType.Binary, false, ct);
-                        task.Wait(ct);
-                        waiter.Wait();
-                        Logger.LogInformation("websocket send");
-                    }
-                }
-            }));
+                webSocketPool.Add(webSocket, 0);
+            }
 
             while (taskSet.Count > 0)
             {
@@ -514,6 +696,7 @@ namespace Momiji.Test.Run
                     }
                 }
             }
+            webSocketPool.Remove(webSocket);
 
             Logger.LogInformation("websocket end");
         }
