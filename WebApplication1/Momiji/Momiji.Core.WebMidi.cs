@@ -8,4 +8,10 @@
         public byte data2;
         public byte data3;
     }
+
+    public struct MIDIMessageEvent2
+    {
+        public MIDIMessageEvent midiMessageEvent;
+        public double receivedTimeUSec;
+    }
 }

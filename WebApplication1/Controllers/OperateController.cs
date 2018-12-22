@@ -20,7 +20,7 @@ namespace WebApplication1.Controllers
             LoggerFactory = loggerFactory;
             Logger = LoggerFactory.CreateLogger<OperateController>();
         }
-
+        /*
         [HttpPost]
         [ProducesResponseType(400)]
         public IActionResult Note([FromBody]MIDIMessageEvent[] midiMessage, [FromServices]IRunner runner)
@@ -32,6 +32,6 @@ namespace WebApplication1.Controllers
 
             runner.Note(midiMessage);
             return Ok("{\"result\":\"OK\"}");
-        }
+        }*/
     }
 }

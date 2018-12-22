@@ -81,25 +81,26 @@ namespace Momiji.Core.FFT
         private Dictionary<byte, byte> note = new Dictionary<byte, byte>();
 
         public void Receive(
-            MIDIMessageEvent midiEvent
+            MIDIMessageEvent2 midiEvent
         )
         {
             list.Insert(0,
-                $"{DateTimeOffset.FromUnixTimeMilliseconds((long)midiEvent.receivedTime).ToUniversalTime():HH:mm:ss.fff} => " +
-                $"{DateTimeOffset.FromUnixTimeMilliseconds(Timer.USec / 1000).ToUniversalTime():HH:mm:ss.fff} " +
-                $"{midiEvent.data0:X2}" +
-                $"{midiEvent.data1:X2}" +
-                $"{midiEvent.data2:X2}" +
-                $"{midiEvent.data3:X2}"
+                $"{DateTimeOffset.FromUnixTimeMilliseconds((long)midiEvent.midiMessageEvent.receivedTime).ToUniversalTime():HH:mm:ss.fff} => " +
+                $"{DateTimeOffset.FromUnixTimeMilliseconds((long)(midiEvent.receivedTimeUSec / 1000)).ToUniversalTime():HH:mm:ss.fff} => " +
+                $"{DateTimeOffset.FromUnixTimeMilliseconds((long)(Timer.USecDouble / 1000)).ToUniversalTime():HH:mm:ss.fff} " +
+                $"{midiEvent.midiMessageEvent.data0:X2}" +
+                $"{midiEvent.midiMessageEvent.data1:X2}" +
+                $"{midiEvent.midiMessageEvent.data2:X2}" +
+                $"{midiEvent.midiMessageEvent.data3:X2}"
             );
             if (list.Count > 20)
             {
                 list.RemoveAt(20);
             }
 
-            var m = midiEvent.data0 & 0xF0;
-            var k = midiEvent.data1;
-            var v = midiEvent.data2;
+            var m = midiEvent.midiMessageEvent.data0 & 0xF0;
+            var k = midiEvent.midiMessageEvent.data1;
+            var v = midiEvent.midiMessageEvent.data2;
 
             if (m == 0x80 || (m == 0x90))
             {

@@ -25,7 +25,7 @@ namespace Momiji.Test.Run
         bool Start();
         bool Stop();
 
-        void Note(MIDIMessageEvent[] midiMessage);
+        //void Note(MIDIMessageEvent[] midiMessage);
         Task Play(WebSocket webSocket);
     }
 
@@ -79,8 +79,8 @@ namespace Momiji.Test.Run
 
         private CancellationTokenSource processCancel;
         private Task processTask;
-        private BufferBlock<MIDIMessageEvent> midiEventInput = new BufferBlock<MIDIMessageEvent>();
-        private BufferBlock<MIDIMessageEvent> midiEventOutput = new BufferBlock<MIDIMessageEvent>();
+        private BufferBlock<MIDIMessageEvent2> midiEventInput = new BufferBlock<MIDIMessageEvent2>();
+        private BufferBlock<MIDIMessageEvent2> midiEventOutput = new BufferBlock<MIDIMessageEvent2>();
 
         private IDictionary<WebSocket, int> webSocketPool = new ConcurrentDictionary<WebSocket, int>();
 
@@ -238,7 +238,7 @@ namespace Momiji.Test.Run
 
                             {
                                 var midiDataStoreBlock =
-                                    new ActionBlock<MIDIMessageEvent>(buffer => {
+                                    new ActionBlock<MIDIMessageEvent2>(buffer => {
                                         fft.Receive(buffer);
                                     }, options);
                                 taskSet.Add(midiDataStoreBlock.Completion);
@@ -516,7 +516,7 @@ namespace Momiji.Test.Run
 
                             {
                                 var midiDataStoreBlock =
-                                    new ActionBlock<MIDIMessageEvent>(buffer => {
+                                    new ActionBlock<MIDIMessageEvent2>(buffer => {
                                         fft.Receive(buffer);
                                     }, options);
                                 taskSet.Add(midiDataStoreBlock.Completion);
@@ -613,7 +613,7 @@ namespace Momiji.Test.Run
                 Logger.LogInformation("main loop end");
             }
         }
-
+        /*
         public void Note(MIDIMessageEvent[] midiMessage)
         {
             List<MIDIMessageEvent> list = new List<MIDIMessageEvent>(midiMessage);
@@ -631,7 +631,7 @@ namespace Momiji.Test.Run
                 midiEventInput.SendAsync(midiEvent);
             }
         }
-
+        */
         public async Task Play(WebSocket webSocket)
         {
             if (processCancel == null)
@@ -675,15 +675,18 @@ namespace Momiji.Test.Run
                                 midiEvent = *(MIDIMessageEvent*)p;
                             }
                         }
+                        /*
                         Logger.LogInformation(
                             $"note {DateTimeOffset.FromUnixTimeMilliseconds((long)(timer.USecDouble / 1000)).ToUniversalTime():HH:mm:ss.fff} {DateTimeOffset.FromUnixTimeMilliseconds((long)midiEvent.receivedTime).ToUniversalTime():HH:mm:ss.fff} => " +
                             $"{midiEvent.data0:X2}" +
                             $"{midiEvent.data1:X2}" +
                             $"{midiEvent.data2:X2}" +
                             $"{midiEvent.data3:X2}"
-                        );
-                        midiEvent.receivedTime = timer.USecDouble / 1000;
-                        midiEventInput.SendAsync(midiEvent);
+                        );*/
+                        MIDIMessageEvent2 midiEvent2;
+                        midiEvent2.midiMessageEvent = midiEvent;
+                        midiEvent2.receivedTimeUSec = timer.USecDouble;
+                        midiEventInput.SendAsync(midiEvent2);
                     }
                 }
             }));
