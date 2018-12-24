@@ -211,12 +211,17 @@ namespace Momiji.Core.Vst
         private PinnedBuffer<byte[]> eventList;
 
         private double beforeTime;
+        private MIDIMessageEvent2? extraMidiEvent;
+
+        private int SIZE_OF_VSTMIDIEVENT { get; }
 
         internal Effect(string library, AudioMaster<T> audioMaster, ILoggerFactory loggerFactory, Timer timer)
         {
             LoggerFactory = loggerFactory;
             Logger = LoggerFactory.CreateLogger<Effect<T>>();
             Timer = timer;
+
+            SIZE_OF_VSTMIDIEVENT = Marshal.SizeOf<VstMidiEvent>();
 
             this.audioMaster = audioMaster;
 
@@ -257,7 +262,7 @@ namespace Momiji.Core.Vst
             AEffect aeffect;
             unsafe
             {
-                aeffect = new Span<AEffect>((void*)AEffectPtr, 1)[0];
+                aeffect = new ReadOnlySpan<AEffect>((void*)AEffectPtr, 1)[0];
             }
             NumOutputs = aeffect.numOutputs;
             flags = aeffect.flags;
@@ -348,14 +353,31 @@ namespace Momiji.Core.Vst
             var sizeVstEvents = Marshal.SizeOf<VstEvents>();
             var sizeVstMidiEvent = Marshal.SizeOf<VstMidiEvent>();
             var sizeIntPtr = Marshal.SizeOf<IntPtr>();
-
+            
             {
                 var list = new List<MIDIMessageEvent2>();
+                if (extraMidiEvent.HasValue)
                 {
+                    //前回の余分なイベントをここで回収
+                    list.Add(extraMidiEvent.Value);
+                    if (midiEventOutput != null)
+                    {
+                        midiEventOutput.SendAsync(extraMidiEvent.Value);
+                    }
+                    extraMidiEvent = null;
+                }
+
+                {
+                    //TODO この一帯がかなり遅い
                     while (midiEventInput.TryReceive(out MIDIMessageEvent2 item))
                     {
-                        //TODO 処理している間にもイベントが増えているので、取りすぎたら次回に回す
-
+                        if ((item.midiMessageEvent.receivedTime * 1000) > nowTime)
+                        {
+                            //処理している間にもイベントが増えているので、取りすぎたら次回に回す
+                            extraMidiEvent = item;
+                            break;
+                        }
+                        
                         Logger.LogInformation(
                             $"note " +
                             $"{DateTimeOffset.FromUnixTimeMilliseconds((long)item.midiMessageEvent.receivedTime).ToUniversalTime():HH:mm:ss.fff} " +
@@ -392,13 +414,17 @@ namespace Momiji.Core.Vst
 
                     list.ForEach(midiEvent =>
                     {
+                        //TODO 遅延の平均を足す？
                         var deltaTime = (midiEvent.midiMessageEvent.receivedTime * 1000) - beforeTime;
+                        if (deltaTime < 0)
+                        {
+                            deltaTime = 0;
+                        }
                         var vstEvent = new VstMidiEvent
                         {
                             type = VstEvent.VstEventTypes.kVstMidiType,
-                            byteSize = Marshal.SizeOf<VstMidiEvent>(),
-                            //TODO マイナス値になるので式が間違ってる
-                            deltaFrames = (int)(blockSize * (deltaTime / ((blockSize / (double)samplingRate)*1000000))),
+                            byteSize = SIZE_OF_VSTMIDIEVENT,
+                            deltaFrames = (int)(deltaTime * samplingRate / 1000000),
                             flags = VstMidiEvent.VstMidiEventFlags.kVstMidiEventIsRealtime,
 
                             midiData0 = midiEvent.midiMessageEvent.data0,
@@ -411,8 +437,7 @@ namespace Momiji.Core.Vst
                             $"{vstEvent.deltaFrames} " +
                             $"{blockSize} " +
                             $"{samplingRate} " +
-                            $"{deltaTime} " +
-                            $"{(int)(blockSize * (deltaTime / ((blockSize / (double)samplingRate) * 1000000)))}"
+                            $"{deltaTime} "
                             );
 
                         //TODO 境界チェック
