@@ -222,11 +222,8 @@ namespace Momiji.Core.Wave
                 handle = null;
             }
 
-            if (driverCallBack != null)
-            {
-                driverCallBack.Dispose();
-                driverCallBack = null;
-            }
+            driverCallBack?.Dispose();
+            driverCallBack = null;
 
             disposed = true;
         }

@@ -51,11 +51,8 @@ namespace Momiji.Core
             {
             }
 
-            if (stopwatch != null)
-            {
-                stopwatch.Stop();
-                stopwatch = null;
-            }
+            stopwatch?.Stop();
+            stopwatch = null;
 
             disposed = true;
         }
@@ -99,11 +96,8 @@ namespace Momiji.Core
             {
             }
 
-            if (S != null)
-            {
-                S.Dispose();
-                S = null;
-            }
+            S?.Dispose();
+            S = null;
 
             disposed = true;
         }

@@ -250,11 +250,8 @@ namespace Momiji.Core.H264
                 Encoder = null;
             }
 
-            if (sFrameBSInfoBuffer != null)
-            {
-                sFrameBSInfoBuffer.Dispose();
-                sFrameBSInfoBuffer = null;
-            }
+            sFrameBSInfoBuffer?.Dispose();
+            sFrameBSInfoBuffer = null;
 
             disposed = true;
         }

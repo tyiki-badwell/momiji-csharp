@@ -7,6 +7,7 @@ using Momiji.Interop.Vst;
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
+using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using System.Threading.Tasks;
 using System.Threading.Tasks.Dataflow;
@@ -213,7 +214,10 @@ namespace Momiji.Core.Vst
         private double beforeTime;
         private MIDIMessageEvent2? extraMidiEvent;
 
+        private int SIZE_OF_VSTEVENTS { get; }
         private int SIZE_OF_VSTMIDIEVENT { get; }
+        private int SIZE_OF_INTPTR { get; }
+        private int COUNT_OF_EVENTS { get; }
 
         internal Effect(string library, AudioMaster<T> audioMaster, ILoggerFactory loggerFactory, Timer timer)
         {
@@ -221,12 +225,15 @@ namespace Momiji.Core.Vst
             Logger = LoggerFactory.CreateLogger<Effect<T>>();
             Timer = timer;
 
+            SIZE_OF_VSTEVENTS = Marshal.SizeOf<VstEvents>();
             SIZE_OF_VSTMIDIEVENT = Marshal.SizeOf<VstMidiEvent>();
+            SIZE_OF_INTPTR = Marshal.SizeOf<IntPtr>();
+            COUNT_OF_EVENTS = 500; //サイズが適当
 
             this.audioMaster = audioMaster;
 
-            events = new PinnedBuffer<byte[]>(new byte[4000]); //TODO サイズが適当
-            eventList = new PinnedBuffer<byte[]>(new byte[4000]); //TODO サイズが適当
+            events = new PinnedBuffer<byte[]>(new byte[SIZE_OF_VSTEVENTS + (SIZE_OF_INTPTR * COUNT_OF_EVENTS)]);
+            eventList = new PinnedBuffer<byte[]>(new byte[SIZE_OF_VSTMIDIEVENT * COUNT_OF_EVENTS]);
 
             dll = DLL.LoadLibrary(library);
             if (dll.IsInvalid)
@@ -259,75 +266,74 @@ namespace Momiji.Core.Vst
                 throw new VstException("vstPluginMain で失敗");
             }
 
-            AEffect aeffect;
             unsafe
             {
-                aeffect = new ReadOnlySpan<AEffect>((void*)AEffectPtr, 1)[0];
-            }
-            NumOutputs = aeffect.numOutputs;
-            flags = aeffect.flags;
+                var aeffect = new Span<AEffect>((void*)AEffectPtr, 1);
+                NumOutputs = aeffect[0].numOutputs;
+                flags = aeffect[0].flags;
 
-            Logger.LogInformation($"magic:{aeffect.magic}");
-            Logger.LogInformation($"dispatcher:{aeffect.dispatcher}");
-            Logger.LogInformation($"processDeprecated:{aeffect.processDeprecated}");
-            Logger.LogInformation($"setParameter:{aeffect.setParameter}");
-            Logger.LogInformation($"getParameter:{aeffect.getParameter}");
+                Logger.LogInformation($"magic:{aeffect[0].magic}");
+                Logger.LogInformation($"dispatcher:{aeffect[0].dispatcher}");
+                Logger.LogInformation($"processDeprecated:{aeffect[0].processDeprecated}");
+                Logger.LogInformation($"setParameter:{aeffect[0].setParameter}");
+                Logger.LogInformation($"getParameter:{aeffect[0].getParameter}");
 
-            Logger.LogInformation($"numPrograms:{aeffect.numPrograms}");
-            Logger.LogInformation($"numParams:{aeffect.numParams}");
-            Logger.LogInformation($"numInputs:{aeffect.numInputs}");
-            Logger.LogInformation($"numOutputs:{aeffect.numOutputs}");
-            Logger.LogInformation($"flags:{aeffect.flags}");
+                Logger.LogInformation($"numPrograms:{aeffect[0].numPrograms}");
+                Logger.LogInformation($"numParams:{aeffect[0].numParams}");
+                Logger.LogInformation($"numInputs:{aeffect[0].numInputs}");
+                Logger.LogInformation($"numOutputs:{aeffect[0].numOutputs}");
+                Logger.LogInformation($"flags:{aeffect[0].flags}");
 
-            //Logger.LogInformation($"resvd1:"+aeffect.resvd1);
-            //Logger.LogInformation($"resvd2:"+aeffect.resvd2);
+                //Logger.LogInformation($"resvd1:"+aeffect.resvd1);
+                //Logger.LogInformation($"resvd2:"+aeffect.resvd2);
 
-            Logger.LogInformation($"initialDelay:{aeffect.initialDelay}");
+                Logger.LogInformation($"initialDelay:{aeffect[0].initialDelay}");
 
-            Logger.LogInformation($"realQualitiesDeprecated:{aeffect.realQualitiesDeprecated}");
-            Logger.LogInformation($"offQualitiesDeprecated:{aeffect.offQualitiesDeprecated}");
-            Logger.LogInformation($"ioRatioDeprecated:{aeffect.ioRatioDeprecated}");
-            //Logger.LogInformation($"object:"+aeffect._object);
-            Logger.LogInformation($"user:{aeffect.user}");
+                Logger.LogInformation($"realQualitiesDeprecated:{aeffect[0].realQualitiesDeprecated}");
+                Logger.LogInformation($"offQualitiesDeprecated:{aeffect[0].offQualitiesDeprecated}");
+                Logger.LogInformation($"ioRatioDeprecated:{aeffect[0].ioRatioDeprecated}");
+                //Logger.LogInformation($"object:"+aeffect._object);
+                Logger.LogInformation($"user:{aeffect[0].user}");
 
-            Logger.LogInformation($"uniqueID:{aeffect.uniqueID}");
-            Logger.LogInformation($"version:{aeffect.version}");
+                Logger.LogInformation($"uniqueID:{aeffect[0].uniqueID}");
+                Logger.LogInformation($"version:{aeffect[0].version}");
 
-            Logger.LogInformation("processReplacing:"+aeffect.processReplacing);
-            Logger.LogInformation("processDoubleReplacing:"+aeffect.processDoubleReplacing);
-            
-            if (aeffect.dispatcher != IntPtr.Zero)
-            {
-                Dispatcher =
-                    Marshal.GetDelegateForFunctionPointer<AEffect.DispatcherProc>(aeffect.dispatcher);
-            }
+                Logger.LogInformation("processReplacing:" + aeffect[0].processReplacing);
+                Logger.LogInformation("processDoubleReplacing:" + aeffect[0].processDoubleReplacing);
 
-            if (aeffect.setParameter != IntPtr.Zero)
-            {
-                SetParameter =
-                    Marshal.GetDelegateForFunctionPointer<AEffect.SetParameterProc>(aeffect.setParameter);
-            }
+                if (aeffect[0].dispatcher != IntPtr.Zero)
+                {
+                    Dispatcher =
+                        Marshal.GetDelegateForFunctionPointer<AEffect.DispatcherProc>(aeffect[0].dispatcher);
+                }
 
-            if (aeffect.getParameter != IntPtr.Zero)
-            {
-                GetParameter =
-                    Marshal.GetDelegateForFunctionPointer<AEffect.GetParameterProc>(aeffect.getParameter);
-            }
+                if (aeffect[0].setParameter != IntPtr.Zero)
+                {
+                    SetParameter =
+                        Marshal.GetDelegateForFunctionPointer<AEffect.SetParameterProc>(aeffect[0].setParameter);
+                }
 
-            if (aeffect.processReplacing != IntPtr.Zero)
-            {
-                ProcessReplacing =
-                    Marshal.GetDelegateForFunctionPointer<AEffect.ProcessProc>(aeffect.processReplacing);
-            }
-            else
-            {
-                throw new VstException("processReplacing が無い");
-            }
+                if (aeffect[0].getParameter != IntPtr.Zero)
+                {
+                    GetParameter =
+                        Marshal.GetDelegateForFunctionPointer<AEffect.GetParameterProc>(aeffect[0].getParameter);
+                }
 
-            if (aeffect.processDoubleReplacing != IntPtr.Zero)
-            {
-                ProcessDoubleReplacing =
-                    Marshal.GetDelegateForFunctionPointer<AEffect.ProcessDoubleProc>(aeffect.processDoubleReplacing);
+                if (aeffect[0].processReplacing != IntPtr.Zero)
+                {
+                    ProcessReplacing =
+                        Marshal.GetDelegateForFunctionPointer<AEffect.ProcessProc>(aeffect[0].processReplacing);
+                }
+                else
+                {
+                    throw new VstException("processReplacing が無い");
+                }
+
+                if (aeffect[0].processDoubleReplacing != IntPtr.Zero)
+                {
+                    ProcessDoubleReplacing =
+                        Marshal.GetDelegateForFunctionPointer<AEffect.ProcessDoubleProc>(aeffect[0].processDoubleReplacing);
+                }
             }
 
             beforeTime = Timer.USecDouble;
@@ -350,9 +356,6 @@ namespace Momiji.Core.Vst
 
             var samplingRate = audioMaster.SamplingRate;
             var blockSize = audioMaster.BlockSize;
-            var sizeVstEvents = Marshal.SizeOf<VstEvents>();
-            var sizeVstMidiEvent = Marshal.SizeOf<VstMidiEvent>();
-            var sizeIntPtr = Marshal.SizeOf<IntPtr>();
             
             {
                 var list = new List<MIDIMessageEvent2>();
@@ -360,10 +363,7 @@ namespace Momiji.Core.Vst
                 {
                     //前回の余分なイベントをここで回収
                     list.Add(extraMidiEvent.Value);
-                    if (midiEventOutput != null)
-                    {
-                        midiEventOutput.SendAsync(extraMidiEvent.Value);
-                    }
+                    midiEventOutput?.SendAsync(extraMidiEvent.Value);
                     extraMidiEvent = null;
                 }
 
@@ -377,7 +377,6 @@ namespace Momiji.Core.Vst
                             extraMidiEvent = item;
                             break;
                         }
-                        
                         Logger.LogInformation(
                             $"note " +
                             $"{DateTimeOffset.FromUnixTimeMilliseconds((long)item.midiMessageEvent.receivedTime).ToUniversalTime():HH:mm:ss.fff} " +
@@ -389,12 +388,16 @@ namespace Momiji.Core.Vst
                             $"{item.midiMessageEvent.data2:X2}" +
                             $"{item.midiMessageEvent.data3:X2}"
                         );
-                        source.Log.Add($"[vst] midiEvent {item.midiMessageEvent.data0:X2}{item.midiMessageEvent.data1:X2}{item.midiMessageEvent.data2:X2}{item.midiMessageEvent.data3:X2}", item.receivedTimeUSec);
+                        source.Log.Add(
+                            $"[vst] midiEvent " +
+                            $"{item.midiMessageEvent.data0:X2}" +
+                            $"{item.midiMessageEvent.data1:X2}" +
+                            $"{item.midiMessageEvent.data2:X2}" +
+                            $"{item.midiMessageEvent.data3:X2}",
+                            item.receivedTimeUSec
+                        );
                         list.Add(item);
-                        if (midiEventOutput != null)
-                        {
-                            midiEventOutput.SendAsync(item);
-                        }
+                        midiEventOutput?.SendAsync(item);
                     }
                 }
 
@@ -410,7 +413,7 @@ namespace Momiji.Core.Vst
 
                     //TODO 境界チェック
                     Marshal.StructureToPtr(vstEvents, eventsPtr, false);
-                    eventsPtr += sizeVstEvents;
+                    eventsPtr += SIZE_OF_VSTEVENTS;
 
                     list.ForEach(midiEvent =>
                     {
@@ -443,8 +446,8 @@ namespace Momiji.Core.Vst
                         //TODO 境界チェック
                         Marshal.StructureToPtr(vstEvent, eventListPtr, false);
                         Marshal.WriteIntPtr(eventsPtr, eventListPtr);
-                        eventListPtr += sizeVstMidiEvent;
-                        eventsPtr += sizeIntPtr;
+                        eventListPtr += SIZE_OF_VSTMIDIEVENT;
+                        eventsPtr += SIZE_OF_INTPTR;
                     });
 
                     source.Log.Add("[vst] start effProcessEvents", Timer.USecDouble);
@@ -630,11 +633,8 @@ namespace Momiji.Core.Vst
             {
             }
 
-            if (audioMasterCallBack != null)
-            {
-                audioMasterCallBack.Dispose();
-                audioMasterCallBack = null;
-            }
+            audioMasterCallBack?.Dispose();
+            audioMasterCallBack = null;
 
             if (dll != null && !dll.IsInvalid)
             {
@@ -642,8 +642,11 @@ namespace Momiji.Core.Vst
                 dll = null;
             }
 
-            events.Dispose();
-            eventList.Dispose();
+            events?.Dispose();
+            events = null;
+
+            eventList?.Dispose();
+            eventList = null;
 
             disposed = true;
         }
