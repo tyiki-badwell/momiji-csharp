@@ -118,7 +118,7 @@
                     navigationStart + window.performance.now(),
                     Number(this.dataset.shortMessage1),
                     Number(this.dataset.shortMessage2),
-                    Number(this.dataset.shortMessage2)
+                    Number(this.dataset.shortMessage3)
                 );
 
                 /*
