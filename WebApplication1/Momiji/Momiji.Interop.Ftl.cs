@@ -131,6 +131,8 @@ namespace Momiji.Interop.Ftl
         public string vendor_name;
         [MarshalAs(UnmanagedType.LPStr)]
         public string vendor_version;
+        [MarshalAs(UnmanagedType.LPStr)]
+        public string ca_info_path;
     }
 
     [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Ansi)]

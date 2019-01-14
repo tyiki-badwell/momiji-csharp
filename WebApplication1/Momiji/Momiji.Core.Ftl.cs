@@ -24,7 +24,7 @@ namespace Momiji.Core.Ftl
         private long lastAudioUsec;
         private long lastVideoUsec;
 
-        public FtlIngest(string streamKey, ILoggerFactory loggerFactory, Timer timer, bool connect = true)
+        public FtlIngest(string streamKey, string caInfoPath, ILoggerFactory loggerFactory, Timer timer, bool connect = true)
         {
             LoggerFactory = loggerFactory;
             Logger = LoggerFactory.CreateLogger<FtlIngest>();
@@ -40,6 +40,7 @@ namespace Momiji.Core.Ftl
             param.peak_kbps = 0;
             param.vendor_name = "momiji";
             param.vendor_version = "0.0.1";
+            param.ca_info_path = caInfoPath;
 
             if (connect)
             {

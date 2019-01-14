@@ -13,7 +13,9 @@ using Momiji.Interop.Wave;
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
+using System.IO;
 using System.Net.WebSockets;
+using System.Reflection;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Threading.Tasks.Dataflow;
@@ -75,6 +77,7 @@ namespace Momiji.Test.Run
         private ILoggerFactory LoggerFactory { get; }
         private ILogger Logger { get; }
         private string StreamKey { get; }
+        private string CaInfoPath { get; }
         private Param Param { get; }
 
         private CancellationTokenSource processCancel;
@@ -98,6 +101,13 @@ namespace Momiji.Test.Run
             Param = param;
 
             StreamKey = Configuration["MIXER_STREAM_KEY"];
+
+            CaInfoPath =
+                Path.Combine(
+                    Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location),
+                    "lib",
+                    "cacert.pem"
+                );
         }
 
         public bool Start()
@@ -183,7 +193,7 @@ namespace Momiji.Test.Run
                     {
                         var effect = vst.AddEffect(Param.EffectName);
 
-                        using (var ftl = new FtlIngest(StreamKey, LoggerFactory, timer, Param.Connect))
+                        using (var ftl = new FtlIngest(StreamKey, CaInfoPath, LoggerFactory, timer, Param.Connect))
                         {
                             ftl.Connect();
 
