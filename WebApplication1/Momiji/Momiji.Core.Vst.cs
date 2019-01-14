@@ -352,7 +352,7 @@ namespace Momiji.Core.Vst
         )
         {
             var nowTime = Timer.USecDouble;
-            Logger.LogInformation($"[vst] start {DateTimeOffset.FromUnixTimeMilliseconds((long)(beforeTime / 1000)).ToUniversalTime():HH:mm:ss.fff} {DateTimeOffset.FromUnixTimeMilliseconds((long)(nowTime / 1000)).ToUniversalTime():HH:mm:ss.fff} {nowTime - beforeTime}");
+            //Logger.LogInformation($"[vst] start {DateTimeOffset.FromUnixTimeMilliseconds((long)(beforeTime / 1000)).ToUniversalTime():HH:mm:ss.fff} {DateTimeOffset.FromUnixTimeMilliseconds((long)(nowTime / 1000)).ToUniversalTime():HH:mm:ss.fff} {nowTime - beforeTime}");
 
             var samplingRate = audioMaster.SamplingRate;
             var blockSize = audioMaster.BlockSize;
@@ -377,6 +377,7 @@ namespace Momiji.Core.Vst
                             extraMidiEvent = item;
                             break;
                         }
+                        /*
                         Logger.LogInformation(
                             $"note " +
                             $"{DateTimeOffset.FromUnixTimeMilliseconds((long)item.midiMessageEvent.receivedTime).ToUniversalTime():HH:mm:ss.fff} " +
@@ -388,6 +389,7 @@ namespace Momiji.Core.Vst
                             $"{item.midiMessageEvent.data2:X2}" +
                             $"{item.midiMessageEvent.data3:X2}"
                         );
+                        */
                         source.Log.Add(
                             $"[vst] midiEvent " +
                             $"{item.midiMessageEvent.data0:X2}" +
@@ -435,6 +437,7 @@ namespace Momiji.Core.Vst
                             midiData2 = midiEvent.midiMessageEvent.data2,
                             midiData3 = midiEvent.midiMessageEvent.data3
                         };
+                        /*
                         Logger.LogInformation(
                             $"[vst] deltaFrames " +
                             $"{vstEvent.deltaFrames} " +
@@ -442,7 +445,7 @@ namespace Momiji.Core.Vst
                             $"{samplingRate} " +
                             $"{deltaTime} "
                             );
-
+                            */
                         //TODO 境界チェック
                         Marshal.StructureToPtr(vstEvent, eventListPtr, false);
                         Marshal.WriteIntPtr(eventsPtr, eventListPtr);
@@ -460,7 +463,7 @@ namespace Momiji.Core.Vst
                         0
                     );
                     source.Log.Add("[vst] end effProcessEvents", Timer.USecDouble);
-                    Logger.LogInformation($"[vst] end effProcessEvents {DateTimeOffset.FromUnixTimeMilliseconds((long)(Timer.USecDouble/1000)).ToUniversalTime():HH:mm:ss.fff}");
+                    //Logger.LogInformation($"[vst] end effProcessEvents {DateTimeOffset.FromUnixTimeMilliseconds((long)(Timer.USecDouble/1000)).ToUniversalTime():HH:mm:ss.fff}");
                 }
             }
 
