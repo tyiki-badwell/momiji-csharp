@@ -17,9 +17,7 @@
       "launchBrowser": true,
       "environmentVariables": {
         "ASPNETCORE_ENVIRONMENT": "Development"
-      },
-      "ancmHostingModel": "InProcess",
-      "use64Bit": false
+      }
     },
     "WebApplication1": {
       "commandName": "Project",
