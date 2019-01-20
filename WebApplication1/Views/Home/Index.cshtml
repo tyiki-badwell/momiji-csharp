@@ -5,6 +5,8 @@
 
     var param = new Momiji.Test.Run.Param();
     configuration.GetSection("Param").Bind(param);
+
+    var mixerUserName = configuration["MIXER_USER_NAME"];
 }
 @if (param.Local)
 {
@@ -13,7 +15,7 @@
 }
 else
 {
-    <iframe allowfullscreen="true" src="https://mixer.com/embed/player/tyiki?disableLowLatency=0" width="@(param.Width)" height="@(param.Height)"></iframe>
+    <iframe allowfullscreen="true" src="https://mixer.com/embed/player/@(mixerUserName)?disableLowLatency=0" width="@(param.Width)" height="@(param.Height)"></iframe>
 }
 <br />
 
