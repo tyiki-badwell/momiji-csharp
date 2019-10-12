@@ -1,0 +1,23 @@
+using Microsoft.Extensions.Logging;
+using System;
+using Xunit;
+
+namespace Momiji.Core
+{
+    public class BufferPoolUnitTest
+    {
+        internal class DummyItem : IDisposable
+        {
+            public void Dispose()
+            {
+                // NOP
+            }
+        }
+
+        [Fact]
+        public void Test1()
+        {
+            using var test = new BufferPool<DummyItem>(1, ()=> new DummyItem(), new LoggerFactory());
+        }
+    }
+}
