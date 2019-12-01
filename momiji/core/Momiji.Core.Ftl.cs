@@ -245,7 +245,10 @@ namespace Momiji.Core.Ftl
             using var buffer = new PinnedBuffer<byte[]>(new byte[2048]);
             await Task.Run(() =>
             {
-                ct.ThrowIfCancellationRequested();
+                if (ct.IsCancellationRequested)
+                {
+                    return;
+                }
 
                 var msg = buffer.AddrOfPinnedObject;
 

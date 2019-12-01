@@ -87,7 +87,10 @@ namespace Momiji.Core.Trans
         {
             await Task.Run(() =>
             {
-                ct.ThrowIfCancellationRequested();
+                if (ct.IsCancellationRequested)
+                {
+                    return;
+                }
 
                 while (true)
                 {

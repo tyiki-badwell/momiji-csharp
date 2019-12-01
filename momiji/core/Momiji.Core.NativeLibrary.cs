@@ -29,20 +29,27 @@ namespace Momiji.Core
             if (configuration != null)
             {
                 //TODO データ構造の定義がプログラムになっているのでよくない
-                NativeLibrary.SetDllImportResolver(Assembly.GetExecutingAssembly(), (libraryName, assembly, searchPath) =>
+                try
                 {
-                    logger.LogInformation($"call DllImportResolver({libraryName}, {assembly}, {searchPath})");
-                    var name = configuration.GetSection("LibraryNameMapping:" + (Environment.Is64BitProcess ? "64" : "32"))?[libraryName];
-                    if (name != default)
+                    NativeLibrary.SetDllImportResolver(Assembly.GetExecutingAssembly(), (libraryName, assembly, searchPath) =>
                     {
-                        if (NativeLibrary.TryLoad(name, assembly, searchPath, out var handle))
+                        logger.LogInformation($"call DllImportResolver({libraryName}, {assembly}, {searchPath})");
+                        var name = configuration.GetSection("LibraryNameMapping:" + (Environment.Is64BitProcess ? "64" : "32"))?[libraryName];
+                        if (name != default)
                         {
-                            logger.LogInformation($"mapped {libraryName} -> {name}");
-                            return handle;
+                            if (NativeLibrary.TryLoad(name, assembly, searchPath, out var handle))
+                            {
+                                logger.LogInformation($"mapped {libraryName} -> {name}");
+                                return handle;
+                            }
                         }
-                    }
-                    return default;
-                });
+                        return default;
+                    });
+                }
+                catch(InvalidOperationException e)
+                {
+                    logger.LogInformation(e, "SetDllImportResolver failed.");
+                }
             }
         }
 

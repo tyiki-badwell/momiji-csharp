@@ -431,7 +431,6 @@ namespace Momiji.Interop.Wave
         [DefaultDllImportSearchPaths(DllImportSearchPath.System32)]
         internal static extern MMRESULT waveOutBreakLoop(
             [In]   this WaveOut hwo
-
         );
 
         /*

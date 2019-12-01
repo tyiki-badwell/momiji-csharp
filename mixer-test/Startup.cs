@@ -6,6 +6,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Momiji.Core;
+using System;
 
 namespace mixerTest
 {
@@ -67,7 +68,14 @@ namespace mixerTest
                     if (context.WebSockets.IsWebSocketRequest)
                     {
                         using var webSocket = await context.WebSockets.AcceptWebSocketAsync().ConfigureAwait(false);
-                        await app.ApplicationServices.GetService<IRunner>().Play(webSocket).ConfigureAwait(false);
+                        try
+                        {
+                            await app.ApplicationServices.GetService<IRunner>().Play(webSocket).ConfigureAwait(false);
+                        }
+                        catch(Exception e)
+                        {
+                            logger.LogInformation(e, "web socket exception");
+                        }
                     }
                     else
                     {

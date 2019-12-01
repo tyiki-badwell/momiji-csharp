@@ -126,7 +126,10 @@ namespace Momiji.Test
         {
             await Task.Run(() =>
             {
-                ct.ThrowIfCancellationRequested();
+                if (ct.IsCancellationRequested)
+                {
+                    return;
+                }
 
                 while (true)
                 {

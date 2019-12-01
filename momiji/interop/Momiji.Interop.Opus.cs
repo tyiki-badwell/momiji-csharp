@@ -288,6 +288,53 @@ namespace Momiji.Interop.Opus
         internal static extern int opus_packet_get_nb_channels(
             [In] IntPtr data
         );
+
+        [DllImport(Libraries.Opus, CallingConvention = CallingConvention.StdCall, CharSet = CharSet.Unicode)]
+        [DefaultDllImportSearchPaths(DllImportSearchPath.UserDirectories | DllImportSearchPath.UseDllDirectoryForDependencies)]
+        [return: MarshalAs(UnmanagedType.CustomMarshaler, MarshalTypeRef = typeof(LPStrNonFree))]
+        internal static extern string opus_strerror(
+            [In] int error
+        );
+
+        [DllImport(Libraries.Opus, CallingConvention = CallingConvention.StdCall, CharSet = CharSet.Unicode)]
+        [DefaultDllImportSearchPaths(DllImportSearchPath.UserDirectories | DllImportSearchPath.UseDllDirectoryForDependencies)]
+        [return: MarshalAs(UnmanagedType.CustomMarshaler, MarshalTypeRef = typeof(LPStrNonFree))]
+        internal static extern string opus_get_version_string();
+    }
+
+    //opus_strerrorとopus_get_version_stringは、今のところ即値を返す実装になっているため、戻り値の文字列を開放しないマーシャラーを用意する
+    internal class LPStrNonFree : ICustomMarshaler
+    {
+        static private LPStrNonFree marshaler = new LPStrNonFree();
+        public static ICustomMarshaler GetInstance(string cookie)
+        {
+            return marshaler;
+        }
+
+        public void CleanUpManagedData(object ManagedObj)
+        {
+            throw new NotImplementedException();
+        }
+
+        public void CleanUpNativeData(IntPtr pNativeData)
+        {
+            // NOP
+        }
+
+        public int GetNativeDataSize()
+        {
+            throw new NotImplementedException();
+        }
+
+        public IntPtr MarshalManagedToNative(object ManagedObj)
+        {
+            throw new NotImplementedException();
+        }
+
+        public object MarshalNativeToManaged(IntPtr pNativeData)
+        {
+            return Marshal.PtrToStringAnsi(pNativeData);
+        }
     }
 #pragma warning restore IDE1006 // 命名スタイル
 #pragma warning restore CA1712 // 列挙値の前に型名を付けないでください

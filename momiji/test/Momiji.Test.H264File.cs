@@ -58,7 +58,10 @@ namespace Momiji.Test
         {
             await Task.Run(() =>
             {
-                ct.ThrowIfCancellationRequested();
+                if (ct.IsCancellationRequested)
+                {
+                    return;
+                }
 
                 byte[] bufA = new byte[100000000];
                 byte[] bufB = new byte[100000000];

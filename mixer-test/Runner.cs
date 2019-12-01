@@ -198,7 +198,10 @@ namespace mixerTest
             {
                 await Task.Run(() =>
                 {
-                    ct.ThrowIfCancellationRequested();
+                    if (ct.IsCancellationRequested)
+                    {
+                        return;
+                    }
 
                     var blockSize = (int)(Param.SamplingRate * Param.SampleLength);
                     
@@ -342,10 +345,7 @@ namespace mixerTest
                         if (task.IsFaulted)
                         {
                             processCancel.Cancel();
-                            foreach (var v in task.Exception.InnerExceptions)
-                            {
-                                Logger.LogError($"Process Exception:{task.Exception.Message} {v.Message}");
-                            }
+                            Logger.LogError(task.Exception, "Process Exception");
                         }
                     }
                 }).ConfigureAwait(false);
@@ -371,7 +371,10 @@ namespace mixerTest
             {
                 await Task.Run(() =>
                 {
-                    ct.ThrowIfCancellationRequested();
+                    if (ct.IsCancellationRequested)
+                    {
+                        return;
+                    }
 
                     var blockSize = (int)(Param.SamplingRate * Param.SampleLength);
                     var audioInterval = 1_000_000.0 * Param.SampleLength;
@@ -441,10 +444,7 @@ namespace mixerTest
                         if (task.IsFaulted)
                         {
                             processCancel.Cancel();
-                            foreach (var v in task.Exception.InnerExceptions)
-                            {
-                                Logger.LogInformation($"Process Exception:{task.Exception.Message} {v.Message}");
-                            }
+                            Logger.LogError(task.Exception, "Process Exception");
                         }
                     }
                 }).ConfigureAwait(false);
@@ -498,7 +498,10 @@ namespace mixerTest
             {
                 await Task.Run(() =>
                 {
-                    ct.ThrowIfCancellationRequested();
+                    if (ct.IsCancellationRequested)
+                    {
+                        return;
+                    }
 
                     var buf = new byte[1024];
 
@@ -542,6 +545,11 @@ namespace mixerTest
                         midiEventInput.SendAsync(midiEvent2);
                     }
                 }).ConfigureAwait(false);
+            }
+            catch (Exception e)
+            {
+                Logger.LogInformation(e, "Exception");
+                throw;
             }
             finally
             {

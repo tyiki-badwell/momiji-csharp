@@ -93,7 +93,7 @@ namespace Momiji.Core.H264
             return temp;
         }
 
-        public static SLayerBSInfo sLayerInfo(this SFrameBSInfoBuffer self, int index)
+        public static SLayerBSInfo SLayerInfo(this SFrameBSInfoBuffer self, int index)
         {
             return (SLayerBSInfo)layerInfoList[index].GetValue(self.Target);
         }
@@ -214,7 +214,8 @@ namespace Momiji.Core.H264
                 }
             }
 
-            using (var param = new PinnedBuffer<int>(1 << 5))
+            //using (var param = new PinnedBuffer<WELS_LOG>(WELS_LOG.WELS_LOG_WARNING))
+            using (var param = new PinnedBuffer<int>(1 << 1))
             {
                 SetOption(Encoder, ENCODER_OPTION.ENCODER_OPTION_TRACE_LEVEL, param.AddrOfPinnedObject);
             }
@@ -312,7 +313,7 @@ namespace Momiji.Core.H264
             var offset = 0;
             for (var idx = 0; idx < sFrameBSInfoBuffer.Target.iLayerNum; idx++)
             {
-                var layer = sFrameBSInfoBuffer.sLayerInfo(idx);
+                var layer = sFrameBSInfoBuffer.SLayerInfo(idx);
 
                 var nuls = new List<(int offset, int length)>();
                 dest.LayerNuls.Add(nuls);
