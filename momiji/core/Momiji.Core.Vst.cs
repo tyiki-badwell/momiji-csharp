@@ -6,6 +6,7 @@ using Momiji.Interop.Vst;
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
+using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using System.Threading.Tasks;
 using System.Threading.Tasks.Dataflow;
@@ -57,7 +58,7 @@ namespace Momiji.Core.Vst
             base.Dispose(disposing);
         }
 
-        public T[] this[int index] => list[index].Target;
+        public T[] GetChannelBuffer(int channel) => list[channel].Target;
     }
 
     public class AudioMaster<T> : IDisposable where T : struct
@@ -175,11 +176,11 @@ namespace Momiji.Core.Vst
                 default:
                     Logger.LogInformation(
                         $"AudioMasterCallBackProc NOP " +
-                        $"{nameof(aeffectPtr)}:{aeffectPtr:X}" +
-                        $"{nameof(opcode)}:{opcode:F}" +
-                        $"{nameof(index)}:{index}" +
-                        $"{nameof(value)}:{value:X}" +
-                        $"{nameof(ptr)}:{ptr:X}" +
+                        $"{nameof(aeffectPtr)}:{aeffectPtr:X} " +
+                        $"{nameof(opcode)}:{opcode:F} " +
+                        $"{nameof(index)}:{index} " +
+                        $"{nameof(value)}:{value:X} " +
+                        $"{nameof(ptr)}:{ptr:X} " +
                         $"{nameof(opt)}:{opt}"
                     );
                     return IntPtr.Zero;
@@ -263,7 +264,8 @@ namespace Momiji.Core.Vst
 
             unsafe
             {
-                var aeffect = new Span<AEffect>((void*)aeffectPtr, 1)[0];
+                var aeffect = Unsafe.AsRef<AEffect>((void*)aeffectPtr);
+
                 NumOutputs = aeffect.numOutputs;
                 flags = aeffect.flags;
 
@@ -354,7 +356,7 @@ namespace Momiji.Core.Vst
             }
             SetParameterProc(aeffectPtr, index, value);
         }
-        public void Execute(
+        public void ProcessReplacing(
             VstBuffer<T> source,
             Task<PcmBuffer<T>> destTask,
             IReceivableSourceBlock<MIDIMessageEvent2> midiEventInput,
@@ -392,8 +394,8 @@ namespace Momiji.Core.Vst
 
                 var targetIdx = 0;
                 var target = new Span<T>(dest.Target);
-                var left = new ReadOnlySpan<T>(source[0]);
-                var right = new ReadOnlySpan<T>(source[1]);
+                var left = new ReadOnlySpan<T>(source.GetChannelBuffer(0));
+                var right = new ReadOnlySpan<T>(source.GetChannelBuffer(1));
 
                 dest.Log.Add("[to pcm] start", Timer.USecDouble);
                 for (var idx = 0; idx < left.Length; idx++)

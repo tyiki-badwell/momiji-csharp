@@ -244,7 +244,7 @@ namespace mixerTest
 
                                 //VST
                                 var pcmTask = pcmPool.ReceiveAsync(ct);
-                                effect.Execute(buffer, pcmTask, midiEventInput, midiEventOutput);
+                                effect.ProcessReplacing(buffer, pcmTask, midiEventInput, midiEventOutput);
                                 vstBufferPool.SendAsync(buffer);
                                 return pcmTask;
                             }, options);
@@ -418,7 +418,7 @@ namespace mixerTest
 
                             //VST
                             var pcmTask = pcmPool.ReceiveAsync(ct);
-                            effect.Execute(buffer, pcmTask, midiEventInput);
+                            effect.ProcessReplacing(buffer, pcmTask, midiEventInput);
                             vstBufferPool.SendAsync(buffer);
                             return pcmTask;
                         }, options);
