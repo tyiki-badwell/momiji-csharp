@@ -451,7 +451,34 @@ namespace Momiji.Core.Vst
             beforeTime = nowTime;
         }
 
-        private void ProcessEvent(
+        public VstBuffer<T> ProcessReplacing(
+            VstBuffer<T> source
+        )
+        {
+            if (DispatcherProc == default)
+            {
+                return default;
+            }
+            if (source == default)
+            {
+                throw new ArgumentNullException(nameof(source));
+            }
+
+            var blockSize = audioMaster.BlockSize;
+
+            source.Log.Add("[vst] start processReplacing", Timer.USecDouble);
+            ProcessProc(
+                aeffectPtr,
+                default,
+                source.AddrOfPinnedObject,
+                blockSize
+            );
+            source.Log.Add("[vst] end processReplacing", Timer.USecDouble);
+
+            return source;
+        }
+
+        public void ProcessEvent(
             VstBuffer<T> source,
             double nowTime,
             IReceivableSourceBlock<MIDIMessageEvent2> midiEventInput,

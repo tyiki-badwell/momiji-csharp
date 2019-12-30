@@ -49,25 +49,27 @@ namespace Momiji.Core.Trans
             disposed = true;
         }
 
-        public void Execute(
+        public PcmBuffer<T> Execute(
             VstBuffer<T> source,
-            PcmBuffer<T> dest
+            Task<PcmBuffer<T>> destTask
         )
         {
             if (source == default)
             {
                 throw new ArgumentNullException(nameof(source));
             }
-            if (dest == default)
+            if (destTask == default)
             {
-                throw new ArgumentNullException(nameof(dest));
+                throw new ArgumentNullException(nameof(destTask));
             }
+
+            var dest = destTask.Result;
             dest.Log.Marge(source.Log);
 
-            var target = dest.Target;
             var targetIdx = 0;
-            var left = source.GetChannelBuffer(0);
-            var right = source.GetChannelBuffer(1);
+            var target = new Span<T>(dest.Target);
+            var left = new ReadOnlySpan<T>(source.GetChannelBuffer(0));
+            var right = new ReadOnlySpan<T>(source.GetChannelBuffer(1));
 
             dest.Log.Add("[to pcm] start", Timer.USecDouble);
             for (var idx = 0; idx < left.Length; idx++)
@@ -76,38 +78,8 @@ namespace Momiji.Core.Trans
                 target[targetIdx++] = right[idx];
             }
             dest.Log.Add("[to pcm] end", Timer.USecDouble);
-        }
 
-        public async Task Run(
-            ISourceBlock<VstBuffer<T>> sourceQueue,
-            ITargetBlock<VstBuffer<T>> sourceReleaseQueue,
-            ISourceBlock<PcmBuffer<T>> destQueue,
-            ITargetBlock<PcmBuffer<T>> destReleaseQueue,
-            CancellationToken ct)
-        {
-            await Task.Run(() =>
-            {
-                if (ct.IsCancellationRequested)
-                {
-                    return;
-                }
-
-                while (true)
-                {
-                    if (ct.IsCancellationRequested)
-                    {
-                        break;
-                    }
-
-                    var source = sourceQueue.Receive(ct);
-                    source.Log.Add("[to pcm] source get", Timer.USecDouble);
-                    var dest = destQueue.Receive(ct);
-                    source.Log.Add("[to pcm] dest get", Timer.USecDouble);
-                    Execute(source, dest);
-                    sourceReleaseQueue.Post(source);
-                    destReleaseQueue.Post(dest);
-                }
-            }, ct).ConfigureAwait(false);
+            return dest;
         }
     }
 }

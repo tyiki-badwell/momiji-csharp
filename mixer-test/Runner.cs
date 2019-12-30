@@ -5,6 +5,7 @@ using Momiji.Core.FFT;
 using Momiji.Core.Ftl;
 using Momiji.Core.H264;
 using Momiji.Core.Opus;
+using Momiji.Core.Trans;
 using Momiji.Core.Vst;
 using Momiji.Core.Wave;
 using Momiji.Core.WebMidi;
@@ -384,6 +385,7 @@ namespace mixerTest
                     using var timer = new Momiji.Core.Timer();
                     using var audioWaiter = new Waiter(timer, audioInterval, ct);
                     using var vst = new AudioMaster<float>(Param.SamplingRate, blockSize, LoggerFactory, timer);
+                    using var toPcm = new ToPcm<float>(LoggerFactory, timer);
                     var effect = vst.AddEffect(Param.EffectName);
 
                     using var wave = new WaveOutFloat(
@@ -402,37 +404,40 @@ namespace mixerTest
                         MaxDegreeOfParallelism = 1
                     };
 
-                    var beforeVstStart = timer.USecDouble;
-
-                    var vstAction =
-                        new TransformBlock<VstBuffer<float>, PcmBuffer<float>>(buffer =>
+                    var vstBlock =
+                        new TransformBlock<VstBuffer<float>, VstBuffer<float>>(buffer =>
                         {
                             buffer.Log.Clear();
-                            var beforeReceiveTime = timer.USecDouble;
-                            buffer.Log.Add("[vst] receive", beforeReceiveTime);
-                            buffer.Log.Add("[vst] receive ok", timer.USecDouble);
                             audioWaiter.Wait();
-                            var now = timer.USecDouble;
-                            buffer.Log.Add($"[vst] go {now - beforeVstStart}", now);
-                            beforeVstStart = now;
-
                             //VST
-                            var pcmTask = pcmPool.ReceiveAsync(ct);
-                            effect.ProcessReplacing(buffer, pcmTask, midiEventInput);
-                            vstBufferPool.SendAsync(buffer);
-                            return pcmTask;
+                            var nowTime = timer.USecDouble;
+                            effect.ProcessEvent(buffer, nowTime, midiEventInput);
+                            effect.ProcessReplacing(buffer);
+                            return buffer;
                         }, options);
-                    taskSet.Add(vstAction.Completion);
-                    vstBufferPool.LinkTo(vstAction);
+                    taskSet.Add(vstBlock.Completion);
+                    vstBufferPool.LinkTo(vstBlock);
 
-                    var waveAction =
+                    var transBlock =
+                        new TransformBlock<VstBuffer<float>, PcmBuffer<float>>(buffer =>
+                        {
+                            var pcmTask = pcmPool.ReceiveAsync(ct);
+                            //trans
+                            var pcm = toPcm.Execute(buffer, pcmTask);
+                            vstBufferPool.SendAsync(buffer);
+                            return pcm;
+                        }, options);
+                    taskSet.Add(transBlock.Completion);
+                    vstBlock.LinkTo(transBlock);
+
+                    var waveBlock =
                         new ActionBlock<PcmBuffer<float>>(buffer =>
                         {
                             //WAVEOUT
                             wave.Execute(buffer, ct);
                         }, options);
-                    taskSet.Add(waveAction.Completion);
-                    vstAction.LinkTo(waveAction);
+                    taskSet.Add(waveBlock.Completion);
+                    transBlock.LinkTo(waveBlock);
 
                     while (taskSet.Count > 0)
                     {
