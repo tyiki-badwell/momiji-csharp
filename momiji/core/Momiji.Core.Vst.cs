@@ -183,7 +183,7 @@ namespace Momiji.Core.Vst
                         $"{nameof(ptr)}:{ptr:X} " +
                         $"{nameof(opt)}:{opt}"
                     );
-                    return IntPtr.Zero;
+                    return default;
             }
         }
     }
@@ -257,80 +257,77 @@ namespace Momiji.Core.Vst
 
             audioMasterCallBack = new PinnedDelegate<AudioMaster.CallBack>(new AudioMaster.CallBack(audioMaster.AudioMasterCallBackProc));
             aeffectPtr = vstPluginMain(audioMasterCallBack.FunctionPointer);
-            if (aeffectPtr == IntPtr.Zero)
+            if (aeffectPtr == default)
             {
                 throw new VstException("vstPluginMain で失敗");
             }
 
-            unsafe
+            var aeffect = GetAEffect();
+
+            NumOutputs = aeffect.numOutputs;
+            flags = aeffect.flags;
+
+            Logger.LogInformation($"magic:{aeffect.magic}");
+            Logger.LogInformation($"dispatcher:{aeffect.dispatcher}");
+            Logger.LogInformation($"processDeprecated:{aeffect.processDeprecated}");
+            Logger.LogInformation($"setParameter:{aeffect.setParameter}");
+            Logger.LogInformation($"getParameter:{aeffect.getParameter}");
+
+            Logger.LogInformation($"numPrograms:{aeffect.numPrograms}");
+            Logger.LogInformation($"numParams:{aeffect.numParams}");
+            Logger.LogInformation($"numInputs:{aeffect.numInputs}");
+            Logger.LogInformation($"numOutputs:{aeffect.numOutputs}");
+            Logger.LogInformation($"flags:{aeffect.flags}");
+
+            //Logger.LogInformation($"resvd1:"+aeffect.resvd1);
+            //Logger.LogInformation($"resvd2:"+aeffect.resvd2);
+
+            Logger.LogInformation($"initialDelay:{aeffect.initialDelay}");
+
+            Logger.LogInformation($"realQualitiesDeprecated:{aeffect.realQualitiesDeprecated}");
+            Logger.LogInformation($"offQualitiesDeprecated:{aeffect.offQualitiesDeprecated}");
+            Logger.LogInformation($"ioRatioDeprecated:{aeffect.ioRatioDeprecated}");
+            //Logger.LogInformation($"object:"+aeffect._object);
+            Logger.LogInformation($"user:{aeffect.user}");
+
+            Logger.LogInformation($"uniqueID:{aeffect.uniqueID}");
+            Logger.LogInformation($"version:{aeffect.version}");
+
+            Logger.LogInformation("processReplacing:" + aeffect.processReplacing);
+            Logger.LogInformation("processDoubleReplacing:" + aeffect.processDoubleReplacing);
+
+            if (aeffect.dispatcher != default)
             {
-                var aeffect = Unsafe.AsRef<AEffect>((void*)aeffectPtr);
+                DispatcherProc =
+                    Marshal.GetDelegateForFunctionPointer<AEffect.DispatcherProc>(aeffect.dispatcher);
+            }
 
-                NumOutputs = aeffect.numOutputs;
-                flags = aeffect.flags;
+            if (aeffect.setParameter != default)
+            {
+                SetParameterProc =
+                    Marshal.GetDelegateForFunctionPointer<AEffect.SetParameterProc>(aeffect.setParameter);
+            }
 
-                Logger.LogInformation($"magic:{aeffect.magic}");
-                Logger.LogInformation($"dispatcher:{aeffect.dispatcher}");
-                Logger.LogInformation($"processDeprecated:{aeffect.processDeprecated}");
-                Logger.LogInformation($"setParameter:{aeffect.setParameter}");
-                Logger.LogInformation($"getParameter:{aeffect.getParameter}");
+            if (aeffect.getParameter != default)
+            {
+                GetParameterProc =
+                    Marshal.GetDelegateForFunctionPointer<AEffect.GetParameterProc>(aeffect.getParameter);
+            }
 
-                Logger.LogInformation($"numPrograms:{aeffect.numPrograms}");
-                Logger.LogInformation($"numParams:{aeffect.numParams}");
-                Logger.LogInformation($"numInputs:{aeffect.numInputs}");
-                Logger.LogInformation($"numOutputs:{aeffect.numOutputs}");
-                Logger.LogInformation($"flags:{aeffect.flags}");
+            if (aeffect.processReplacing != default)
+            {
+                ProcessProc =
+                    Marshal.GetDelegateForFunctionPointer<AEffect.ProcessProc>(aeffect.processReplacing);
+            }
+            else
+            {
+                throw new VstException("processReplacing が無い");
+            }
 
-                //Logger.LogInformation($"resvd1:"+aeffect.resvd1);
-                //Logger.LogInformation($"resvd2:"+aeffect.resvd2);
-
-                Logger.LogInformation($"initialDelay:{aeffect.initialDelay}");
-
-                Logger.LogInformation($"realQualitiesDeprecated:{aeffect.realQualitiesDeprecated}");
-                Logger.LogInformation($"offQualitiesDeprecated:{aeffect.offQualitiesDeprecated}");
-                Logger.LogInformation($"ioRatioDeprecated:{aeffect.ioRatioDeprecated}");
-                //Logger.LogInformation($"object:"+aeffect._object);
-                Logger.LogInformation($"user:{aeffect.user}");
-
-                Logger.LogInformation($"uniqueID:{aeffect.uniqueID}");
-                Logger.LogInformation($"version:{aeffect.version}");
-
-                Logger.LogInformation("processReplacing:" + aeffect.processReplacing);
-                Logger.LogInformation("processDoubleReplacing:" + aeffect.processDoubleReplacing);
-
-                if (aeffect.dispatcher != IntPtr.Zero)
-                {
-                    DispatcherProc =
-                        Marshal.GetDelegateForFunctionPointer<AEffect.DispatcherProc>(aeffect.dispatcher);
-                }
-
-                if (aeffect.setParameter != IntPtr.Zero)
-                {
-                    SetParameterProc =
-                        Marshal.GetDelegateForFunctionPointer<AEffect.SetParameterProc>(aeffect.setParameter);
-                }
-
-                if (aeffect.getParameter != IntPtr.Zero)
-                {
-                    GetParameterProc =
-                        Marshal.GetDelegateForFunctionPointer<AEffect.GetParameterProc>(aeffect.getParameter);
-                }
-
-                if (aeffect.processReplacing != IntPtr.Zero)
-                {
-                    ProcessProc =
-                        Marshal.GetDelegateForFunctionPointer<AEffect.ProcessProc>(aeffect.processReplacing);
-                }
-                else
-                {
-                    throw new VstException("processReplacing が無い");
-                }
-
-                if (aeffect.processDoubleReplacing != IntPtr.Zero)
-                {
-                    ProcessDoubleProc =
-                        Marshal.GetDelegateForFunctionPointer<AEffect.ProcessDoubleProc>(aeffect.processDoubleReplacing);
-                }
+            if (aeffect.processDoubleReplacing != default)
+            {
+                ProcessDoubleProc =
+                    Marshal.GetDelegateForFunctionPointer<AEffect.ProcessDoubleProc>(aeffect.processDoubleReplacing);
             }
 
             beforeTime = Timer.USecDouble;
@@ -341,7 +338,16 @@ namespace Momiji.Core.Vst
             Dispose(false);
         }
 
-        public float GetParameter(int index) {
+        public ref AEffect GetAEffect()
+        {
+            unsafe
+            {
+                return ref Unsafe.AsRef<AEffect>((void*)aeffectPtr);
+            }
+        }
+
+        public float GetParameter(int index) 
+        {
             if (GetParameterProc == default)
             {
                 return default;
@@ -349,13 +355,48 @@ namespace Momiji.Core.Vst
             return GetParameterProc(aeffectPtr, index);
         }
 
-        public void SetParameter(int index, float value) {
+        public void SetParameter(int index, float value) 
+        {
             if (SetParameterProc == default)
             {
                 return;
             }
             SetParameterProc(aeffectPtr, index, value);
         }
+
+        private string GetString(AEffect.Opcodes opcode, int index, int length)
+        {
+            if (DispatcherProc == default)
+            {
+                return default;
+            }
+
+            using var buffer = new PinnedBuffer<byte[]>(new byte[length+1]);
+
+            DispatcherProc(
+                aeffectPtr,
+                opcode,
+                index,
+                default,
+                buffer.AddrOfPinnedObject,
+                default
+            );
+
+            return Marshal.PtrToStringAnsi(buffer.AddrOfPinnedObject);
+        }
+        public string GetParameterLabel(int index)
+        {
+            return GetString(AEffect.Opcodes.effGetParamLabel, index, 100);
+        }
+        public string GetParameterName(int index)
+        {
+            return GetString(AEffect.Opcodes.effGetParamName, index, 100);
+        }
+        public string GetParameterDisplay(int index)
+        {
+            return GetString(AEffect.Opcodes.effGetParamDisplay, index, 100);
+        }
+
         public void ProcessReplacing(
             VstBuffer<T> source,
             Task<PcmBuffer<T>> destTask,
@@ -374,14 +415,15 @@ namespace Momiji.Core.Vst
 
             var blockSize = audioMaster.BlockSize;
             var nowTime = Timer.USecDouble;
-            //Logger.LogInformation($"[vst] start {DateTimeOffset.FromUnixTimeMilliseconds((long)(beforeTime / 1000)).ToUniversalTime():HH:mm:ss.fff} {DateTimeOffset.FromUnixTimeMilliseconds((long)(nowTime / 1000)).ToUniversalTime():HH:mm:ss.fff} {nowTime - beforeTime}");
+            Logger.LogInformation($"[vst] start {DateTimeOffset.FromUnixTimeMilliseconds((long)(beforeTime / 1000)).ToUniversalTime():HH:mm:ss.fff} {DateTimeOffset.FromUnixTimeMilliseconds((long)(nowTime / 1000)).ToUniversalTime():HH:mm:ss.fff} {nowTime - beforeTime}");
 
+            // processReplacingの前に１度しか呼べない制限がある・・・？
             ProcessEvent(source, nowTime, midiEventInput, midiEventOutput);
 
             source.Log.Add("[vst] start processReplacing", Timer.USecDouble);
             ProcessProc(
                 aeffectPtr,
-                IntPtr.Zero,
+                default,
                 source.AddrOfPinnedObject,
                 blockSize
             );
@@ -496,10 +538,10 @@ namespace Momiji.Core.Vst
                 DispatcherProc(
                     aeffectPtr,
                     AEffect.Opcodes.effProcessEvents,
-                    0,
-                    IntPtr.Zero,
+                    default,
+                    default,
                     events.AddrOfPinnedObject,
-                    0
+                    default
                 );
                 source.Log.Add("[vst] end effProcessEvents", Timer.USecDouble);
             }
@@ -520,68 +562,74 @@ namespace Momiji.Core.Vst
                 throw new VstException("effFlagsHasEditor ではない");
             }*/
 
+            // open
             DispatcherProc(
                 aeffectPtr,
                 AEffect.Opcodes.effOpen,
-                0,
-                IntPtr.Zero,
-                IntPtr.Zero,
-                0
+                default,
+                default,
+                default,
+                default
             );
 
+            // set sampling rate
             DispatcherProc(
                 aeffectPtr,
                 AEffect.Opcodes.effSetSampleRate,
-                0,
-                IntPtr.Zero,
-                IntPtr.Zero,
+                default,
+                default,
+                default,
                 audioMaster.SamplingRate
             );
+
+            // set block size
             DispatcherProc(
                 aeffectPtr,
                 AEffect.Opcodes.effSetBlockSize,
-                0,
+                default,
                 new IntPtr(audioMaster.BlockSize),
-                IntPtr.Zero,
-                0
+                default,
+                default
             );
-            //resume
+
+            // resume
             DispatcherProc(
                 aeffectPtr,
                 AEffect.Opcodes.effMainsChanged,
-                0,
+                default,
                 new IntPtr(1),
-                IntPtr.Zero,
-                0
+                default,
+                default
             );
-            //start
+
+            // start
             DispatcherProc(
                 aeffectPtr,
                 AEffect.Opcodes.effStartProcess,
-                0,
-                IntPtr.Zero,
-                IntPtr.Zero,
-                0
+                default,
+                default,
+                default,
+                default
             );
 
             /*
             Dispatcher(
                 aeffectPtr,
                 AEffect.Opcodes.effEditOpen,
-                0,
-                IntPtr.Zero,
-                IntPtr.Zero, // TODO hWnd
-                0
+                default,
+                default,
+                default, // TODO hWnd
+                default
             );
             using (var buffer = new PinnedBuffer<IntPtr[]>(new IntPtr[1]))
             { 
                 Dispatcher(
                     aeffectPtr,
                     AEffect.Opcodes.effEditGetRect,
-                    0,
-                    IntPtr.Zero,
+                    default,
+                    default,
                     buffer.AddrOfPinnedObject, // TODO out ERect
-                    0
+                    default
                 );
 
                 EditorRect = Marshal.PtrToStructure<ERect>(buffer.AddrOfPinnedObject);
@@ -598,38 +646,38 @@ namespace Momiji.Core.Vst
             Dispatcher(
                 aeffectPtr,
                 AEffect.Opcodes.effEditClose,
-                0,
-                IntPtr.Zero,
-                IntPtr.Zero,
-                0
+                default,
+                default,
+                default,
+                default
             );*/
 
             //stop
             DispatcherProc(
                 aeffectPtr,
                 AEffect.Opcodes.effStopProcess,
-                0,
-                IntPtr.Zero,
-                IntPtr.Zero,
-                0
+                default,
+                default,
+                default,
+                default
             );
             //suspend
             DispatcherProc(
                 aeffectPtr,
                 AEffect.Opcodes.effMainsChanged,
-                0,
-                IntPtr.Zero,
-                IntPtr.Zero,
-                0
+                default,
+                default,
+                default,
+                default
             );
             //close
             DispatcherProc(
                 aeffectPtr,
                 AEffect.Opcodes.effClose,
-                0,
-                IntPtr.Zero,
-                IntPtr.Zero,
-                0
+                default,
+                default,
+                default,
+                default
             );
         }
 
