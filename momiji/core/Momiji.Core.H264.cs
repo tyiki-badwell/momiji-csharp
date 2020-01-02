@@ -26,7 +26,7 @@ namespace Momiji.Core.H264
     public class H264InputBuffer : PinnedBufferWithLog<SSourcePicture>
     {
         private bool disposed = false;
-        private readonly PinnedBuffer<byte[]> buffer;
+        private PinnedBuffer<byte[]> buffer;
 
         public H264InputBuffer(int picWidth, int picHeight) : base(new SSourcePicture())
         {
@@ -55,7 +55,8 @@ namespace Momiji.Core.H264
             {
             }
 
-            buffer.Dispose();
+            buffer?.Dispose();
+            buffer = null;
 
             disposed = true;
 
@@ -320,6 +321,7 @@ namespace Momiji.Core.H264
                 
                 for (var nalIdx = 0; nalIdx < layer.iNalCount; nalIdx++)
                 {
+                    //TODO spanにしてみる
                     var length = Marshal.ReadInt32(layer.pNalLengthInByte, nalIdx * sizeOfInt32);
                     nuls.Add((offset + 4, length - 4));
                     offset += length;

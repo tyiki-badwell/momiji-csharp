@@ -127,6 +127,7 @@ namespace Momiji.Core.FFT
             using (var black = new SolidBrush(Color.Black))
             using (var white = new SolidBrush(Color.White))
             {
+                //TODO FFT
                 g.FillRectangle(black, 0, 0, PicWidth, PicHeight);
                 foreach (var (k, v) in new Dictionary<byte, byte>(note)) //排他を掛けてないのでコピー
                 {
@@ -144,6 +145,7 @@ namespace Momiji.Core.FFT
             }
             source.Log.Add("[fft] drawn", Timer.USecDouble);
 
+            //TODO 画像生成とYUV変換を分離する
             var bitmapData = bitmap.LockBits(new Rectangle(0, 0, PicWidth, PicHeight), ImageLockMode.ReadOnly, PixelFormat.Format24bppRgb);
             try
             {

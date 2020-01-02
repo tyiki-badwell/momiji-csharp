@@ -207,9 +207,6 @@ namespace Momiji.Core.Vst
         private AEffect.ProcessProc ProcessProc { get; }
         private AEffect.ProcessDoubleProc ProcessDoubleProc { get; }
 
-        private int NumOutputs { get; }
-        private readonly AEffect.VstAEffectFlags flags;
-
         private readonly AudioMaster<T> audioMaster;
         private PinnedDelegate<AudioMaster.CallBack> audioMasterCallBack;
 
@@ -263,9 +260,6 @@ namespace Momiji.Core.Vst
             }
 
             var aeffect = GetAEffect();
-
-            NumOutputs = aeffect.numOutputs;
-            flags = aeffect.flags;
 
             Logger.LogInformation($"magic:{aeffect.magic}");
             Logger.LogInformation($"dispatcher:{aeffect.dispatcher}");
@@ -580,7 +574,8 @@ namespace Momiji.Core.Vst
                 return;
             }
 
-            if (!flags.HasFlag(AEffect.VstAEffectFlags.effFlagsIsSynth))
+            var aeffect = GetAEffect();
+            if (!aeffect.flags.HasFlag(AEffect.VstAEffectFlags.effFlagsIsSynth))
             {
                 throw new VstException("effFlagsIsSynth ではない");
             }

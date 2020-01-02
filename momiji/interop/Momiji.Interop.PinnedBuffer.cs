@@ -113,7 +113,8 @@ namespace Momiji.Interop
         {
             if (disposing)
             {
-                Log.Clear();
+                Log?.Clear();
+                Log = null;
             }
             base.Dispose(disposing);
         }
