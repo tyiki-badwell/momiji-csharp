@@ -37,8 +37,7 @@ namespace Momiji.Core
             });
             var logger = loggerFactory.CreateLogger<VstUnitTest>();
 
-            Dll.Setup(configuration, loggerFactory);
-
+            using var dllManager = new DllManager(configuration, loggerFactory);
             using var timer = new Timer();
 
             var blockSize = 2880;
@@ -47,7 +46,7 @@ namespace Momiji.Core
             var midiEventInput = new BufferBlock<MIDIMessageEvent2>();
             using var buffer = new VstBuffer<float>(blockSize, 2);
 
-            using var vst = new AudioMaster<float>(48000, blockSize, loggerFactory, timer);
+            using var vst = new AudioMaster<float>(48000, blockSize, loggerFactory, timer, dllManager);
             var effect = vst.AddEffect("Synth1 VST.dll");
             
             var aeffect = effect.GetAEffect();

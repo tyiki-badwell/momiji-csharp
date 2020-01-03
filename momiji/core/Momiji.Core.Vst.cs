@@ -66,6 +66,7 @@ namespace Momiji.Core.Vst
         private ILoggerFactory LoggerFactory { get; }
         private ILogger Logger { get; }
         private Timer Timer { get; }
+        internal IDllManager DllManager { get; }
 
         private bool disposed = false;
         private readonly IDictionary<IntPtr, Effect<T>> effectMap = new ConcurrentDictionary<IntPtr, Effect<T>>();
@@ -79,12 +80,14 @@ namespace Momiji.Core.Vst
             int samplingRate,
             int blockSize,
             ILoggerFactory loggerFactory,
-            Timer timer
+            Timer timer,
+            IDllManager dllManager
         )
         {
             LoggerFactory = loggerFactory;
             Logger = LoggerFactory.CreateLogger<AudioMaster<T>>();
             Timer = timer;
+            DllManager = dllManager;
 
             SamplingRate = samplingRate;
             BlockSize = blockSize;
@@ -197,7 +200,6 @@ namespace Momiji.Core.Vst
 
         private bool disposed = false;
 
-        private Dll dll;
         internal readonly IntPtr aeffectPtr;
         //internal ERect EditorRect { get; private set; }
 
@@ -235,16 +237,10 @@ namespace Momiji.Core.Vst
             events = new PinnedBuffer<byte[]>(new byte[SIZE_OF_VSTEVENTS + (SIZE_OF_INTPTR * COUNT_OF_EVENTS)]);
             eventList = new PinnedBuffer<byte[]>(new byte[SIZE_OF_VSTMIDIEVENT * COUNT_OF_EVENTS]);
 
-            dll = new Dll(library);
-            if (dll.IsInvalid)
-            {
-                throw new VstException($"DLLの読み込みに失敗{library}");
-            }
-
-            var vstPluginMain = dll.GetExport<AEffect.VSTPluginMain>("VSTPluginMain");
+            var vstPluginMain = audioMaster.DllManager.GetExport<AEffect.VSTPluginMain>(library, "VSTPluginMain");
             if (vstPluginMain == default)
             {
-                vstPluginMain = dll.GetExport<AEffect.VSTPluginMain>("main");
+                vstPluginMain = audioMaster.DllManager.GetExport<AEffect.VSTPluginMain>(library, "main");
             }
 
             if (vstPluginMain == default)
@@ -727,10 +723,10 @@ namespace Momiji.Core.Vst
                 eventList?.Dispose();
                 eventList = null;
             }
-
+            /*
             dll?.Dispose();
             dll = null;
-
+            */
             disposed = true;
         }
     }

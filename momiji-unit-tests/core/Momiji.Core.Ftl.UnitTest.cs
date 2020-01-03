@@ -37,8 +37,7 @@ namespace Momiji.Core
                 builder.AddDebug();
             });
             using var timer = new Timer();
-
-            Dll.Setup(configuration, loggerFactory);
+            using var dllManager = new DllManager(configuration, loggerFactory);
 
             using var ftl = new FtlIngest(streamKey, loggerFactory, timer, true, mixerApiClientId);
             ftl.Connect();

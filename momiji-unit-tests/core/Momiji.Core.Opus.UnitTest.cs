@@ -34,8 +34,7 @@ namespace Momiji.Core
                 builder.AddDebug();
             });
             using var timer = new Timer();
-
-            Dll.Setup(configuration, loggerFactory);
+            using var dllManager = new DllManager(configuration, loggerFactory);
 
             using var opus = new OpusEncoder(SamplingRate.Sampling48000, Channels.Stereo, loggerFactory, timer);
 

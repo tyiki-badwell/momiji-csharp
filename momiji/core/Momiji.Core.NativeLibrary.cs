@@ -2,75 +2,119 @@
 using Microsoft.Extensions.Logging;
 using Momiji.Interop.Kernel32;
 using System;
+using System.Collections.Concurrent;
+using System.Collections.Generic;
 using System.IO;
 using System.Reflection;
-using System.Runtime.ConstrainedExecution;
 using System.Runtime.InteropServices;
-using System.Security.Permissions;
 
 namespace Momiji.Core
 {
-    [SecurityPermission(SecurityAction.InheritanceDemand, UnmanagedCode = true)]
-    [SecurityPermission(SecurityAction.Demand, UnmanagedCode = true)]
-    public sealed class Dll : SafeHandle
+    public interface IDllManager : IDisposable
     {
-        public static void Setup(IConfiguration configuration, ILoggerFactory loggerFactory)
+        public T GetExport<T>(string libraryName, string name);
+    }
+
+    public class DllManager : IDllManager
+    {
+        private IConfiguration Configuration { get; }
+        private ILoggerFactory LoggerFactory { get; }
+        private ILogger Logger { get; }
+
+        private bool disposed = false;
+        private readonly IDictionary<string, IntPtr> dllPool = new ConcurrentDictionary<string, IntPtr>();
+
+        public DllManager(IConfiguration configuration, ILoggerFactory loggerFactory)
         {
-            var logger = loggerFactory.CreateLogger<Dll>();
+            Configuration = configuration ?? throw new ArgumentNullException(nameof(configuration));
+            LoggerFactory = loggerFactory;
+            Logger = LoggerFactory.CreateLogger<DllManager>();
+
             var dllPathBase =
                 Path.Combine(
                     Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location),
                     "lib",
                     Environment.Is64BitProcess ? "64" : "32"
                 );
-            logger.LogInformation($"call SetDllDirectory({dllPathBase})");
+            Logger.LogInformation($"call SetDllDirectory({dllPathBase})");
             SafeNativeMethods.SetDllDirectory(dllPathBase);
 
-            if (configuration != null)
+            try
             {
-                //TODO データ構造の定義がプログラムになっているのでよくない
-                try
-                {
-                    NativeLibrary.SetDllImportResolver(Assembly.GetExecutingAssembly(), (libraryName, assembly, searchPath) =>
-                    {
-                        logger.LogInformation($"call DllImportResolver({libraryName}, {assembly}, {searchPath})");
-                        var name = configuration.GetSection("LibraryNameMapping:" + (Environment.Is64BitProcess ? "64" : "32"))?[libraryName];
-                        if (name != default)
-                        {
-                            if (NativeLibrary.TryLoad(name, assembly, searchPath, out var handle))
-                            {
-                                logger.LogInformation($"mapped {libraryName} -> {name}");
-                                return handle;
-                            }
-                        }
-                        return default;
-                    });
-                }
-                catch(InvalidOperationException e)
-                {
-                    logger.LogInformation(e, "SetDllImportResolver failed.");
-                }
+                NativeLibrary.SetDllImportResolver(Assembly.GetExecutingAssembly(), ResolveDllImport);
+            }
+            catch (InvalidOperationException e)
+            {
+                Logger.LogInformation(e, "SetDllImportResolver failed.");
             }
         }
-
-        public override bool IsInvalid => handle == IntPtr.Zero;
-
-        public Dll(string libraryPath) : base(IntPtr.Zero, true)
+        public void Dispose()
         {
-            handle = NativeLibrary.Load(libraryPath, Assembly.GetExecutingAssembly(), DllImportSearchPath.UserDirectories);
+            Dispose(true);
+            GC.SuppressFinalize(this);
         }
 
-        [ReliabilityContract(Consistency.WillNotCorruptState, Cer.MayFail)]
-        protected override bool ReleaseHandle()
+        protected virtual void Dispose(bool disposing)
         {
-            NativeLibrary.Free(handle);
-            return true;
+            if (disposed) return;
+
+            if (disposing)
+            {
+                Logger.LogInformation("[dll manager] dispose");
+                foreach (var (libraryName, handle) in dllPool)
+                {
+                    NativeLibrary.Free(handle);
+                    Logger.LogInformation($"[dll manager] free {libraryName}");
+                }
+                dllPool.Clear();
+            }
+
+            disposed = true;
         }
 
-
-        public T GetExport<T>(string name)
+        internal IntPtr ResolveDllImport(string libraryName, Assembly assembly, DllImportSearchPath? searchPath)
         {
-            if (!IsInvalid && NativeLibrary.TryGetExport(handle, name, out var address))
+            //TODO データ構造の定義がプログラムになっているのでよくない
+            Logger.LogInformation($"call DllImportResolver({libraryName}, {assembly}, {searchPath})");
+            var name = Configuration.GetSection("LibraryNameMapping:" + (Environment.Is64BitProcess ? "64" : "32"))?[libraryName];
+            if (name != default)
+            {
+                if (NativeLibrary.TryLoad(name, assembly, searchPath, out var handle))
+                {
+                    Logger.LogInformation($"mapped {libraryName} -> {name}");
+                    return handle;
+                }
+            }
+            return default;
+        }
+
+        private IntPtr TryLoad(string libraryName)
+        {
+            if (dllPool.TryGetValue(libraryName, out var handle))
+            {
+                return handle;
+            }
+
+            var assembly = Assembly.GetExecutingAssembly();
+            var searchPath = DllImportSearchPath.UserDirectories;
+
+            handle = ResolveDllImport(libraryName, assembly, searchPath);
+            if (handle == default)
+            {
+                handle = NativeLibrary.Load(libraryName, assembly, searchPath);
+            }
+
+            if (!dllPool.TryAdd(libraryName, handle))
+            {
+                NativeLibrary.Free(handle);
+            }
+            return handle;
+        }
+
+        public T GetExport<T>(string libraryName, string name)
+        {
+            var handle = TryLoad(libraryName);
+            if (NativeLibrary.TryGetExport(handle, name, out var address))
             {
                 return Marshal.GetDelegateForFunctionPointer<T>(address);
             }
@@ -79,6 +123,5 @@ namespace Momiji.Core
                 return default;
             }
         }
-    };
-
+    }
 }

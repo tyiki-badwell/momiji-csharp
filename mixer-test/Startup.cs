@@ -29,13 +29,12 @@ namespace mixerTest
                 options.MinimumSameSitePolicy = SameSiteMode.None;
             });
 
+            services.AddSingleton<IDllManager, DllManager>();
             services.AddSingleton<IRunner, Runner>();
         }
 
         public void Configure(IApplicationBuilder app, IWebHostEnvironment env, IHostApplicationLifetime appLifetime, ILoggerFactory loggerFactory)
         {
-            Dll.Setup(Configuration, loggerFactory);
-
             var logger = loggerFactory.CreateLogger<Startup>();
 
             if (env.IsDevelopment())

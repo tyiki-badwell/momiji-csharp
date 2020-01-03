@@ -77,6 +77,7 @@ namespace mixerTest
         private IConfiguration Configuration { get; }
         private ILoggerFactory LoggerFactory { get; }
         private ILogger Logger { get; }
+        private IDllManager DllManager { get; }
         private string StreamKey { get; }
         private string CaInfoPath { get; }
         private Param Param { get; }
@@ -92,11 +93,12 @@ namespace mixerTest
         //private BufferBlock<OpusOutputBuffer> audioOutput = new BufferBlock<OpusOutputBuffer>();
         //private BufferBlock<H264OutputBuffer> videoOutput = new BufferBlock<H264OutputBuffer>();
         
-        public Runner(IConfiguration configuration, ILoggerFactory loggerFactory)
+        public Runner(IConfiguration configuration, ILoggerFactory loggerFactory, IDllManager dllManager)
         {
             Configuration = configuration ?? throw new ArgumentNullException(nameof(configuration));
             LoggerFactory = loggerFactory;
             Logger = LoggerFactory.CreateLogger<Runner>();
+            DllManager = dllManager;
 
             var param = new Param();
             Configuration.GetSection("Param").Bind(param);
@@ -218,7 +220,7 @@ namespace mixerTest
                     using var pcmDummyPool = new BufferPool<PcmBuffer<float>>(Param.BufferCount, () => new PcmBuffer<float>(blockSize, 2), LoggerFactory);
                     using var bmpPool = new BufferPool<H264InputBuffer>(Param.BufferCount, () => new H264InputBuffer(Param.Width, Param.Height), LoggerFactory);
                     using var videoPool = new BufferPool<H264OutputBuffer>(Param.BufferCount, () => new H264OutputBuffer(200000), LoggerFactory);
-                    using var vst = new AudioMaster<float>(Param.SamplingRate, blockSize, LoggerFactory, timer);
+                    using var vst = new AudioMaster<float>(Param.SamplingRate, blockSize, LoggerFactory, timer, DllManager);
                     //using (var toPcm = new ToPcm<float>(LoggerFactory, timer))
                     using var opus = new OpusEncoder(SamplingRate.Sampling48000, Channels.Stereo, LoggerFactory, timer);
                     using var fft = new FFTEncoder(Param.Width, Param.Height, Param.MaxFrameRate, LoggerFactory, timer);
@@ -384,7 +386,7 @@ namespace mixerTest
                     using var pcmPool = new BufferPool<PcmBuffer<float>>(Param.BufferCount, () => new PcmBuffer<float>(blockSize, 2), LoggerFactory);
                     using var timer = new Momiji.Core.Timer();
                     using var audioWaiter = new Waiter(timer, audioInterval, ct);
-                    using var vst = new AudioMaster<float>(Param.SamplingRate, blockSize, LoggerFactory, timer);
+                    using var vst = new AudioMaster<float>(Param.SamplingRate, blockSize, LoggerFactory, timer, DllManager);
                     using var toPcm = new ToPcm<float>(LoggerFactory, timer);
                     var effect = vst.AddEffect(Param.EffectName);
 
