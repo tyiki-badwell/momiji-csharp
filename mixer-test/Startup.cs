@@ -12,12 +12,9 @@ namespace mixerTest
 {
     public class Startup
     {
-        public Startup(IConfiguration configuration)
+        public Startup()
         {
-            Configuration = configuration;
         }
-
-        public IConfiguration Configuration { get; }
 
         public void ConfigureServices(IServiceCollection services)
         {
@@ -74,6 +71,7 @@ namespace mixerTest
                         catch(Exception e)
                         {
                             logger.LogInformation(e, "web socket exception");
+                            throw;
                         }
                     }
                     else
@@ -88,7 +86,7 @@ namespace mixerTest
                 logger.LogInformation("ApplicationStarted");
             });
             appLifetime?.ApplicationStopped.Register(() => {
-                app.ApplicationServices.GetService<IRunner>().Stop();
+                app.ApplicationServices.GetService<IRunner>().Cancel();
                 logger.LogInformation("ApplicationStopped");
             });
         }

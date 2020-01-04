@@ -42,12 +42,11 @@ namespace Momiji.Core
 
             var blockSize = 2880;
 
-            using var pcmPool = new BufferPool<PcmBuffer<float>>(5, () => new PcmBuffer<float>(blockSize, 2), loggerFactory);
             var midiEventInput = new BufferBlock<MIDIMessageEvent2>();
             using var buffer = new VstBuffer<float>(blockSize, 2);
 
             using var vst = new AudioMaster<float>(48000, blockSize, loggerFactory, timer, dllManager);
-            var effect = vst.AddEffect("Synth1 VST.dll");
+            var effect = vst.AddEffect("Dexed.dll");
             
             var aeffect = effect.GetAEffect();
             for (int i = 0; i < 1 /*aeffect.numParams*/; i++)
@@ -58,59 +57,82 @@ namespace Momiji.Core
                 var value = effect.GetParameter(i);
                 logger.LogInformation($"{i}:{label}:{name}:{display}:{value}");
             }
-            
-            midiEventInput.Post(new MIDIMessageEvent2() {
-                midiMessageEvent = {
-                    receivedTime = 0,
+
+            {
+                var nowTime = timer.USecDouble;
+                midiEventInput.Post(new MIDIMessageEvent2() {
+                    midiMessageEvent = {
+                    receivedTime = nowTime,
                     data0 = 0x90,
                     data1 = 0x20,
                     data2 = 0x40,
                     data3 = 0
                 },
-                receivedTimeUSec = 0
-            });
-            effect.ProcessReplacing(buffer, pcmPool.ReceiveAsync(), midiEventInput);
+                    receivedTimeUSec = nowTime
+                });
+                midiEventInput.Post(new MIDIMessageEvent2()
+                {
+                    midiMessageEvent = {
+                    receivedTime = nowTime,
+                    data0 = 0x90,
+                    data1 = 0x21,
+                    data2 = 0x40,
+                    data3 = 0
+                },
+                    receivedTimeUSec = nowTime
+                });
+                effect.ProcessEvent(buffer, nowTime, midiEventInput);
+                effect.ProcessReplacing(buffer);
+            }
 
-            midiEventInput.Post(new MIDIMessageEvent2()
             {
-                midiMessageEvent = {
-                    receivedTime = 0,
+                var nowTime = timer.USecDouble;
+                midiEventInput.Post(new MIDIMessageEvent2()
+                {
+                    midiMessageEvent = {
+                    receivedTime = nowTime,
                     data0 = 0x90,
                     data1 = 0x30,
                     data2 = 0x40,
                     data3 = 0
                 },
-                receivedTimeUSec = 0
-            });
-            effect.ProcessReplacing(buffer, pcmPool.ReceiveAsync(), midiEventInput);
-
-            midiEventInput.Post(new MIDIMessageEvent2()
+                    receivedTimeUSec = nowTime
+                });
+                effect.ProcessEvent(buffer, nowTime, midiEventInput);
+                effect.ProcessReplacing(buffer);
+            }
             {
-                midiMessageEvent = {
-                    receivedTime = 0,
+                var nowTime = timer.USecDouble;
+                midiEventInput.Post(new MIDIMessageEvent2()
+                {
+                    midiMessageEvent = {
+                    receivedTime = nowTime,
                     data0 = 0x90,
                     data1 = 0x40,
                     data2 = 0x40,
                     data3 = 0
                 },
-                receivedTimeUSec = 0
-            });
-            effect.ProcessReplacing(buffer, pcmPool.ReceiveAsync(), midiEventInput);
-
-            midiEventInput.Post(new MIDIMessageEvent2()
+                    receivedTimeUSec = nowTime
+                });
+                effect.ProcessEvent(buffer, nowTime, midiEventInput);
+                effect.ProcessReplacing(buffer);
+            }
             {
-                midiMessageEvent = {
-                    receivedTime = 0,
+                var nowTime = timer.USecDouble;
+                midiEventInput.Post(new MIDIMessageEvent2()
+                {
+                    midiMessageEvent = {
+                    receivedTime = nowTime,
                     data0 = 0x90,
                     data1 = 0x50,
                     data2 = 0x40,
                     data3 = 0
                 },
-                receivedTimeUSec = 0
-            });
-            effect.ProcessReplacing(buffer, pcmPool.ReceiveAsync(), midiEventInput);
-
+                    receivedTimeUSec = nowTime
+                });
+                effect.ProcessEvent(buffer, nowTime, midiEventInput);
+                effect.ProcessReplacing(buffer);
+            }
         }
-
     }
 }

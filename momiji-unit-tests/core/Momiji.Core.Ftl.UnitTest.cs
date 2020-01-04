@@ -1,5 +1,4 @@
 using Microsoft.Extensions.Configuration;
-using static Microsoft.Extensions.Configuration.ConfigurationExtensions;
 using Microsoft.Extensions.Logging;
 using Momiji.Core.Ftl;
 using Xunit;

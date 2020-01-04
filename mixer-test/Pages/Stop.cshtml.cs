@@ -17,7 +17,7 @@ namespace mixerTest.Pages
 
         public void OnGet()
         {
-            _runner.Stop();
+            _runner.Cancel();
         }
     }
 }

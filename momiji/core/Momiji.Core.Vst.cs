@@ -136,10 +136,10 @@ namespace Momiji.Core.Vst
 
             if (disposing)
             {
-                Logger.LogInformation("[vst host] stop");
+                Logger.LogInformation($"[vst host] stop [{effectMap.Count}]");
                 foreach (var (ptr, effect) in effectMap)
                 {
-                    Logger.LogInformation("[vst] try stop");
+                    Logger.LogInformation($"[vst] try stop [{ptr}]");
                     effect.Dispose();
                 }
                 effectMap.Clear();
@@ -496,7 +496,7 @@ namespace Momiji.Core.Vst
                         extraMidiEvent = item;
                         break;
                     }
-                    source.Log.Add(
+                    source?.Log.Add(
                         $"[vst] midiEvent " +
                         $"{item.midiMessageEvent.data0:X2}" +
                         $"{item.midiMessageEvent.data1:X2}" +
@@ -551,7 +551,7 @@ namespace Momiji.Core.Vst
                     eventsPtr += SIZE_OF_INTPTR;
                 });
 
-                source.Log.Add("[vst] start effProcessEvents", Timer.USecDouble);
+                source?.Log.Add("[vst] start effProcessEvents", Timer.USecDouble);
                 DispatcherProc(
                     aeffectPtr,
                     AEffect.Opcodes.effProcessEvents,
@@ -560,7 +560,7 @@ namespace Momiji.Core.Vst
                     events.AddrOfPinnedObject,
                     default
                 );
-                source.Log.Add("[vst] end effProcessEvents", Timer.USecDouble);
+                source?.Log.Add("[vst] end effProcessEvents", Timer.USecDouble);
             }
         }
         internal void Open()
@@ -723,10 +723,7 @@ namespace Momiji.Core.Vst
                 eventList?.Dispose();
                 eventList = null;
             }
-            /*
-            dll?.Dispose();
-            dll = null;
-            */
+
             disposed = true;
         }
     }

@@ -26,7 +26,7 @@ namespace mixerTest
     public interface IRunner
     {
         bool Start();
-        bool Stop();
+        bool Cancel();
 
         //void Note(MIDIMessageEvent[] midiMessage);
         Task Play(WebSocket webSocket);
@@ -125,7 +125,7 @@ namespace mixerTest
 
             if (disposing)
             {
-                Stop();
+                Cancel();
             }
             disposed = true;
         }
@@ -152,7 +152,7 @@ namespace mixerTest
         }
 
 
-        public bool Stop()
+        public bool Cancel()
         {
             if (processCancel == null)
             {

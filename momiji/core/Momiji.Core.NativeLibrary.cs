@@ -30,6 +30,7 @@ namespace Momiji.Core
             LoggerFactory = loggerFactory;
             Logger = LoggerFactory.CreateLogger<DllManager>();
 
+            // TODO ディレクトリ構成のハードコードを止める
             var dllPathBase =
                 Path.Combine(
                     Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location),
@@ -96,7 +97,7 @@ namespace Momiji.Core
             }
 
             var assembly = Assembly.GetExecutingAssembly();
-            var searchPath = DllImportSearchPath.UserDirectories;
+            var searchPath = DllImportSearchPath.UserDirectories | DllImportSearchPath.UseDllDirectoryForDependencies;
 
             handle = ResolveDllImport(libraryName, assembly, searchPath);
             if (handle == default)
