@@ -128,7 +128,23 @@ namespace Momiji.Core.Wave
         {
             if (uMsg == DriverCallBack.MM_EXT_WINDOW_MESSAGE.WOM_DONE)
             {
+#if DEBUG
                 Logger.LogDebug($"[wave] WOM_DONE {dw1}");
+                if (headerBusyPool.TryGetValue(dw1, out var header))
+                {
+                    var waveHeader = header.Target;
+                    Logger.LogDebug(
+                        $"[wave] header " +
+                        $"data:{waveHeader.data} " +
+                        $"bufferLength:{waveHeader.bufferLength} " +
+                        $"flags:{waveHeader.flags} " +
+                        $"loops:{waveHeader.loops} " +
+                        $"user:{waveHeader.user} " +
+                        $"next:{waveHeader.next}" +
+                        $"reserved:{waveHeader.reserved} "
+                    );
+                }
+#endif
                 releaseAction.SendAsync(dw1);
             }
         }
@@ -284,6 +300,21 @@ namespace Momiji.Core.Wave
         private PcmBuffer<T> Unprepare(IntPtr headerPtr)
         {
             headerBusyPool.Remove(headerPtr, out var header);
+#if DEBUG
+            {
+                var waveHeader = header.Target;
+                Logger.LogDebug(
+                    $"[wave] header " +
+                    $"data:{waveHeader.data} " +
+                    $"bufferLength:{waveHeader.bufferLength} " +
+                    $"flags:{waveHeader.flags} " +
+                    $"loops:{waveHeader.loops} " +
+                    $"user:{waveHeader.user} " +
+                    $"next:{waveHeader.next}" +
+                    $"reserved:{waveHeader.reserved} "
+                );
+            }
+#endif
             var mmResult =
                 handle.waveOutUnprepareHeader(
                     headerPtr,
@@ -293,6 +324,21 @@ namespace Momiji.Core.Wave
             {
                 throw new WaveException(mmResult);
             }
+#if DEBUG
+            {
+                var waveHeader = header.Target;
+                Logger.LogDebug(
+                    $"[wave] header " +
+                    $"data:{waveHeader.data} " +
+                    $"bufferLength:{waveHeader.bufferLength} " +
+                    $"flags:{waveHeader.flags} " +
+                    $"loops:{waveHeader.loops} " +
+                    $"user:{waveHeader.user} " +
+                    $"next:{waveHeader.next}" +
+                    $"reserved:{waveHeader.reserved} "
+                );
+            }
+#endif
 
             dataBusyPool.Remove(header.Target.data, out PcmBuffer<T> source);
             headerPool.SendAsync(header);

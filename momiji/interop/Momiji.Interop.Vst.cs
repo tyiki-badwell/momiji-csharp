@@ -108,6 +108,33 @@ namespace Momiji.Interop.Vst
 
             //-------------------------------------------------------------------------------------------------------
         };
+
+        //-------------------------------------------------------------------------------------------------------
+        /** Process Levels returned by #audioMasterGetCurrentProcessLevel. */
+        //-------------------------------------------------------------------------------------------------------
+        public enum VstProcessLevels : int
+        {
+            kVstProcessLevelUnknown = 0,    ///< not supported by Host
+            kVstProcessLevelUser,           ///< 1: currently in user thread (GUI)
+            kVstProcessLevelRealtime,       ///< 2: currently in audio thread (where process is called)
+            kVstProcessLevelPrefetch,       ///< 3: currently in 'sequencer' thread (MIDI, timer etc)
+            kVstProcessLevelOffline			///< 4: currently offline processing and thus in user thread
+        }
+
+        //-------------------------------------------------------------------------------------------------------
+        /** Automation States returned by #audioMasterGetAutomationState. */
+        //-------------------------------------------------------------------------------------------------------
+        public enum VstAutomationStates : int
+        {
+            //-------------------------------------------------------------------------------------------------------
+            kVstAutomationUnsupported = 0,  ///< not supported by Host
+            kVstAutomationOff,              ///< off
+            kVstAutomationRead,             ///< read
+            kVstAutomationWrite,            ///< write
+            kVstAutomationReadWrite         ///< read and write
+            //-------------------------------------------------------------------------------------------------------
+        };
+
         [UnmanagedFunctionPointer(CallingConvention.Cdecl, CharSet = CharSet.Ansi, SetLastError = false)]
         internal delegate IntPtr CallBack(
             [In]IntPtr/*AEffect^*/		effect,
@@ -358,6 +385,15 @@ namespace Momiji.Interop.Vst
         );
     };
 
+
+    //-------------------------------------------------------------------------------------------------------
+    /** Symbolic precision constants used for effSetProcessPrecision. */
+    //-------------------------------------------------------------------------------------------------------
+    public enum VstProcessPrecision : int
+    {
+        kVstProcessPrecision32 = 0,     ///< single precision float (32bits)
+        kVstProcessPrecision64          ///< double precision (64bits)
+    };
 
     //-------------------------------------------------------------------------------------------------------
     /** Parameter Properties used in #effGetParameterProperties. */

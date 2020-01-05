@@ -562,6 +562,7 @@ namespace Momiji.Core.Vst
                 );
                 source?.Log.Add("[vst] end effProcessEvents", Timer.USecDouble);
             }
+            beforeTime = nowTime;
         }
         internal void Open()
         {
@@ -606,6 +607,16 @@ namespace Momiji.Core.Vst
                 AEffect.Opcodes.effSetBlockSize,
                 default,
                 new IntPtr(audioMaster.BlockSize),
+                default,
+                default
+            );
+
+            // set process precision
+            DispatcherProc(
+                aeffectPtr,
+                AEffect.Opcodes.effSetProcessPrecision,
+                default,
+                new IntPtr((int)VstProcessPrecision.kVstProcessPrecision32),
                 default,
                 default
             );

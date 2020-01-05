@@ -221,7 +221,7 @@ namespace mixerTest
                     using var bmpPool = new BufferPool<H264InputBuffer>(Param.BufferCount, () => new H264InputBuffer(Param.Width, Param.Height), LoggerFactory);
                     using var videoPool = new BufferPool<H264OutputBuffer>(Param.BufferCount, () => new H264OutputBuffer(200000), LoggerFactory);
                     using var vst = new AudioMaster<float>(Param.SamplingRate, blockSize, LoggerFactory, timer, DllManager);
-                    //using (var toPcm = new ToPcm<float>(LoggerFactory, timer))
+                    using var toPcm = new ToPcm<float>(LoggerFactory, timer);
                     using var opus = new OpusEncoder(SamplingRate.Sampling48000, Channels.Stereo, LoggerFactory, timer);
                     using var fft = new FFTEncoder(Param.Width, Param.Height, Param.MaxFrameRate, LoggerFactory, timer);
                     using var h264 = new H264Encoder(Param.Width, Param.Height, Param.TargetBitrate, Param.MaxFrameRate, LoggerFactory, timer);
@@ -246,10 +246,15 @@ namespace mixerTest
                                 buffer.Log.Add("[audio] start", timer.USecDouble);
 
                                 //VST
+                                var nowTime = timer.USecDouble;
+                                effect.ProcessEvent(buffer, nowTime, midiEventInput);
+                                effect.ProcessReplacing(buffer);
+
                                 var pcmTask = pcmPool.ReceiveAsync(ct);
-                                effect.ProcessReplacing(buffer, pcmTask, midiEventInput, midiEventOutput);
+                                //trans
+                                var pcm = toPcm.Execute(buffer, pcmTask);
                                 vstBufferPool.SendAsync(buffer);
-                                return pcmTask;
+                                return pcm;
                             }, options);
                         taskSet.Add(vstBlock.Completion);
                         vstBufferPool.LinkTo(vstBlock);
@@ -407,7 +412,7 @@ namespace mixerTest
                     };
 
                     var vstBlock =
-                        new TransformBlock<VstBuffer<float>, VstBuffer<float>>(buffer =>
+                        new TransformBlock<VstBuffer<float>, PcmBuffer<float>>(buffer =>
                         {
                             buffer.Log.Clear();
                             audioWaiter.Wait();
@@ -415,22 +420,15 @@ namespace mixerTest
                             var nowTime = timer.USecDouble;
                             effect.ProcessEvent(buffer, nowTime, midiEventInput);
                             effect.ProcessReplacing(buffer);
-                            return buffer;
-                        }, options);
-                    taskSet.Add(vstBlock.Completion);
-                    vstBufferPool.LinkTo(vstBlock);
 
-                    var transBlock =
-                        new TransformBlock<VstBuffer<float>, PcmBuffer<float>>(buffer =>
-                        {
                             var pcmTask = pcmPool.ReceiveAsync(ct);
                             //trans
                             var pcm = toPcm.Execute(buffer, pcmTask);
                             vstBufferPool.SendAsync(buffer);
                             return pcm;
                         }, options);
-                    taskSet.Add(transBlock.Completion);
-                    vstBlock.LinkTo(transBlock);
+                    taskSet.Add(vstBlock.Completion);
+                    vstBufferPool.LinkTo(vstBlock);
 
                     var waveBlock =
                         new ActionBlock<PcmBuffer<float>>(buffer =>
@@ -439,7 +437,7 @@ namespace mixerTest
                             wave.Execute(buffer, ct);
                         }, options);
                     taskSet.Add(waveBlock.Completion);
-                    transBlock.LinkTo(waveBlock);
+                    vstBlock.LinkTo(waveBlock);
 
                     while (taskSet.Count > 0)
                     {
