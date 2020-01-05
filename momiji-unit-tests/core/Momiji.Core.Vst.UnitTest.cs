@@ -43,9 +43,9 @@ namespace Momiji.Core
             var blockSize = 2880;
 
             var midiEventInput = new BufferBlock<MIDIMessageEvent2>();
-            using var buffer = new VstBuffer<float>(blockSize, 2);
+            using var buffer = new VstBuffer<double>(blockSize, 2);
 
-            using var vst = new AudioMaster<float>(48000, blockSize, loggerFactory, timer, dllManager);
+            using var vst = new AudioMaster<double>(48000, blockSize, loggerFactory, timer, dllManager);
             var effect = vst.AddEffect("Dexed.dll");
             
             var aeffect = effect.GetAEffect();
@@ -81,8 +81,8 @@ namespace Momiji.Core
                 },
                     receivedTimeUSec = nowTime
                 });
-                effect.ProcessEvent(buffer, nowTime, midiEventInput);
-                effect.ProcessReplacing(buffer);
+                effect.ProcessEvent(nowTime, midiEventInput);
+                effect.ProcessReplacing(nowTime, buffer);
             }
 
             {
@@ -98,8 +98,8 @@ namespace Momiji.Core
                 },
                     receivedTimeUSec = nowTime
                 });
-                effect.ProcessEvent(buffer, nowTime, midiEventInput);
-                effect.ProcessReplacing(buffer);
+                effect.ProcessEvent(nowTime, midiEventInput);
+                effect.ProcessReplacing(nowTime, buffer);
             }
             {
                 var nowTime = timer.USecDouble;
@@ -114,8 +114,8 @@ namespace Momiji.Core
                 },
                     receivedTimeUSec = nowTime
                 });
-                effect.ProcessEvent(buffer, nowTime, midiEventInput);
-                effect.ProcessReplacing(buffer);
+                effect.ProcessEvent(nowTime, midiEventInput);
+                effect.ProcessReplacing(nowTime, buffer);
             }
             {
                 var nowTime = timer.USecDouble;
@@ -130,8 +130,8 @@ namespace Momiji.Core
                 },
                     receivedTimeUSec = nowTime
                 });
-                effect.ProcessEvent(buffer, nowTime, midiEventInput);
-                effect.ProcessReplacing(buffer);
+                effect.ProcessEvent(nowTime, midiEventInput);
+                effect.ProcessReplacing(nowTime, buffer);
             }
         }
     }

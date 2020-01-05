@@ -247,8 +247,8 @@ namespace mixerTest
 
                                 //VST
                                 var nowTime = timer.USecDouble;
-                                effect.ProcessEvent(buffer, nowTime, midiEventInput);
-                                effect.ProcessReplacing(buffer);
+                                effect.ProcessEvent(nowTime, midiEventInput);
+                                effect.ProcessReplacing(nowTime, buffer);
 
                                 var pcmTask = pcmPool.ReceiveAsync(ct);
                                 //trans
@@ -418,8 +418,8 @@ namespace mixerTest
                             audioWaiter.Wait();
                             //VST
                             var nowTime = timer.USecDouble;
-                            effect.ProcessEvent(buffer, nowTime, midiEventInput);
-                            effect.ProcessReplacing(buffer);
+                            effect.ProcessEvent(nowTime, midiEventInput);
+                            effect.ProcessReplacing(nowTime, buffer);
 
                             var pcmTask = pcmPool.ReceiveAsync(ct);
                             //trans

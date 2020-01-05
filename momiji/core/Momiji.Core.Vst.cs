@@ -207,7 +207,6 @@ namespace Momiji.Core.Vst
         private AEffect.SetParameterProc SetParameterProc { get; }
         private AEffect.GetParameterProc GetParameterProc { get; }
         private AEffect.ProcessProc ProcessProc { get; }
-        private AEffect.ProcessDoubleProc ProcessDoubleProc { get; }
 
         private readonly AudioMaster<T> audioMaster;
         private PinnedDelegate<AudioMaster.CallBack> audioMasterCallBack;
@@ -223,6 +222,7 @@ namespace Momiji.Core.Vst
         private static readonly int SIZE_OF_VSTEVENTS = Marshal.SizeOf<VstEvents>();
         private static readonly int SIZE_OF_VSTMIDIEVENT = Marshal.SizeOf<VstMidiEvent>();
         private static readonly int SIZE_OF_INTPTR = Marshal.SizeOf<IntPtr>();
+        private static readonly int SIZE_OF_T = Marshal.SizeOf<T>();
         private static readonly int COUNT_OF_EVENTS = 500; //サイズが適当
 
         internal Effect(string library, AudioMaster<T> audioMaster, ILoggerFactory loggerFactory, Timer timer)
@@ -304,22 +304,30 @@ namespace Momiji.Core.Vst
                     Marshal.GetDelegateForFunctionPointer<AEffect.GetParameterProc>(aeffect.getParameter);
             }
 
-            if (aeffect.processReplacing != default)
+            if (SIZE_OF_T == 4)
             {
-                ProcessProc =
-                    Marshal.GetDelegateForFunctionPointer<AEffect.ProcessProc>(aeffect.processReplacing);
+                if (aeffect.processReplacing != default)
+                {
+                    ProcessProc =
+                        Marshal.GetDelegateForFunctionPointer<AEffect.ProcessProc>(aeffect.processReplacing);
+                }
+                else
+                {
+                    throw new VstException("processReplacing が無い");
+                }
             }
             else
             {
-                throw new VstException("processReplacing が無い");
+                if (aeffect.processDoubleReplacing != default)
+                {
+                    ProcessProc =
+                        Marshal.GetDelegateForFunctionPointer<AEffect.ProcessProc>(aeffect.processDoubleReplacing);
+                }
+                else
+                {
+                    throw new VstException("processDoubleReplacing が無い");
+                }
             }
-
-            if (aeffect.processDoubleReplacing != default)
-            {
-                ProcessDoubleProc =
-                    Marshal.GetDelegateForFunctionPointer<AEffect.ProcessDoubleProc>(aeffect.processDoubleReplacing);
-            }
-
             beforeTime = Timer.USecDouble;
         }
 
@@ -387,61 +395,8 @@ namespace Momiji.Core.Vst
             return GetString(AEffect.Opcodes.effGetParamDisplay, index, 100);
         }
 
-        public void ProcessReplacing(
-            VstBuffer<T> source,
-            Task<PcmBuffer<T>> destTask,
-            IReceivableSourceBlock<MIDIMessageEvent2> midiEventInput,
-            ITargetBlock<MIDIMessageEvent2> midiEventOutput = null
-        )
-        {
-            if (DispatcherProc == default)
-            {
-                return;
-            }
-            if (source == default)
-            {
-                throw new ArgumentNullException(nameof(source));
-            }
-
-            var blockSize = audioMaster.BlockSize;
-            var nowTime = Timer.USecDouble;
-            Logger.LogInformation($"[vst] start {DateTimeOffset.FromUnixTimeMilliseconds((long)(beforeTime / 1000)).ToUniversalTime():HH:mm:ss.fff} {DateTimeOffset.FromUnixTimeMilliseconds((long)(nowTime / 1000)).ToUniversalTime():HH:mm:ss.fff} {nowTime - beforeTime}");
-
-            // processReplacingの前に１度しか呼べない制限がある・・・？
-            ProcessEvent(source, nowTime, midiEventInput, midiEventOutput);
-
-            source.Log.Add("[vst] start processReplacing", Timer.USecDouble);
-            ProcessProc(
-                aeffectPtr,
-                default,
-                source.AddrOfPinnedObject,
-                blockSize
-            );
-            source.Log.Add("[vst] end processReplacing", Timer.USecDouble);
-            var dest = destTask.Result;
-            
-            {
-                //TODO ココも遅い？
-                dest.Log.Marge(source.Log);
-
-                var targetIdx = 0;
-                var target = new Span<T>(dest.Target);
-                var left = new ReadOnlySpan<T>(source.GetChannelBuffer(0));
-                var right = new ReadOnlySpan<T>(source.GetChannelBuffer(1));
-
-                dest.Log.Add("[to pcm] start", Timer.USecDouble);
-                for (var idx = 0; idx < left.Length; idx++)
-                {
-                    target[targetIdx++] = left[idx];
-                    target[targetIdx++] = right[idx];
-                }
-                dest.Log.Add("[to pcm] end", Timer.USecDouble);
-            }
-
-            beforeTime = nowTime;
-        }
-
         public VstBuffer<T> ProcessReplacing(
+            double nowTime,
             VstBuffer<T> source
         )
         {
@@ -465,11 +420,11 @@ namespace Momiji.Core.Vst
             );
             source.Log.Add("[vst] end processReplacing", Timer.USecDouble);
 
+            beforeTime = nowTime;
             return source;
         }
 
         public void ProcessEvent(
-            VstBuffer<T> source,
             double nowTime,
             IReceivableSourceBlock<MIDIMessageEvent2> midiEventInput,
             ITargetBlock<MIDIMessageEvent2> midiEventOutput = null
@@ -496,14 +451,6 @@ namespace Momiji.Core.Vst
                         extraMidiEvent = item;
                         break;
                     }
-                    source?.Log.Add(
-                        $"[vst] midiEvent " +
-                        $"{item.midiMessageEvent.data0:X2}" +
-                        $"{item.midiMessageEvent.data1:X2}" +
-                        $"{item.midiMessageEvent.data2:X2}" +
-                        $"{item.midiMessageEvent.data3:X2}",
-                        item.receivedTimeUSec
-                    );
                     list.Add(item);
                     midiEventOutput?.SendAsync(item);
                 }
@@ -551,7 +498,6 @@ namespace Momiji.Core.Vst
                     eventsPtr += SIZE_OF_INTPTR;
                 });
 
-                source?.Log.Add("[vst] start effProcessEvents", Timer.USecDouble);
                 DispatcherProc(
                     aeffectPtr,
                     AEffect.Opcodes.effProcessEvents,
@@ -560,9 +506,7 @@ namespace Momiji.Core.Vst
                     events.AddrOfPinnedObject,
                     default
                 );
-                source?.Log.Add("[vst] end effProcessEvents", Timer.USecDouble);
             }
-            beforeTime = nowTime;
         }
         internal void Open()
         {
@@ -616,7 +560,7 @@ namespace Momiji.Core.Vst
                 aeffectPtr,
                 AEffect.Opcodes.effSetProcessPrecision,
                 default,
-                new IntPtr((int)VstProcessPrecision.kVstProcessPrecision32),
+                new IntPtr((int)((SIZE_OF_T == 8) ? VstProcessPrecision.kVstProcessPrecision64 : VstProcessPrecision.kVstProcessPrecision32)),
                 default,
                 default
             );

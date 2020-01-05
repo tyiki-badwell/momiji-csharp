@@ -364,14 +364,6 @@ namespace Momiji.Interop.Vst
         );
 
         [UnmanagedFunctionPointer(CallingConvention.Cdecl, CharSet = CharSet.Ansi, SetLastError = false)]
-        internal delegate void ProcessDoubleProc(
-            [In]IntPtr/*AEffect^*/		effect,
-            [In]IntPtr inputs,
-            [In]IntPtr outputs,
-            [In]int sampleFrames
-        );
-
-        [UnmanagedFunctionPointer(CallingConvention.Cdecl, CharSet = CharSet.Ansi, SetLastError = false)]
         internal delegate void SetParameterProc(
             [In]IntPtr/*AEffect^*/		effect,
             [In]int index,
