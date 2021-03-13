@@ -79,6 +79,7 @@ namespace mixerTest
         private ILogger Logger { get; }
         private IDllManager DllManager { get; }
         private string StreamKey { get; }
+        private string IngestHostname { get; }
         private string CaInfoPath { get; }
         private Param Param { get; }
 
@@ -227,7 +228,7 @@ namespace mixerTest
                     using var h264 = new H264Encoder(Param.Width, Param.Height, Param.TargetBitrate, Param.MaxFrameRate, LoggerFactory, timer);
                     var effect = vst.AddEffect(Param.EffectName);
 
-                    using var ftl = new FtlIngest(StreamKey, LoggerFactory, timer, Param.Connect, default, CaInfoPath);
+                    using var ftl = new FtlIngest(StreamKey, IngestHostname, LoggerFactory, timer, Param.Connect, default, CaInfoPath);
                     ftl.Connect();
 
                     var taskSet = new HashSet<Task>();

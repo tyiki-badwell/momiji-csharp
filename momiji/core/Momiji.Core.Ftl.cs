@@ -41,7 +41,8 @@ namespace Momiji.Core.Ftl
         private long lastVideoUsec;
 
         public FtlIngest(
-            string streamKey, 
+            string streamKey,
+            string ingestHostname,
             ILoggerFactory loggerFactory, 
             Timer timer, 
             bool connect = true,
@@ -57,7 +58,7 @@ namespace Momiji.Core.Ftl
             param.stream_key = streamKey;
             param.video_codec = VideoCodec.FTL_VIDEO_H264;
             param.audio_codec = AudioCodec.FTL_AUDIO_OPUS;
-            param.ingest_hostname = "auto";
+            param.ingest_hostname = ingestHostname;
             param.fps_num = 0;
             param.fps_den = 0;
             param.peak_kbps = 0;
