@@ -28,6 +28,8 @@ namespace mixerTest
 
             services.AddSingleton<IDllManager, DllManager>();
             services.AddSingleton<IRunner, Runner>();
+
+            services.AddTransient<WebSocketMiddleware>();
         }
 
         public void Configure(IApplicationBuilder app, IWebHostEnvironment env, IHostApplicationLifetime appLifetime, ILoggerFactory loggerFactory)
@@ -59,30 +61,11 @@ namespace mixerTest
 
             app.Map("/ws", subApp => {
                 subApp.UseWebSockets();
-                subApp.Use(async (context, next) =>
-                {
-                    if (context.WebSockets.IsWebSocketRequest)
-                    {
-                        using var webSocket = await context.WebSockets.AcceptWebSocketAsync().ConfigureAwait(false);
-                        try
-                        {
-                            await app.ApplicationServices.GetService<IRunner>().Play(webSocket).ConfigureAwait(false);
-                        }
-                        catch(Exception e)
-                        {
-                            logger.LogInformation(e, "web socket exception");
-                            throw;
-                        }
-                    }
-                    else
-                    {
-                        context.Response.StatusCode = 400;
-                    }
-                });
+                subApp.UseMiddleware<WebSocketMiddleware>();
             });
 
             appLifetime?.ApplicationStarted.Register(() => {
-                app.ApplicationServices.GetService<IRunner>().Start();
+                //app.ApplicationServices.GetService<IRunner>().Start();
                 logger.LogInformation("ApplicationStarted");
             });
             appLifetime?.ApplicationStopped.Register(() => {

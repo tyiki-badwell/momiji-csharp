@@ -1,17 +1,12 @@
 ﻿using System;
-using System.Diagnostics;
-using System.Runtime.ConstrainedExecution;
 using System.Runtime.InteropServices;
-using System.Security.Permissions;
+
+#pragma warning disable CA1707 // 識別子はアンダースコアを含むことはできません
+#pragma warning disable CA1815 // equals および operator equals を値型でオーバーライドします
+#pragma warning disable CA1051 // 参照可能なインスタンス フィールドを宣言しません
 
 namespace Momiji.Interop.Wave
 {
-#pragma warning disable CA1051 // 参照可能なインスタンス フィールドを宣言しません
-#pragma warning disable CA1815 // equals および operator equals を値型でオーバーライドします
-#pragma warning disable CA1714 // フラグ列挙型は、複数形の名前を含んでいなければなりません
-#pragma warning disable CA1707 // 識別子はアンダースコアを含むことはできません
-#pragma warning disable CA1028 // 列挙ストレージは Int32 でなければなりません
-#pragma warning disable IDE1006 // 命名スタイル
     public enum MMRESULT : uint
     {
         NOERROR = 0,
@@ -124,10 +119,10 @@ namespace Momiji.Interop.Wave
         FORMAT_4S08 = 0x00000200,   // 44.1   kHz, Stereo, 8-bit 
         FORMAT_4M16 = 0x00000400,   // 44.1   kHz, Mono,   16-bit
         FORMAT_4S16 = 0x00000800,   // 44.1   kHz, Stereo, 16-bit
-        FORMAT_44M08 = 0x00000100,  // 44.1   kHz, Mono,   8-bit 
-        FORMAT_44S08 = 0x00000200,  // 44.1   kHz, Stereo, 8-bit 
-        FORMAT_44M16 = 0x00000400,  // 44.1   kHz, Mono,   16-bit
-        FORMAT_44S16 = 0x00000800,  // 44.1   kHz, Stereo, 16-bit
+        FORMAT_44M08 = FORMAT_4M08,  // 44.1   kHz, Mono,   8-bit 
+        FORMAT_44S08 = FORMAT_4S08,  // 44.1   kHz, Stereo, 8-bit 
+        FORMAT_44M16 = FORMAT_4M16,  // 44.1   kHz, Mono,   16-bit
+        FORMAT_44S16 = FORMAT_4S16,  // 44.1   kHz, Stereo, 16-bit
         FORMAT_48M08 = 0x00001000,  // 48     kHz, Mono,   8-bit 
         FORMAT_48S08 = 0x00002000,  // 48     kHz, Stereo, 8-bit 
         FORMAT_48M16 = 0x00004000,  // 48     kHz, Mono,   16-bit
@@ -314,15 +309,12 @@ namespace Momiji.Interop.Wave
         public const string Winmm = "winmm.dll";
     }
 
-    [SecurityPermission(SecurityAction.InheritanceDemand, UnmanagedCode = true)]
-    [SecurityPermission(SecurityAction.Demand, UnmanagedCode = true)]
     internal sealed class WaveOut : Microsoft.Win32.SafeHandles.SafeHandleZeroOrMinusOneIsInvalid
     {
         private WaveOut() : base(true)
         {
         }
 
-        [ReliabilityContract(Consistency.WillNotCorruptState, Cer.MayFail)]
         protected override bool ReleaseHandle()
         {
             MMRESULT mmResult = SafeNativeMethods.waveOutClose(handle);
@@ -443,10 +435,8 @@ namespace Momiji.Interop.Wave
         WINMMAPI MMRESULT WINAPI waveOutMessage( __in_opt HWAVEOUT hwo, __in UINT uMsg, __in DWORD_PTR dw1, __in DWORD_PTR dw2);
         */
     }
-#pragma warning restore IDE1006 // 命名スタイル
-#pragma warning restore CA1028 // 列挙ストレージは Int32 でなければなりません
-#pragma warning restore CA1707 // 識別子はアンダースコアを含むことはできません
-#pragma warning restore CA1714 // フラグ列挙型は、複数形の名前を含んでいなければなりません
-#pragma warning restore CA1815 // equals および operator equals を値型でオーバーライドします
-#pragma warning restore CA1051 // 参照可能なインスタンス フィールドを宣言しません
 }
+
+#pragma warning restore CA1051 // 参照可能なインスタンス フィールドを宣言しません
+#pragma warning restore CA1815 // equals および operator equals を値型でオーバーライドします
+#pragma warning restore CA1707 // 識別子はアンダースコアを含むことはできません

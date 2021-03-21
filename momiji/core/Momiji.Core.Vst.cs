@@ -30,8 +30,8 @@ namespace Momiji.Core.Vst
 
     public class VstBuffer<T> : PinnedBufferWithLog<IntPtr[]> where T : struct
     {
-        private bool disposed = false;
-        private readonly List<PinnedBuffer<T[]>> list = new List<PinnedBuffer<T[]>>();
+        private bool disposed;
+        private readonly List<PinnedBuffer<T[]>> list = new();
 
         public VstBuffer(int blockSize, int channels) : base(new IntPtr[channels])
         {
@@ -68,7 +68,7 @@ namespace Momiji.Core.Vst
         private Timer Timer { get; }
         internal IDllManager DllManager { get; }
 
-        private bool disposed = false;
+        private bool disposed;
         private readonly IDictionary<IntPtr, Effect<T>> effectMap = new ConcurrentDictionary<IntPtr, Effect<T>>();
 
         private readonly PinnedBuffer<VstTimeInfo> vstTimeInfo;
@@ -198,7 +198,7 @@ namespace Momiji.Core.Vst
         private ILogger Logger { get; }
         private Timer Timer { get; }
 
-        private bool disposed = false;
+        private bool disposed;
 
         internal readonly IntPtr aeffectPtr;
         //internal ERect EditorRect { get; private set; }

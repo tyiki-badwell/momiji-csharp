@@ -14,7 +14,7 @@ namespace Momiji.Core.Trans
         private ILogger Logger { get; }
         private Timer Timer { get; }
 
-        private bool disposed = false;
+        private bool disposed;
 
         public ToPcm(
             ILoggerFactory loggerFactory,
@@ -49,21 +49,20 @@ namespace Momiji.Core.Trans
             disposed = true;
         }
 
-        public PcmBuffer<T> Execute(
+        public void Execute(
             VstBuffer<T> source,
-            Task<PcmBuffer<T>> destTask
+            PcmBuffer<T> dest
         )
         {
             if (source == default)
             {
                 throw new ArgumentNullException(nameof(source));
             }
-            if (destTask == default)
+            if (dest == default)
             {
-                throw new ArgumentNullException(nameof(destTask));
+                throw new ArgumentNullException(nameof(dest));
             }
 
-            var dest = destTask.Result;
             dest.Log.Marge(source.Log);
 
             var targetIdx = 0;
@@ -78,8 +77,6 @@ namespace Momiji.Core.Trans
                 target[targetIdx++] = right[idx];
             }
             dest.Log.Add("[to pcm] end", Timer.USecDouble);
-
-            return dest;
         }
     }
 }

@@ -6,6 +6,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using System.Threading.Tasks.Dataflow;
 
+[assembly: CLSCompliant(false)]
 namespace Momiji.Core
 {
     public class BufferPool<T> : IDisposable, IReceivableSourceBlock<T>, ITargetBlock<T> where T : IDisposable
@@ -13,9 +14,9 @@ namespace Momiji.Core
         private ILoggerFactory LoggerFactory { get; }
         private ILogger Logger { get; }
 
-        private bool disposed = false;
-        private List<T> list = new List<T>();
-        private readonly BufferBlock<T> bufferBlock = new BufferBlock<T>();
+        private bool disposed;
+        private List<T> list = new();
+        private readonly BufferBlock<T> bufferBlock = new();
         
         public Task Completion => bufferBlock.Completion;
 

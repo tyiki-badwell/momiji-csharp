@@ -21,7 +21,7 @@ namespace Momiji.Core
         private ILoggerFactory LoggerFactory { get; }
         private ILogger Logger { get; }
 
-        private bool disposed = false;
+        private bool disposed;
         private readonly IDictionary<string, IntPtr> dllPool = new ConcurrentDictionary<string, IntPtr>();
 
         public DllManager(IConfiguration configuration, ILoggerFactory loggerFactory)
@@ -30,7 +30,6 @@ namespace Momiji.Core
             LoggerFactory = loggerFactory;
             Logger = LoggerFactory.CreateLogger<DllManager>();
 
-            // TODO ディレクトリ構成のハードコードを止める
             var dllPathBase =
                 Path.Combine(
                     Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location),
@@ -75,7 +74,6 @@ namespace Momiji.Core
 
         internal IntPtr ResolveDllImport(string libraryName, Assembly assembly, DllImportSearchPath? searchPath)
         {
-            //TODO データ構造の定義がプログラムになっているのでよくない
             Logger.LogInformation($"call DllImportResolver({libraryName}, {assembly}, {searchPath})");
             var name = Configuration.GetSection("LibraryNameMapping:" + (Environment.Is64BitProcess ? "64" : "32"))?[libraryName];
             if (name != default)

@@ -25,7 +25,7 @@ namespace Momiji.Core.H264
 
     public class H264InputBuffer : PinnedBufferWithLog<SSourcePicture>
     {
-        private bool disposed = false;
+        private bool disposed;
         private PinnedBuffer<byte[]> buffer;
 
         public H264InputBuffer(int picWidth, int picHeight) : base(new SSourcePicture())
@@ -106,7 +106,7 @@ namespace Momiji.Core.H264
         private ILogger Logger { get; }
         private Timer Timer { get; }
 
-        private bool disposed = false;
+        private bool disposed;
         private SVCEncoder Encoder;
         private SFrameBSInfoBuffer sFrameBSInfoBuffer;
 
@@ -279,6 +279,11 @@ namespace Momiji.Core.H264
             {
                 throw new ArgumentNullException(nameof(source));
             }
+            if (dest == default)
+            {
+                throw new ArgumentNullException(nameof(dest));
+            }
+
             if (insertIntraFrame)
             {
                 source.Log.Add("[h264] ForceIntraFrame", Timer.USecDouble);
@@ -330,7 +335,7 @@ namespace Momiji.Core.H264
             dest.Log.Add("[h264] end copy frame", Timer.USecDouble);
         }
 
-        private unsafe void CopyMemory(
+        private unsafe static void CopyMemory(
             IntPtr Destination,
             int maxLength,
             IntPtr Source,

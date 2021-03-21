@@ -34,7 +34,7 @@ namespace Momiji.Core.Wave
         {
             var text = new System.Text.StringBuilder(256);
             SafeNativeMethods.waveOutGetErrorText(mmResult, text, (uint)text.Capacity);
-            return $"{text.ToString()}({mmResult})";
+            return $"{text}({mmResult})";
         }
     }
 
@@ -104,7 +104,7 @@ namespace Momiji.Core.Wave
         private ILogger Logger { get; }
         private Timer Timer { get; }
 
-        private bool disposed = false;
+        private bool disposed;
 
         private BufferPool<WaveHeaderBuffer> headerPool;
         private readonly TransformBlock<IntPtr, PcmBuffer<T>> releaseAction;
@@ -299,7 +299,9 @@ namespace Momiji.Core.Wave
 
         private PcmBuffer<T> Unprepare(IntPtr headerPtr)
         {
+#pragma warning disable CA2000 // スコープを失う前にオブジェクトを破棄
             headerBusyPool.Remove(headerPtr, out var header);
+#pragma warning restore CA2000 // スコープを失う前にオブジェクトを破棄
 #if DEBUG
             {
                 var waveHeader = header.Target;
@@ -349,7 +351,7 @@ namespace Momiji.Core.Wave
                 source.Log.Add("[wave] unprepare", Timer.USecDouble);
                 var log = "";
                 double? temp = null;
-                source.Log.Copy().ForEach((a) =>
+                source.Log.ForEach((a) =>
                 {
                     var lap = temp.HasValue ? (a.time - temp) : 0;
                     log += $"\n[{ new DateTime((long)(a.time * 10), DateTimeKind.Utc):yyyy/MM/dd HH:mm:ss ffffff}][{a.time:0000000000.000}][{lap:0000000000.000}]{a.label}";

@@ -1,14 +1,14 @@
 ﻿using System;
 using System.Runtime.InteropServices;
 
+#pragma warning disable CA1008 // 列挙型は 0 値を含んでいなければなりません
+#pragma warning disable CA1815 // equals および operator equals を値型でオーバーライドします
+#pragma warning disable CA1051 // 参照可能なインスタンス フィールドを宣言しません
+#pragma warning disable CA1711 // 識別子は、不適切なサフィックスを含むことはできません
+#pragma warning disable CA1069 // 列挙値を重複させることはできない
+
 namespace Momiji.Interop.Vst
 {
-#pragma warning disable CA1051 // 参照可能なインスタンス フィールドを宣言しません
-#pragma warning disable CA1815 // equals および operator equals を値型でオーバーライドします
-#pragma warning disable CA1714 // フラグ列挙型は、複数形の名前を含んでいなければなりません
-#pragma warning disable CA1707 // 識別子はアンダースコアを含むことはできません
-#pragma warning disable CA1028 // 列挙ストレージは Int32 でなければなりません
-#pragma warning disable CA1717 // FlagsAttribute 列挙型のみが複数形の名前を含んでいなければなりません
     //-------------------------------------------------------------------------------------------------------
     /** String length limits (in characters excl. 0 byte) */
     //-------------------------------------------------------------------------------------------------------
@@ -393,7 +393,7 @@ namespace Momiji.Interop.Vst
     [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Ansi)]
     public struct VstParameterProperties
     {
-        [FlagsAttribute]
+        [Flags]
         public enum VstParameterFlags : int
         {
             //-------------------------------------------------------------------------------------------------------
@@ -494,7 +494,7 @@ namespace Momiji.Interop.Vst
     [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Ansi)]
     public struct VstPinProperties
     {
-        [FlagsAttribute]
+        [Flags]
         public enum VstPinPropertiesFlags : int
         {
             //-------------------------------------------------------------------------------------------------------
@@ -703,11 +703,10 @@ namespace Momiji.Interop.Vst
         public short right;     ///< right coordinate
         //-------------------------------------------------------------------------------------------------------
     };
-
-#pragma warning restore CA1028 // 列挙ストレージは Int32 でなければなりません
-#pragma warning restore CA1707 // 識別子はアンダースコアを含むことはできません
-#pragma warning restore CA1714 // フラグ列挙型は、複数形の名前を含んでいなければなりません
-#pragma warning restore CA1815 // equals および operator equals を値型でオーバーライドします
-#pragma warning restore CA1051 // 参照可能なインスタンス フィールドを宣言しません
-#pragma warning restore CA1717 // FlagsAttribute 列挙型のみが複数形の名前を含んでいなければなりません
 }
+
+#pragma warning restore CA1069 // 列挙値を重複させることはできない
+#pragma warning restore CA1711 // 識別子は、不適切なサフィックスを含むことはできません
+#pragma warning restore CA1051 // 参照可能なインスタンス フィールドを宣言しません
+#pragma warning restore CA1815 // equals および operator equals を値型でオーバーライドします
+#pragma warning restore CA1008 // 列挙型は 0 値を含んでいなければなりません
