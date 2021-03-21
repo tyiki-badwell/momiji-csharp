@@ -6,7 +6,6 @@ using System.Security.Permissions;
 
 namespace Momiji.Interop.Opus
 {
-#pragma warning disable CA1717 // FlagsAttribute 列挙型のみが複数形の名前を含んでいなければなりません
 #pragma warning disable CA1712 // 列挙値の前に型名を付けないでください
 #pragma warning disable IDE1006 // 命名スタイル
     public enum Bandwidth : int
@@ -338,5 +337,4 @@ namespace Momiji.Interop.Opus
     }
 #pragma warning restore IDE1006 // 命名スタイル
 #pragma warning restore CA1712 // 列挙値の前に型名を付けないでください
-#pragma warning restore CA1717 // FlagsAttribute 列挙型のみが複数形の名前を含んでいなければなりません
 }

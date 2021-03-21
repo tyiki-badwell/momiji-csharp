@@ -34,7 +34,7 @@ namespace Momiji.Core.Wave
         {
             var text = new System.Text.StringBuilder(256);
             SafeNativeMethods.waveOutGetErrorText(mmResult, text, (uint)text.Capacity);
-            return $"{text.ToString()}({mmResult})";
+            return $"{text}({mmResult})";
         }
     }
 

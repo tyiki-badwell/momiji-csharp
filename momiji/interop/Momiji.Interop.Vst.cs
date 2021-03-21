@@ -3,9 +3,7 @@ using System.Runtime.InteropServices;
 
 namespace Momiji.Interop.Vst
 {
-#pragma warning disable CA1051 // 参照可能なインスタンス フィールドを宣言しません
 #pragma warning disable CA1815 // equals および operator equals を値型でオーバーライドします
-#pragma warning disable CA1717 // FlagsAttribute 列挙型のみが複数形の名前を含んでいなければなりません
     //-------------------------------------------------------------------------------------------------------
     /** String length limits (in characters excl. 0 byte) */
     //-------------------------------------------------------------------------------------------------------
@@ -702,6 +700,4 @@ namespace Momiji.Interop.Vst
     };
 
 #pragma warning restore CA1815 // equals および operator equals を値型でオーバーライドします
-#pragma warning restore CA1051 // 参照可能なインスタンス フィールドを宣言しません
-#pragma warning restore CA1717 // FlagsAttribute 列挙型のみが複数形の名前を含んでいなければなりません
 }

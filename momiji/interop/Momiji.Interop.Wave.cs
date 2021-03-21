@@ -6,11 +6,7 @@ using System.Security.Permissions;
 
 namespace Momiji.Interop.Wave
 {
-#pragma warning disable CA1051 // 参照可能なインスタンス フィールドを宣言しません
 #pragma warning disable CA1815 // equals および operator equals を値型でオーバーライドします
-#pragma warning disable CA1714 // フラグ列挙型は、複数形の名前を含んでいなければなりません
-#pragma warning disable CA1707 // 識別子はアンダースコアを含むことはできません
-#pragma warning disable CA1028 // 列挙ストレージは Int32 でなければなりません
 #pragma warning disable IDE1006 // 命名スタイル
     public enum MMRESULT : uint
     {
@@ -444,9 +440,5 @@ namespace Momiji.Interop.Wave
         */
     }
 #pragma warning restore IDE1006 // 命名スタイル
-#pragma warning restore CA1028 // 列挙ストレージは Int32 でなければなりません
-#pragma warning restore CA1707 // 識別子はアンダースコアを含むことはできません
-#pragma warning restore CA1714 // フラグ列挙型は、複数形の名前を含んでいなければなりません
 #pragma warning restore CA1815 // equals および operator equals を値型でオーバーライドします
-#pragma warning restore CA1051 // 参照可能なインスタンス フィールドを宣言しません
 }

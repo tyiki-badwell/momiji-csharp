@@ -45,7 +45,7 @@ namespace Momiji.Interop
 
         public double GetSpentTime()
         {
-            return Log[Log.Count - 1].time - Log[0].time;
+            return Log[^1].time - Log[0].time;
         }
 
         public double GetFirstTime()

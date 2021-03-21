@@ -1,7 +1,6 @@
 ﻿namespace Momiji.Core.WebMidi
 {
 #pragma warning disable CA1815 // equals および operator equals を値型でオーバーライドします
-#pragma warning disable CA1051 // 参照可能なインスタンス フィールドを宣言しません
     public struct MIDIMessageEvent
     {
         public double receivedTime;
@@ -16,6 +15,5 @@
         public MIDIMessageEvent midiMessageEvent;
         public double receivedTimeUSec;
     }
-#pragma warning restore CA1051 // 参照可能なインスタンス フィールドを宣言しません
 #pragma warning restore CA1815 // equals および operator equals を値型でオーバーライドします
 }

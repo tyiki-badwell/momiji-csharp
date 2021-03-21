@@ -5,10 +5,7 @@ using System.Security.Permissions;
 
 namespace Momiji.Interop.Ftl
 {
-#pragma warning disable CA1707 // 識別子はアンダースコアを含むことはできません
-#pragma warning disable CA1717 // FlagsAttribute 列挙型のみが複数形の名前を含んでいなければなりません
 #pragma warning disable CA1815 // equals および operator equals を値型でオーバーライドします
-#pragma warning disable CA1051 // 参照可能なインスタンス フィールドを宣言しません
     public enum Status : int
     {
         FTL_SUCCESS,                  /**< Operation was successful */
@@ -343,8 +340,5 @@ namespace Momiji.Interop.Ftl
         speed_test_t;
     */
 
-#pragma warning restore CA1051 // 参照可能なインスタンス フィールドを宣言しません
 #pragma warning restore CA1815 // equals および operator equals を値型でオーバーライドします
-#pragma warning restore CA1717 // FlagsAttribute 列挙型のみが複数形の名前を含んでいなければなりません
-#pragma warning restore CA1707 // 識別子はアンダースコアを含むことはできません
 }
