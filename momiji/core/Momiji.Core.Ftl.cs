@@ -55,18 +55,19 @@ namespace Momiji.Core.Ftl
             Timer = timer;
 
             IngestParams param;
-            param.stream_key = streamKey;
+            param.stream_key = streamKey ?? throw new ArgumentNullException(nameof(streamKey));
             param.video_codec = VideoCodec.FTL_VIDEO_H264;
             param.audio_codec = AudioCodec.FTL_AUDIO_OPUS;
-            param.ingest_hostname = ingestHostname;
+            param.ingest_hostname = ingestHostname ?? throw new ArgumentNullException(nameof(ingestHostname));
             param.fps_num = 0;
             param.fps_den = 0;
             param.peak_kbps = 0;
             param.vendor_name = "momiji";
             param.vendor_version = "0.0.1";
+            /*
             param.ca_info_path = caInfoPath;
             param.mixer_api_client_id = mixerApiClientId;
-
+            */
             if (connect)
             {
                 Status status;

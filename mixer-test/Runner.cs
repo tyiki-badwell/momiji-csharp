@@ -106,6 +106,7 @@ namespace mixerTest
             Param = param;
 
             StreamKey = Configuration["MIXER_STREAM_KEY"];
+            IngestHostname = Configuration["MIXER_INGEST_HOSTNAME"];
 
             CaInfoPath =
                 Path.Combine(

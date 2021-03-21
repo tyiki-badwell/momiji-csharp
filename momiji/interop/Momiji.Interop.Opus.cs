@@ -305,8 +305,8 @@ namespace Momiji.Interop.Opus
     //opus_strerrorとopus_get_version_stringは、今のところ即値を返す実装になっているため、戻り値の文字列を開放しないマーシャラーを用意する
     internal class LPStrNonFree : ICustomMarshaler
     {
-        static private LPStrNonFree marshaler = new LPStrNonFree();
-        public static ICustomMarshaler GetInstance(string cookie)
+        private static readonly LPStrNonFree marshaler = new LPStrNonFree();
+        public static ICustomMarshaler GetInstance(string _)
         {
             return marshaler;
         }

@@ -137,10 +137,12 @@ namespace Momiji.Interop.Ftl
         public string vendor_name;
         [MarshalAs(UnmanagedType.LPStr)]
         public string vendor_version;
+        /*
         [MarshalAs(UnmanagedType.LPStr)]
         public string ca_info_path;
         [MarshalAs(UnmanagedType.LPStr)]
         public string mixer_api_client_id;
+        */
     }
 
     internal static class Libraries

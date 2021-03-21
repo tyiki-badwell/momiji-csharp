@@ -25,6 +25,10 @@ namespace Momiji.Interop
 
         public void Marge(BufferLog source)
         {
+            if (source == null)
+            {
+                throw new ArgumentNullException(paramName: nameof(source));
+            }
             Marge(source.Log);
         }
 

@@ -279,6 +279,11 @@ namespace Momiji.Core.H264
             {
                 throw new ArgumentNullException(nameof(source));
             }
+            if (dest == default)
+            {
+                throw new ArgumentNullException(nameof(dest));
+            }
+
             if (insertIntraFrame)
             {
                 source.Log.Add("[h264] ForceIntraFrame", Timer.USecDouble);
