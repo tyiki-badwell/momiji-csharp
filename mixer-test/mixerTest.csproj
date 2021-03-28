@@ -8,16 +8,12 @@
     <Platforms>AnyCPU;x86;x64</Platforms>
     <PackageRequireLicenseAcceptance>false</PackageRequireLicenseAcceptance>
     <GeneratePackageOnBuild>false</GeneratePackageOnBuild>
+    <AnalysisMode>AllEnabledByDefault</AnalysisMode>
   </PropertyGroup>
 
   <ItemGroup>
     <PackageReference Include="Microsoft.AspNetCore.AzureAppServices.HostingStartup" Version="5.0.4" />
     <PackageReference Include="Microsoft.AspNetCore.AzureAppServicesIntegration" Version="5.0.4" />
-    <PackageReference Include="Microsoft.CodeAnalysis.Analyzers" Version="3.3.2">
-      <PrivateAssets>all</PrivateAssets>
-      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
-    </PackageReference>
-    <PackageReference Include="Microsoft.CodeAnalysis.CSharp" Version="3.9.0" />
     <PackageReference Include="Microsoft.Extensions.Logging.AzureAppServices" Version="5.0.4" />
   </ItemGroup>
 

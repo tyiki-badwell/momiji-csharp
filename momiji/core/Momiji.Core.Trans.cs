@@ -14,7 +14,7 @@ namespace Momiji.Core.Trans
         private ILogger Logger { get; }
         private Timer Timer { get; }
 
-        private bool disposed = false;
+        private bool disposed;
 
         public ToPcm(
             ILoggerFactory loggerFactory,

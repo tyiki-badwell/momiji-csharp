@@ -14,7 +14,7 @@ namespace Momiji.Test
         private ILoggerFactory LoggerFactory { get; }
         private ILogger Logger { get; }
 
-        private bool disposed = false;
+        private bool disposed;
 
         private FileStream file;
         private BinaryReader reader;

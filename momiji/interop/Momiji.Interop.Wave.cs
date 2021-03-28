@@ -3,7 +3,7 @@ using System.Runtime.InteropServices;
 
 namespace Momiji.Interop.Wave
 {
-#pragma warning disable IDE1006 // 命名スタイル
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("Naming", "CA1707:識別子はアンダースコアを含むことはできません", Justification = "<保留中>")]
     public enum MMRESULT : uint
     {
         NOERROR = 0,
@@ -18,6 +18,7 @@ namespace Momiji.Interop.Wave
 
     public static class DriverCallBack
     {
+        [System.Diagnostics.CodeAnalysis.SuppressMessage("Naming", "CA1707:識別子はアンダースコアを含むことはできません", Justification = "<保留中>")]
         public enum TYPE : ulong
         {
             TYPEMASK = 0x00070000L, // callback type mask
@@ -36,6 +37,8 @@ namespace Momiji.Interop.Wave
             WAVE_MAPPED_DEFAULT_COMMUNICATION_DEVICE = 0x0010,
         };
 
+        [System.Diagnostics.CodeAnalysis.SuppressMessage("Naming", "CA1707:識別子はアンダースコアを含むことはできません", Justification = "<保留中>")]
+        [System.Diagnostics.CodeAnalysis.SuppressMessage("Design", "CA1008:列挙型は 0 値を含んでいなければなりません", Justification = "<保留中>")]
         public enum MM_EXT_WINDOW_MESSAGE : uint
         {
             WOM_OPEN = 0x3BB,   // waveform output
@@ -71,6 +74,7 @@ namespace Momiji.Interop.Wave
 
     // wave data block header
     [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Ansi, Pack = 1)]
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("Design", "CA1051:参照可能なインスタンス フィールドを宣言しません", Justification = "<保留中>")]
     public class WaveHeader
     {
         // flags for dwFlags field of WAVEHDR
@@ -101,6 +105,8 @@ namespace Momiji.Interop.Wave
 
     //defines for dwFormat field of WAVEINCAPS and WAVEOUTCAPS
     [Flags]
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("Naming", "CA1707:識別子はアンダースコアを含むことはできません", Justification = "<保留中>")]
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("Design", "CA1008:列挙型は 0 値を含んでいなければなりません", Justification = "<保留中>")]
     public enum WAVE_FORMAT : uint
     {
         FORMAT_INVALID = 0x00000000,    // invalid format
@@ -116,10 +122,10 @@ namespace Momiji.Interop.Wave
         FORMAT_4S08 = 0x00000200,   // 44.1   kHz, Stereo, 8-bit 
         FORMAT_4M16 = 0x00000400,   // 44.1   kHz, Mono,   16-bit
         FORMAT_4S16 = 0x00000800,   // 44.1   kHz, Stereo, 16-bit
-        FORMAT_44M08 = 0x00000100,  // 44.1   kHz, Mono,   8-bit 
-        FORMAT_44S08 = 0x00000200,  // 44.1   kHz, Stereo, 8-bit 
-        FORMAT_44M16 = 0x00000400,  // 44.1   kHz, Mono,   16-bit
-        FORMAT_44S16 = 0x00000800,  // 44.1   kHz, Stereo, 16-bit
+        FORMAT_44M08 = FORMAT_4M08,  // 44.1   kHz, Mono,   8-bit 
+        FORMAT_44S08 = FORMAT_4S08,  // 44.1   kHz, Stereo, 8-bit 
+        FORMAT_44M16 = FORMAT_4M16,  // 44.1   kHz, Mono,   16-bit
+        FORMAT_44S16 = FORMAT_4S16,  // 44.1   kHz, Stereo, 16-bit
         FORMAT_48M08 = 0x00001000,  // 48     kHz, Mono,   8-bit 
         FORMAT_48S08 = 0x00002000,  // 48     kHz, Stereo, 8-bit 
         FORMAT_48M16 = 0x00004000,  // 48     kHz, Mono,   16-bit
@@ -131,6 +137,8 @@ namespace Momiji.Interop.Wave
     };
 
     [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Ansi, Pack = 1)]
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("Performance", "CA1815:equals および operator equals を値型でオーバーライドします", Justification = "<保留中>")]
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("Design", "CA1051:参照可能なインスタンス フィールドを宣言しません", Justification = "<保留中>")]
     public struct WaveOutCapabilities
     {
         //flags for dwSupport field of WAVEOUTCAPS
@@ -180,9 +188,14 @@ namespace Momiji.Interop.Wave
     // Use this for all NON PCM formats
     // (information common to all formats)
     [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Ansi, Pack = 1)]
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("Performance", "CA1815:equals および operator equals を値型でオーバーライドします", Justification = "<保留中>")]
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("Design", "CA1051:参照可能なインスタンス フィールドを宣言しません", Justification = "<保留中>")]
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("Naming", "CA1711:識別子は、不適切なサフィックスを含むことはできません", Justification = "<保留中>")]
     public struct WaveFormatEx
     {
         // flags for wFormatTag field of WAVEFORMAT
+        [System.Diagnostics.CodeAnalysis.SuppressMessage("Naming", "CA1707:識別子はアンダースコアを含むことはできません", Justification = "<保留中>")]
+        [System.Diagnostics.CodeAnalysis.SuppressMessage("Design", "CA1008:列挙型は 0 値を含んでいなければなりません", Justification = "<保留中>")]
         public enum FORMAT : ushort
         {
             PCM = 0x0001,
@@ -207,6 +220,8 @@ namespace Momiji.Interop.Wave
     }
 
     [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Ansi, Pack = 1)]
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("Performance", "CA1815:equals および operator equals を値型でオーバーライドします", Justification = "<保留中>")]
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("Design", "CA1051:参照可能なインスタンス フィールドを宣言しません", Justification = "<保留中>")]
     public struct WaveFormat
     {
         public WaveFormatEx.FORMAT formatType;                // format type
@@ -223,6 +238,8 @@ namespace Momiji.Interop.Wave
     }
 
     [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Ansi, Pack = 1)]
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("Performance", "CA1815:equals および operator equals を値型でオーバーライドします", Justification = "<保留中>")]
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("Design", "CA1051:参照可能なインスタンス フィールドを宣言しません", Justification = "<保留中>")]
     public struct PcmWaveFormat
     {
         public WaveFormat wf;
@@ -244,9 +261,12 @@ namespace Momiji.Interop.Wave
     //  WAVEFORMATEXTENSIBLE.Format.wFormatTag field.
     //
     [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Ansi, Pack = 1)]
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("Performance", "CA1815:equals および operator equals を値型でオーバーライドします", Justification = "<保留中>")]
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("Design", "CA1051:参照可能なインスタンス フィールドを宣言しません", Justification = "<保留中>")]
     public struct WaveFormatExtensiblePart
     {
         [Flags]
+        [System.Diagnostics.CodeAnalysis.SuppressMessage("Naming", "CA1707:識別子はアンダースコアを含むことはできません", Justification = "<保留中>")]
         public enum SPEAKER : uint
         {
             FRONT_LEFT = 0x00000001,
@@ -288,6 +308,8 @@ namespace Momiji.Interop.Wave
     //  structure is common to all non-PCM formats.
     //
     [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Ansi, Pack = 1)]
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("Performance", "CA1815:equals および operator equals を値型でオーバーライドします", Justification = "<保留中>")]
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("Design", "CA1051:参照可能なインスタンス フィールドを宣言しません", Justification = "<保留中>")]
     public struct WaveFormatExtensible
     {
         public WaveFormatEx wfe;
@@ -432,5 +454,4 @@ namespace Momiji.Interop.Wave
         WINMMAPI MMRESULT WINAPI waveOutMessage( __in_opt HWAVEOUT hwo, __in UINT uMsg, __in DWORD_PTR dw1, __in DWORD_PTR dw2);
         */
     }
-#pragma warning restore IDE1006 // 命名スタイル
 }

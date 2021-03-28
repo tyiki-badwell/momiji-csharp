@@ -13,7 +13,7 @@ namespace Momiji.Core
         private ILoggerFactory LoggerFactory { get; }
         private ILogger Logger { get; }
 
-        private bool disposed = false;
+        private bool disposed;
         private List<T> list = new();
         private readonly BufferBlock<T> bufferBlock = new();
         

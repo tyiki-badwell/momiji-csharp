@@ -32,7 +32,7 @@ namespace Momiji.Core.Ftl
         private ILogger Logger { get; }
         private Timer Timer { get; }
 
-        private bool disposed = false;
+        private bool disposed;
         private PinnedBuffer<FtlHandle> handle;
         private readonly CancellationTokenSource logCancel = new();
         private Task logTask;

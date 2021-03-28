@@ -21,7 +21,7 @@ namespace Momiji.Core.FFT
         private int PicHeight { get; }
         private float MaxFrameRate { get; }
 
-        private bool disposed = false;
+        private bool disposed;
 
         private Bitmap bitmap;
 
@@ -105,7 +105,7 @@ namespace Momiji.Core.FFT
             }
         }
 
-        private static int a = 0;
+        private static int a;
 
         public void Execute(
             PcmBuffer<float> source,

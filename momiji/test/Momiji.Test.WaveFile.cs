@@ -16,7 +16,7 @@ namespace Momiji.Test
         private ILoggerFactory LoggerFactory { get; }
         private ILogger Logger { get; }
 
-        private bool disposed = false;
+        private bool disposed;
 
         private readonly FileStream file;
         private readonly BinaryWriter writer;
@@ -29,6 +29,7 @@ namespace Momiji.Test
         
         private Task processTask;
 
+        [System.Diagnostics.CodeAnalysis.SuppressMessage("Usage", "CA1801:使用されていないパラメーターの確認", Justification = "<保留中>")]
         public WaveFile(
             uint deviceID,
             ushort channels,

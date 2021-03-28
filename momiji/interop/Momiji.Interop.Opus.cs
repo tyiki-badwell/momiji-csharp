@@ -4,7 +4,7 @@ using System.Runtime.InteropServices;
 
 namespace Momiji.Interop.Opus
 {
-#pragma warning disable IDE1006 // 命名スタイル
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("Design", "CA1008:列挙型は 0 値を含んでいなければなりません", Justification = "<保留中>")]
     public enum Bandwidth : int
     {
         /// <summary>
@@ -28,6 +28,7 @@ namespace Momiji.Interop.Opus
         /// </summary>
         Fullband = 1105
     }
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("Design", "CA1008:列挙型は 0 値を含んでいなければなりません", Justification = "<保留中>")]
     public enum Channels : int
     {
         /// <summary>
@@ -39,6 +40,8 @@ namespace Momiji.Interop.Opus
         /// </summary>
         Stereo = 2
     }
+
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("Naming", "CA1712:列挙値の前に型名を付けないでください", Justification = "<保留中>")]
     public enum Complexity : int
     {
         Complexity0 = 0,
@@ -53,9 +56,13 @@ namespace Momiji.Interop.Opus
         Complexity9 = 9,
         Complexity10 = 10
     }
+
+
     /// <summary>
     /// Using a duration of less than 10 ms will prevent the encoder from using the LPC or hybrid modes. 
     /// </summary>
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("Naming", "CA1712:列挙値の前に型名を付けないでください", Justification = "<保留中>")]
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("Design", "CA1008:列挙型は 0 値を含んでいなければなりません", Justification = "<保留中>")]
     public enum Delay
     {
         /// <summary>
@@ -83,12 +90,14 @@ namespace Momiji.Interop.Opus
         /// </summary>
         Delay60ms = 120
     }
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("Design", "CA1008:列挙型は 0 値を含んでいなければなりません", Justification = "<保留中>")]
     public enum ForceChannels : int
     {
         NoForce = -1000,
         Mono = 1,
         Stereo = 2
     }
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("Design", "CA1008:列挙型は 0 値を含んでいなければなりません", Justification = "<保留中>")]
     public enum OpusApplicationType : int
     {
         /// <summary>
@@ -109,6 +118,7 @@ namespace Momiji.Interop.Opus
         /// </summary>
         RestrictedLowDelay = 2051
     }
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("Design", "CA1008:列挙型は 0 値を含んでいなければなりません", Justification = "<保留中>")]
     public enum OpusCtlGetRequest : int
     {
         Application = 4001,
@@ -130,6 +140,7 @@ namespace Momiji.Interop.Opus
         Gain = 4035,
         LsbDepth = 4037
     }
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("Design", "CA1008:列挙型は 0 値を含んでいなければなりません", Justification = "<保留中>")]
     public enum OpusCtlSetRequest : int
     {
         Application = 4000,
@@ -158,6 +169,7 @@ namespace Momiji.Interop.Opus
         InvalidState = -6,
         AllocFail = -7
     }
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("Design", "CA1008:列挙型は 0 値を含んでいなければなりません", Justification = "<保留中>")]
     public enum SamplingRate : int
     {
         Sampling08000 = 8000,
@@ -166,6 +178,7 @@ namespace Momiji.Interop.Opus
         Sampling24000 = 24000,
         Sampling48000 = 48000
     }
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("Design", "CA1008:列挙型は 0 値を含んでいなければなりません", Justification = "<保留中>")]
     public enum SignalHint : int
     {
         /// <summary>
@@ -205,6 +218,7 @@ namespace Momiji.Interop.Opus
     {
         [DllImport(Libraries.Opus, CallingConvention = CallingConvention.StdCall)]
         [DefaultDllImportSearchPaths(DllImportSearchPath.UserDirectories | DllImportSearchPath.UseDllDirectoryForDependencies)]
+        [System.Diagnostics.CodeAnalysis.SuppressMessage("Security", "CA5393:安全でない DllImportSearchPath 値を使用しない", Justification = "<保留中>")]
         internal static extern Encoder
             opus_encoder_create(
                 [In] SamplingRate Fs,
@@ -215,18 +229,21 @@ namespace Momiji.Interop.Opus
 
         [DllImport(Libraries.Opus, CallingConvention = CallingConvention.StdCall)]
         [DefaultDllImportSearchPaths(DllImportSearchPath.UserDirectories | DllImportSearchPath.UseDllDirectoryForDependencies)]
+        [System.Diagnostics.CodeAnalysis.SuppressMessage("Security", "CA5393:安全でない DllImportSearchPath 値を使用しない", Justification = "<保留中>")]
         internal static extern void opus_encoder_destroy(
             [In] IntPtr st
         );
 
         [DllImport(Libraries.Opus, CallingConvention = CallingConvention.StdCall)]
         [DefaultDllImportSearchPaths(DllImportSearchPath.UserDirectories | DllImportSearchPath.UseDllDirectoryForDependencies)]
+        [System.Diagnostics.CodeAnalysis.SuppressMessage("Security", "CA5393:安全でない DllImportSearchPath 値を使用しない", Justification = "<保留中>")]
         internal static extern int opus_encoder_get_size(
             [In] Channels channels
         );
 
         [DllImport(Libraries.Opus, CallingConvention = CallingConvention.StdCall)]
         [DefaultDllImportSearchPaths(DllImportSearchPath.UserDirectories | DllImportSearchPath.UseDllDirectoryForDependencies)]
+        [System.Diagnostics.CodeAnalysis.SuppressMessage("Security", "CA5393:安全でない DllImportSearchPath 値を使用しない", Justification = "<保留中>")]
         internal static extern OpusStatusCode opus_encoder_init(
             [In] this Encoder st,
             [In] SamplingRate Fs,
@@ -236,6 +253,7 @@ namespace Momiji.Interop.Opus
 
         [DllImport(Libraries.Opus, CallingConvention = CallingConvention.StdCall)]
         [DefaultDllImportSearchPaths(DllImportSearchPath.UserDirectories | DllImportSearchPath.UseDllDirectoryForDependencies)]
+        [System.Diagnostics.CodeAnalysis.SuppressMessage("Security", "CA5393:安全でない DllImportSearchPath 値を使用しない", Justification = "<保留中>")]
         internal static extern int opus_encode(
             [In] this Encoder st,
             [In] IntPtr pcm,
@@ -246,6 +264,7 @@ namespace Momiji.Interop.Opus
 
         [DllImport(Libraries.Opus, CallingConvention = CallingConvention.StdCall)]
         [DefaultDllImportSearchPaths(DllImportSearchPath.UserDirectories | DllImportSearchPath.UseDllDirectoryForDependencies)]
+        [System.Diagnostics.CodeAnalysis.SuppressMessage("Security", "CA5393:安全でない DllImportSearchPath 値を使用しない", Justification = "<保留中>")]
         internal static extern int opus_encode_float(
             [In] this Encoder st,
             [In] IntPtr pcm,
@@ -256,6 +275,7 @@ namespace Momiji.Interop.Opus
 
         [DllImport(Libraries.Opus, CallingConvention = CallingConvention.StdCall)]
         [DefaultDllImportSearchPaths(DllImportSearchPath.UserDirectories | DllImportSearchPath.UseDllDirectoryForDependencies)]
+        [System.Diagnostics.CodeAnalysis.SuppressMessage("Security", "CA5393:安全でない DllImportSearchPath 値を使用しない", Justification = "<保留中>")]
         internal static extern int opus_encoder_ctl(
             [In] this Encoder st,
             [In] OpusCtlSetRequest request,
@@ -264,6 +284,7 @@ namespace Momiji.Interop.Opus
 
         [DllImport(Libraries.Opus, CallingConvention = CallingConvention.StdCall)]
         [DefaultDllImportSearchPaths(DllImportSearchPath.UserDirectories | DllImportSearchPath.UseDllDirectoryForDependencies)]
+        [System.Diagnostics.CodeAnalysis.SuppressMessage("Security", "CA5393:安全でない DllImportSearchPath 値を使用しない", Justification = "<保留中>")]
         internal static extern int opus_encoder_ctl(
             [In] this Encoder st,
             [In] OpusCtlGetRequest request,
@@ -272,12 +293,14 @@ namespace Momiji.Interop.Opus
 
         [DllImport(Libraries.Opus, CallingConvention = CallingConvention.StdCall)]
         [DefaultDllImportSearchPaths(DllImportSearchPath.UserDirectories | DllImportSearchPath.UseDllDirectoryForDependencies)]
+        [System.Diagnostics.CodeAnalysis.SuppressMessage("Security", "CA5393:安全でない DllImportSearchPath 値を使用しない", Justification = "<保留中>")]
         internal static extern int opus_packet_get_bandwidth(
             [In] IntPtr data
         );
 
         [DllImport(Libraries.Opus, CallingConvention = CallingConvention.StdCall)]
         [DefaultDllImportSearchPaths(DllImportSearchPath.UserDirectories | DllImportSearchPath.UseDllDirectoryForDependencies)]
+        [System.Diagnostics.CodeAnalysis.SuppressMessage("Security", "CA5393:安全でない DllImportSearchPath 値を使用しない", Justification = "<保留中>")]
         internal static extern int opus_packet_get_nb_channels(
             [In] IntPtr data
         );
@@ -285,6 +308,7 @@ namespace Momiji.Interop.Opus
         [DllImport(Libraries.Opus, CallingConvention = CallingConvention.StdCall, CharSet = CharSet.Unicode)]
         [DefaultDllImportSearchPaths(DllImportSearchPath.UserDirectories | DllImportSearchPath.UseDllDirectoryForDependencies)]
         [return: MarshalAs(UnmanagedType.CustomMarshaler, MarshalTypeRef = typeof(LPStrNonFree))]
+        [System.Diagnostics.CodeAnalysis.SuppressMessage("Security", "CA5393:安全でない DllImportSearchPath 値を使用しない", Justification = "<保留中>")]
         internal static extern string opus_strerror(
             [In] int error
         );
@@ -292,6 +316,7 @@ namespace Momiji.Interop.Opus
         [DllImport(Libraries.Opus, CallingConvention = CallingConvention.StdCall, CharSet = CharSet.Unicode)]
         [DefaultDllImportSearchPaths(DllImportSearchPath.UserDirectories | DllImportSearchPath.UseDllDirectoryForDependencies)]
         [return: MarshalAs(UnmanagedType.CustomMarshaler, MarshalTypeRef = typeof(LPStrNonFree))]
+        [System.Diagnostics.CodeAnalysis.SuppressMessage("Security", "CA5393:安全でない DllImportSearchPath 値を使用しない", Justification = "<保留中>")]
         internal static extern string opus_get_version_string();
     }
 
@@ -329,5 +354,4 @@ namespace Momiji.Interop.Opus
             return Marshal.PtrToStringAnsi(pNativeData);
         }
     }
-#pragma warning restore IDE1006 // 命名スタイル
 }

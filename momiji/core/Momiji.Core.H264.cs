@@ -25,7 +25,7 @@ namespace Momiji.Core.H264
 
     public class H264InputBuffer : PinnedBufferWithLog<SSourcePicture>
     {
-        private bool disposed = false;
+        private bool disposed;
         private PinnedBuffer<byte[]> buffer;
 
         public H264InputBuffer(int picWidth, int picHeight) : base(new SSourcePicture())
@@ -106,7 +106,7 @@ namespace Momiji.Core.H264
         private ILogger Logger { get; }
         private Timer Timer { get; }
 
-        private bool disposed = false;
+        private bool disposed;
         private SVCEncoder Encoder;
         private SFrameBSInfoBuffer sFrameBSInfoBuffer;
 

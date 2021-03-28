@@ -56,7 +56,7 @@ namespace Momiji.Interop
 
     public class PinnedBuffer<T> : IDisposable
     {
-        private bool disposed = false;
+        private bool disposed;
         private GCHandle handle;
 
         public PinnedBuffer(T buffer)
@@ -124,9 +124,10 @@ namespace Momiji.Interop
         }
     }
 
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("Naming", "CA1711:識別子は、不適切なサフィックスを含むことはできません", Justification = "<保留中>")]
     public class PinnedDelegate<T> : IDisposable where T : class
     {
-        private bool disposed = false;
+        private bool disposed;
         private GCHandle handle;
 
         public PinnedDelegate(T buffer)

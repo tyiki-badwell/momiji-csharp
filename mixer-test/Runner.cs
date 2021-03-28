@@ -83,7 +83,7 @@ namespace mixerTest
         private string CaInfoPath { get; }
         private Param Param { get; }
 
-        private bool disposed = false;
+        private bool disposed;
         private CancellationTokenSource processCancel;
         private Task processTask;
         private readonly BufferBlock<MIDIMessageEvent2> midiEventInput = new();

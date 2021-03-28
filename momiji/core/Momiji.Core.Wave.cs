@@ -104,7 +104,7 @@ namespace Momiji.Core.Wave
         private ILogger Logger { get; }
         private Timer Timer { get; }
 
-        private bool disposed = false;
+        private bool disposed;
 
         private BufferPool<WaveHeaderBuffer> headerPool;
         private readonly TransformBlock<IntPtr, PcmBuffer<T>> releaseAction;
@@ -299,7 +299,9 @@ namespace Momiji.Core.Wave
 
         private PcmBuffer<T> Unprepare(IntPtr headerPtr)
         {
+#pragma warning disable CA2000 // スコープを失う前にオブジェクトを破棄
             headerBusyPool.Remove(headerPtr, out var header);
+#pragma warning restore CA2000 // スコープを失う前にオブジェクトを破棄
 #if DEBUG
             {
                 var waveHeader = header.Target;

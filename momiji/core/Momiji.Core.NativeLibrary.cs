@@ -21,7 +21,7 @@ namespace Momiji.Core
         private ILoggerFactory LoggerFactory { get; }
         private ILogger Logger { get; }
 
-        private bool disposed = false;
+        private bool disposed;
         private readonly IDictionary<string, IntPtr> dllPool = new ConcurrentDictionary<string, IntPtr>();
 
         public DllManager(IConfiguration configuration, ILoggerFactory loggerFactory)
