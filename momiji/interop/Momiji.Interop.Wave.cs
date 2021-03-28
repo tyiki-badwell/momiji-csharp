@@ -310,15 +310,12 @@ namespace Momiji.Interop.Wave
         public const string Winmm = "winmm.dll";
     }
 
-    [SecurityPermission(SecurityAction.InheritanceDemand, UnmanagedCode = true)]
-    [SecurityPermission(SecurityAction.Demand, UnmanagedCode = true)]
     internal sealed class WaveOut : Microsoft.Win32.SafeHandles.SafeHandleZeroOrMinusOneIsInvalid
     {
         private WaveOut() : base(true)
         {
         }
 
-        [ReliabilityContract(Consistency.WillNotCorruptState, Cer.MayFail)]
         protected override bool ReleaseHandle()
         {
             MMRESULT mmResult = SafeNativeMethods.waveOutClose(handle);

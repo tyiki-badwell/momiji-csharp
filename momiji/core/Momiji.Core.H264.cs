@@ -335,7 +335,7 @@ namespace Momiji.Core.H264
             dest.Log.Add("[h264] end copy frame", Timer.USecDouble);
         }
 
-        private unsafe void CopyMemory(
+        private unsafe static void CopyMemory(
             IntPtr Destination,
             int maxLength,
             IntPtr Source,

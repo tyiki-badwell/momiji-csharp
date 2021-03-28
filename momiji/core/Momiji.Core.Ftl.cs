@@ -34,7 +34,7 @@ namespace Momiji.Core.Ftl
 
         private bool disposed = false;
         private PinnedBuffer<FtlHandle> handle;
-        private readonly CancellationTokenSource logCancel = new CancellationTokenSource();
+        private readonly CancellationTokenSource logCancel = new();
         private Task logTask;
 
         private long lastAudioUsec;

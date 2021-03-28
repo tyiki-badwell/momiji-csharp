@@ -129,10 +129,10 @@ namespace Momiji.Test
                     Thread.Sleep(33);
                 }
                 Logger.LogInformation("[h264 file] loop end");
-            }).ConfigureAwait(false);
+            }, ct).ConfigureAwait(false);
         }
 
-        private void Swap<T>(ref T lhs, ref T rhs)
+        private static void Swap<T>(ref T lhs, ref T rhs)
         {
             T temp;
             temp = lhs;

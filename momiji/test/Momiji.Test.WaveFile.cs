@@ -29,7 +29,6 @@ namespace Momiji.Test
         
         private Task processTask;
 
-        [System.Diagnostics.CodeAnalysis.SuppressMessage("Style", "IDE0060:未使用のパラメーターを削除します", Justification = "<保留中>")]
         public WaveFile(
             uint deviceID,
             ushort channels,
@@ -149,7 +148,7 @@ namespace Momiji.Test
                     inputReleaseQueue.Post(data);
                 }
                 Logger.LogInformation("[wave] loop end");
-            }).ConfigureAwait(false);
+            }, ct).ConfigureAwait(false);
         }
     }
 }

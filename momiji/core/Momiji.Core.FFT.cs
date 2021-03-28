@@ -70,8 +70,8 @@ namespace Momiji.Core.FFT
             disposed = true;
         }
 
-        private readonly List<string> list = new List<string>();
-        private readonly Dictionary<byte, byte> note = new Dictionary<byte, byte>();
+        private readonly List<string> list = new();
+        private readonly Dictionary<byte, byte> note = new();
 
         public void Receive(
             MIDIMessageEvent2 midiEvent

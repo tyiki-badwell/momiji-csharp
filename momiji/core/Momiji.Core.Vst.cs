@@ -31,7 +31,7 @@ namespace Momiji.Core.Vst
     public class VstBuffer<T> : PinnedBufferWithLog<IntPtr[]> where T : struct
     {
         private bool disposed = false;
-        private readonly List<PinnedBuffer<T[]>> list = new List<PinnedBuffer<T[]>>();
+        private readonly List<PinnedBuffer<T[]>> list = new();
 
         public VstBuffer(int blockSize, int channels) : base(new IntPtr[channels])
         {

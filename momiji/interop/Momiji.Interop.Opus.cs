@@ -190,15 +190,12 @@ namespace Momiji.Interop.Opus
         public const string Opus = "opus.dll";
     }
 
-    [SecurityPermission(SecurityAction.InheritanceDemand, UnmanagedCode = true)]
-    [SecurityPermission(SecurityAction.Demand, UnmanagedCode = true)]
     public sealed class Encoder : Microsoft.Win32.SafeHandles.SafeHandleZeroOrMinusOneIsInvalid
     {
         private Encoder() : base(true)
         {
         }
 
-        [ReliabilityContract(Consistency.WillNotCorruptState, Cer.MayFail)]
         override protected bool ReleaseHandle()
         {
             Trace.WriteLine("opus_encoder_destroy");
@@ -304,7 +301,7 @@ namespace Momiji.Interop.Opus
     //opus_strerrorとopus_get_version_stringは、今のところ即値を返す実装になっているため、戻り値の文字列を開放しないマーシャラーを用意する
     internal class LPStrNonFree : ICustomMarshaler
     {
-        private static readonly LPStrNonFree marshaler = new LPStrNonFree();
+        private static readonly LPStrNonFree marshaler = new();
         public static ICustomMarshaler GetInstance(string _)
         {
             return marshaler;
