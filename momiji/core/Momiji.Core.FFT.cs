@@ -105,6 +105,7 @@ namespace Momiji.Core.FFT
             }
         }
 
+        private static int a = 0;
 
         public void Execute(
             PcmBuffer<float> source,
@@ -175,15 +176,45 @@ namespace Momiji.Core.FFT
                         var wOdd = true;
                         for (var w = 0; w < bitmapData.Width; w++)
                         {
+                            a++;
+                            if (a > 235) { a = 16; }
+
                             var b = s[sPos++];
                             var g = s[sPos++];
                             var r = s[sPos++];
 
-                            y[yPos++] = (byte)(((256788 * r + 504129 * g + 97906 * b) / 1000000) + 16);
+                            {
+                                var pos = yPos++;
+                                var value = (((256788 * r + 504129 * g + 97906 * b) / 1000000) + 16);
+                                value += a;
+                                if (value > 235)
+                                {
+                                    value = 16;
+                                }
+                                y[pos] = (byte)value;
+                            }
                             if (hOdd && wOdd)
                             {
-                                u[uPos++] = (byte)(((-148223 * r - 290993 * g + 439216 * b) / 1000000) + 128);
-                                v[vPos++] = (byte)(((439216 * r - 367788 * g - 71427 * b) / 1000000) + 128);
+                                {
+                                    var pos = uPos++;
+                                    var value = (((-148223 * r - 290993 * g + 439216 * b) / 1000000) + 128);
+                                    value += a;
+                                    if (value > 235)
+                                    {
+                                        value = 16;
+                                    }
+                                    u[pos] = (byte)value;
+                                }
+                                {
+                                    var pos = vPos++;
+                                    var value = (((439216 * r - 367788 * g - 71427 * b) / 1000000) + 128);
+                                    value += a;
+                                    if (value > 235)
+                                    {
+                                        value = 16;
+                                    }
+                                    v[pos] = (byte)value;
+                                }
                             }
                             wOdd = !wOdd;
                         }
