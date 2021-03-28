@@ -1,12 +1,8 @@
 ﻿using System;
-using System.Diagnostics;
-using System.Runtime.ConstrainedExecution;
 using System.Runtime.InteropServices;
-using System.Security.Permissions;
 
 namespace Momiji.Interop.Wave
 {
-#pragma warning disable CA1815 // equals および operator equals を値型でオーバーライドします
 #pragma warning disable IDE1006 // 命名スタイル
     public enum MMRESULT : uint
     {
@@ -437,5 +433,4 @@ namespace Momiji.Interop.Wave
         */
     }
 #pragma warning restore IDE1006 // 命名スタイル
-#pragma warning restore CA1815 // equals および operator equals を値型でオーバーライドします
 }

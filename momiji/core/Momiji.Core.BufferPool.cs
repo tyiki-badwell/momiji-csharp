@@ -14,8 +14,8 @@ namespace Momiji.Core
         private ILogger Logger { get; }
 
         private bool disposed = false;
-        private List<T> list = new List<T>();
-        private readonly BufferBlock<T> bufferBlock = new BufferBlock<T>();
+        private List<T> list = new();
+        private readonly BufferBlock<T> bufferBlock = new();
         
         public Task Completion => bufferBlock.Completion;
 

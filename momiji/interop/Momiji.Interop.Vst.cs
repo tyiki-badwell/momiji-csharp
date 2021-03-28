@@ -3,7 +3,6 @@ using System.Runtime.InteropServices;
 
 namespace Momiji.Interop.Vst
 {
-#pragma warning disable CA1815 // equals および operator equals を値型でオーバーライドします
     //-------------------------------------------------------------------------------------------------------
     /** String length limits (in characters excl. 0 byte) */
     //-------------------------------------------------------------------------------------------------------
@@ -698,6 +697,4 @@ namespace Momiji.Interop.Vst
         public short right;     ///< right coordinate
         //-------------------------------------------------------------------------------------------------------
     };
-
-#pragma warning restore CA1815 // equals および operator equals を値型でオーバーライドします
 }

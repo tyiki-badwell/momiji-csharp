@@ -95,8 +95,8 @@ namespace Momiji.Test
 
                 writer.Flush();
 
+                /*
                 var fileSize = file.Position;
-/*
                 file.Seek(riffSizePosition, SeekOrigin.Begin);
                 writer.Write(fileSize - 8);
                 writer.Flush();

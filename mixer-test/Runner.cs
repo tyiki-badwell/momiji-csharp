@@ -86,8 +86,8 @@ namespace mixerTest
         private bool disposed = false;
         private CancellationTokenSource processCancel;
         private Task processTask;
-        private readonly BufferBlock<MIDIMessageEvent2> midiEventInput = new BufferBlock<MIDIMessageEvent2>();
-        private readonly BufferBlock<MIDIMessageEvent2> midiEventOutput = new BufferBlock<MIDIMessageEvent2>();
+        private readonly BufferBlock<MIDIMessageEvent2> midiEventInput = new();
+        private readonly BufferBlock<MIDIMessageEvent2> midiEventOutput = new();
 
         private readonly IDictionary<WebSocket, int> webSocketPool = new ConcurrentDictionary<WebSocket, int>();
 

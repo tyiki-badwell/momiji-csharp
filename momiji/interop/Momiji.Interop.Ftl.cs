@@ -1,11 +1,8 @@
 ﻿using System;
-using System.Runtime.ConstrainedExecution;
 using System.Runtime.InteropServices;
-using System.Security.Permissions;
 
 namespace Momiji.Interop.Ftl
 {
-#pragma warning disable CA1815 // equals および operator equals を値型でオーバーライドします
     public enum Status : int
     {
         FTL_SUCCESS,                  /**< Operation was successful */
@@ -340,5 +337,4 @@ namespace Momiji.Interop.Ftl
         speed_test_t;
     */
 
-#pragma warning restore CA1815 // equals および operator equals を値型でオーバーライドします
 }

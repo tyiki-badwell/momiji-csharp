@@ -1,6 +1,5 @@
 ﻿namespace Momiji.Core.WebMidi
 {
-#pragma warning disable CA1815 // equals および operator equals を値型でオーバーライドします
     public struct MIDIMessageEvent
     {
         public double receivedTime;
@@ -15,5 +14,4 @@
         public MIDIMessageEvent midiMessageEvent;
         public double receivedTimeUSec;
     }
-#pragma warning restore CA1815 // equals および operator equals を値型でオーバーライドします
 }

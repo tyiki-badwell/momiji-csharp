@@ -1,12 +1,9 @@
 ﻿using System;
 using System.Diagnostics;
-using System.Runtime.ConstrainedExecution;
 using System.Runtime.InteropServices;
-using System.Security.Permissions;
 
 namespace Momiji.Interop.Opus
 {
-#pragma warning disable CA1712 // 列挙値の前に型名を付けないでください
 #pragma warning disable IDE1006 // 命名スタイル
     public enum Bandwidth : int
     {
@@ -333,5 +330,4 @@ namespace Momiji.Interop.Opus
         }
     }
 #pragma warning restore IDE1006 // 命名スタイル
-#pragma warning restore CA1712 // 列挙値の前に型名を付けないでください
 }

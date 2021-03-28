@@ -1,13 +1,9 @@
 ﻿using System;
 using System.Diagnostics;
-using System.Runtime.ConstrainedExecution;
 using System.Runtime.InteropServices;
-using System.Security.Permissions;
 
 namespace Momiji.Interop.H264
 {
-#pragma warning disable CA1815 // equals および operator equals を値型でオーバーライドします
-#pragma warning disable CA1712 // 列挙値の前に型名を付けないでください
     /**
     * @brief Option types introduced in SVC encoder application
     */
@@ -737,6 +733,4 @@ namespace Momiji.Interop.H264
             [Out] out OpenH264Version pVersion
         );
     }
-#pragma warning restore CA1712 // 列挙値の前に型名を付けないでください
-#pragma warning restore CA1815 // equals および operator equals を値型でオーバーライドします
 }
