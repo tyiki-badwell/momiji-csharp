@@ -550,6 +550,7 @@ namespace mixerTest
                         midiEvent2.midiMessageEvent = midiEvent;
                         midiEvent2.receivedTimeUSec = timer.USecDouble;
                         midiEventInput.SendAsync(midiEvent2);
+                        midiEventOutput.SendAsync(midiEvent2);
                     }
                 }).ConfigureAwait(false);
             }
