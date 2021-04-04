@@ -297,8 +297,17 @@ namespace mixerTest
                         taskSet.Add(midiDataStoreBlock.Completion);
                         midiEventOutput.LinkTo(midiDataStoreBlock);
 
+                        var pcmDataStoreBlock =
+                            new ActionBlock<PcmBuffer<float>>(buffer =>
+                            {
+                                fft.Receive(buffer);
+                                pcmPool.SendAsync(buffer);
+                            }, options);
+                        taskSet.Add(pcmDataStoreBlock.Completion);
+                        pcmDrowPool.LinkTo(pcmDataStoreBlock);
+
                         var fftBlock =
-                            new TransformBlock<PcmBuffer<float>, H264InputBuffer>(buffer =>
+                            new TransformBlock<H264InputBuffer, H264InputBuffer>(buffer =>
                             {
                                 buffer.Log.Clear();
 
@@ -306,13 +315,13 @@ namespace mixerTest
                                 buffer.Log.Add("[video] start", timer.USecDouble);
 
                                 //FFT
-                                var bmpTask = bmpPool.ReceiveAsync(ct);
-                                fft.Execute(buffer, bmpTask);
-                                pcmPool.SendAsync(buffer);
-                                return bmpTask;
+                                var bmp = bmpPool.Receive(ct);
+                                fft.Execute(bmp);
+
+                                return bmp;
                             }, options);
                         taskSet.Add(fftBlock.Completion);
-                        pcmDrowPool.LinkTo(fftBlock);
+                        bmpPool.LinkTo(fftBlock);
 
                         var intraFrameCount = 0.0;
                         var h264Block =
