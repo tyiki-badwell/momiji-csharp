@@ -219,7 +219,7 @@ namespace mixerTest
                     using var vstBufferPool = new BufferPool<VstBuffer<float>>(Param.BufferCount, () => new VstBuffer<float>(blockSize, 2), LoggerFactory);
                     using var pcmPool = new BufferPool<PcmBuffer<float>>(Param.BufferCount, () => new PcmBuffer<float>(blockSize, 2), LoggerFactory);
                     using var audioPool = new BufferPool<OpusOutputBuffer>(Param.BufferCount, () => new OpusOutputBuffer(5000), LoggerFactory);
-                    using var pcmDummyPool = new BufferPool<PcmBuffer<float>>(Param.BufferCount, () => new PcmBuffer<float>(blockSize, 2), LoggerFactory);
+                    using var pcmDrowPool = new BufferPool<PcmBuffer<float>>(Param.BufferCount, () => new PcmBuffer<float>(blockSize, 2), LoggerFactory);
                     using var bmpPool = new BufferPool<H264InputBuffer>(Param.BufferCount, () => new H264InputBuffer(Param.Width, Param.Height), LoggerFactory);
                     using var videoPool = new BufferPool<H264OutputBuffer>(Param.BufferCount, () => new H264OutputBuffer(200000), LoggerFactory);
                     using var vst = new AudioMaster<float>(Param.SamplingRate, blockSize, LoggerFactory, timer, DllManager);
@@ -268,7 +268,9 @@ namespace mixerTest
                                 var audio = audioPool.Receive(ct);
                                 buffer.Log.Add("[audio] ftl output get", timer.USecDouble);
                                 opus.Execute(buffer, audio);
-                                pcmPool.SendAsync(buffer);
+
+                                pcmDrowPool.SendAsync(buffer);
+
                                 return audio;
                             }, options);
                         taskSet.Add(opusBlock.Completion);
@@ -306,11 +308,11 @@ namespace mixerTest
                                 //FFT
                                 var bmpTask = bmpPool.ReceiveAsync(ct);
                                 fft.Execute(buffer, bmpTask);
-                                pcmDummyPool.SendAsync(buffer);
+                                pcmPool.SendAsync(buffer);
                                 return bmpTask;
                             }, options);
                         taskSet.Add(fftBlock.Completion);
-                        pcmDummyPool.LinkTo(fftBlock);
+                        pcmDrowPool.LinkTo(fftBlock);
 
                         var intraFrameCount = 0.0;
                         var h264Block =

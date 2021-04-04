@@ -130,8 +130,37 @@ namespace Momiji.Core.FFT
             using (var black = new SolidBrush(Color.Black))
             using (var white = new SolidBrush(Color.White))
             {
-                //TODO FFT
                 g.FillRectangle(black, 0, 0, PicWidth, PicHeight);
+
+                //TODO FFT
+                var data = source.Target.AsSpan();
+                var max = 0.0;
+                var min = 0.0;
+                var center = PicHeight / 2;
+                for (var i = 0; i < data.Length && i < PicWidth; i++)
+                {
+                    var f = data[i];
+                    max = (max < f) ? f : max;
+                    min = (min > f) ? f : min;
+
+                    var v = (byte)((f * 100) + 100);
+                    using var pen = new SolidBrush(Color.FromArgb(0, v, v));
+
+                    var y = center;
+                    var h = 0;
+                    if (f < 0)
+                    {
+                        y += (int)(f * center);
+                        h -= (int)(f * center);
+                    }
+                    else
+                    {
+                        h += (int)(f * center);
+                    }
+
+                    g.FillRectangle(pen, i, y, 1, h);
+                }
+
                 foreach (var (k, v) in new Dictionary<byte, byte>(note)) //排他を掛けてないのでコピー
                 {
                     using var pen = new SolidBrush(Color.FromArgb(v, v, 0));
@@ -144,6 +173,7 @@ namespace Momiji.Core.FFT
                     g.DrawString(s, font, white, 0, (idx++ * 15));
                 }
 
+                g.DrawString($"{data.Length} {max} {min}", font, white, 0, PicHeight - 50);
                 g.DrawString($"{DateTimeOffset.FromUnixTimeMilliseconds(Timer.USec / 1000).ToUniversalTime():HH:mm:ss.fff}", font, white, PicWidth - 200, PicHeight - 20);
             }
             source.Log.Add("[fft] drawn", Timer.USecDouble);
