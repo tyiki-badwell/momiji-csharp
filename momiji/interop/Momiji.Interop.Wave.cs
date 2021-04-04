@@ -1,9 +1,12 @@
 ﻿using System;
 using System.Runtime.InteropServices;
 
+#pragma warning disable CA1707 // 識別子はアンダースコアを含むことはできません
+#pragma warning disable CA1815 // equals および operator equals を値型でオーバーライドします
+#pragma warning disable CA1051 // 参照可能なインスタンス フィールドを宣言しません
+
 namespace Momiji.Interop.Wave
 {
-    [System.Diagnostics.CodeAnalysis.SuppressMessage("Naming", "CA1707:識別子はアンダースコアを含むことはできません", Justification = "<保留中>")]
     public enum MMRESULT : uint
     {
         NOERROR = 0,
@@ -18,7 +21,6 @@ namespace Momiji.Interop.Wave
 
     public static class DriverCallBack
     {
-        [System.Diagnostics.CodeAnalysis.SuppressMessage("Naming", "CA1707:識別子はアンダースコアを含むことはできません", Justification = "<保留中>")]
         public enum TYPE : ulong
         {
             TYPEMASK = 0x00070000L, // callback type mask
@@ -37,8 +39,6 @@ namespace Momiji.Interop.Wave
             WAVE_MAPPED_DEFAULT_COMMUNICATION_DEVICE = 0x0010,
         };
 
-        [System.Diagnostics.CodeAnalysis.SuppressMessage("Naming", "CA1707:識別子はアンダースコアを含むことはできません", Justification = "<保留中>")]
-        [System.Diagnostics.CodeAnalysis.SuppressMessage("Design", "CA1008:列挙型は 0 値を含んでいなければなりません", Justification = "<保留中>")]
         public enum MM_EXT_WINDOW_MESSAGE : uint
         {
             WOM_OPEN = 0x3BB,   // waveform output
@@ -74,7 +74,6 @@ namespace Momiji.Interop.Wave
 
     // wave data block header
     [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Ansi, Pack = 1)]
-    [System.Diagnostics.CodeAnalysis.SuppressMessage("Design", "CA1051:参照可能なインスタンス フィールドを宣言しません", Justification = "<保留中>")]
     public class WaveHeader
     {
         // flags for dwFlags field of WAVEHDR
@@ -105,8 +104,6 @@ namespace Momiji.Interop.Wave
 
     //defines for dwFormat field of WAVEINCAPS and WAVEOUTCAPS
     [Flags]
-    [System.Diagnostics.CodeAnalysis.SuppressMessage("Naming", "CA1707:識別子はアンダースコアを含むことはできません", Justification = "<保留中>")]
-    [System.Diagnostics.CodeAnalysis.SuppressMessage("Design", "CA1008:列挙型は 0 値を含んでいなければなりません", Justification = "<保留中>")]
     public enum WAVE_FORMAT : uint
     {
         FORMAT_INVALID = 0x00000000,    // invalid format
@@ -137,8 +134,6 @@ namespace Momiji.Interop.Wave
     };
 
     [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Ansi, Pack = 1)]
-    [System.Diagnostics.CodeAnalysis.SuppressMessage("Performance", "CA1815:equals および operator equals を値型でオーバーライドします", Justification = "<保留中>")]
-    [System.Diagnostics.CodeAnalysis.SuppressMessage("Design", "CA1051:参照可能なインスタンス フィールドを宣言しません", Justification = "<保留中>")]
     public struct WaveOutCapabilities
     {
         //flags for dwSupport field of WAVEOUTCAPS
@@ -188,14 +183,9 @@ namespace Momiji.Interop.Wave
     // Use this for all NON PCM formats
     // (information common to all formats)
     [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Ansi, Pack = 1)]
-    [System.Diagnostics.CodeAnalysis.SuppressMessage("Performance", "CA1815:equals および operator equals を値型でオーバーライドします", Justification = "<保留中>")]
-    [System.Diagnostics.CodeAnalysis.SuppressMessage("Design", "CA1051:参照可能なインスタンス フィールドを宣言しません", Justification = "<保留中>")]
-    [System.Diagnostics.CodeAnalysis.SuppressMessage("Naming", "CA1711:識別子は、不適切なサフィックスを含むことはできません", Justification = "<保留中>")]
     public struct WaveFormatEx
     {
         // flags for wFormatTag field of WAVEFORMAT
-        [System.Diagnostics.CodeAnalysis.SuppressMessage("Naming", "CA1707:識別子はアンダースコアを含むことはできません", Justification = "<保留中>")]
-        [System.Diagnostics.CodeAnalysis.SuppressMessage("Design", "CA1008:列挙型は 0 値を含んでいなければなりません", Justification = "<保留中>")]
         public enum FORMAT : ushort
         {
             PCM = 0x0001,
@@ -220,8 +210,6 @@ namespace Momiji.Interop.Wave
     }
 
     [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Ansi, Pack = 1)]
-    [System.Diagnostics.CodeAnalysis.SuppressMessage("Performance", "CA1815:equals および operator equals を値型でオーバーライドします", Justification = "<保留中>")]
-    [System.Diagnostics.CodeAnalysis.SuppressMessage("Design", "CA1051:参照可能なインスタンス フィールドを宣言しません", Justification = "<保留中>")]
     public struct WaveFormat
     {
         public WaveFormatEx.FORMAT formatType;                // format type
@@ -238,8 +226,6 @@ namespace Momiji.Interop.Wave
     }
 
     [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Ansi, Pack = 1)]
-    [System.Diagnostics.CodeAnalysis.SuppressMessage("Performance", "CA1815:equals および operator equals を値型でオーバーライドします", Justification = "<保留中>")]
-    [System.Diagnostics.CodeAnalysis.SuppressMessage("Design", "CA1051:参照可能なインスタンス フィールドを宣言しません", Justification = "<保留中>")]
     public struct PcmWaveFormat
     {
         public WaveFormat wf;
@@ -261,12 +247,9 @@ namespace Momiji.Interop.Wave
     //  WAVEFORMATEXTENSIBLE.Format.wFormatTag field.
     //
     [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Ansi, Pack = 1)]
-    [System.Diagnostics.CodeAnalysis.SuppressMessage("Performance", "CA1815:equals および operator equals を値型でオーバーライドします", Justification = "<保留中>")]
-    [System.Diagnostics.CodeAnalysis.SuppressMessage("Design", "CA1051:参照可能なインスタンス フィールドを宣言しません", Justification = "<保留中>")]
     public struct WaveFormatExtensiblePart
     {
         [Flags]
-        [System.Diagnostics.CodeAnalysis.SuppressMessage("Naming", "CA1707:識別子はアンダースコアを含むことはできません", Justification = "<保留中>")]
         public enum SPEAKER : uint
         {
             FRONT_LEFT = 0x00000001,
@@ -308,8 +291,6 @@ namespace Momiji.Interop.Wave
     //  structure is common to all non-PCM formats.
     //
     [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Ansi, Pack = 1)]
-    [System.Diagnostics.CodeAnalysis.SuppressMessage("Performance", "CA1815:equals および operator equals を値型でオーバーライドします", Justification = "<保留中>")]
-    [System.Diagnostics.CodeAnalysis.SuppressMessage("Design", "CA1051:参照可能なインスタンス フィールドを宣言しません", Justification = "<保留中>")]
     public struct WaveFormatExtensible
     {
         public WaveFormatEx wfe;
@@ -455,3 +436,7 @@ namespace Momiji.Interop.Wave
         */
     }
 }
+
+#pragma warning restore CA1051 // 参照可能なインスタンス フィールドを宣言しません
+#pragma warning restore CA1815 // equals および operator equals を値型でオーバーライドします
+#pragma warning restore CA1707 // 識別子はアンダースコアを含むことはできません

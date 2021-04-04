@@ -1,12 +1,17 @@
 ﻿using System;
 using System.Runtime.InteropServices;
 
+#pragma warning disable CA1008 // 列挙型は 0 値を含んでいなければなりません
+#pragma warning disable CA1815 // equals および operator equals を値型でオーバーライドします
+#pragma warning disable CA1051 // 参照可能なインスタンス フィールドを宣言しません
+#pragma warning disable CA1711 // 識別子は、不適切なサフィックスを含むことはできません
+#pragma warning disable CA1069 // 列挙値を重複させることはできない
+
 namespace Momiji.Interop.Vst
 {
     //-------------------------------------------------------------------------------------------------------
     /** String length limits (in characters excl. 0 byte) */
     //-------------------------------------------------------------------------------------------------------
-    [System.Diagnostics.CodeAnalysis.SuppressMessage("Design", "CA1008:列挙型は 0 値を含んでいなければなりません", Justification = "<保留中>")]
     public enum VstStringConstants : int
     {
         //-------------------------------------------------------------------------------------------------------
@@ -143,8 +148,6 @@ namespace Momiji.Interop.Vst
     }
 
     [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Ansi)]
-    [System.Diagnostics.CodeAnalysis.SuppressMessage("Performance", "CA1815:equals および operator equals を値型でオーバーライドします", Justification = "<保留中>")]
-    [System.Diagnostics.CodeAnalysis.SuppressMessage("Design", "CA1051:参照可能なインスタンス フィールドを宣言しません", Justification = "<保留中>")]
     unsafe public struct AEffect
     {
         //-------------------------------------------------------------------------------------------------------
@@ -271,7 +274,6 @@ namespace Momiji.Interop.Vst
         /** AEffect flags */
         //-------------------------------------------------------------------------------------------------------
         [Flags]
-        [System.Diagnostics.CodeAnalysis.SuppressMessage("Naming", "CA1711:識別子は、不適切なサフィックスを含むことはできません", Justification = "<保留中>")]
         public enum VstAEffectFlags : int
         {
             //-------------------------------------------------------------------------------------------------------
@@ -389,12 +391,9 @@ namespace Momiji.Interop.Vst
     /** Parameter Properties used in #effGetParameterProperties. */
     //-------------------------------------------------------------------------------------------------------
     [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Ansi)]
-    [System.Diagnostics.CodeAnalysis.SuppressMessage("Performance", "CA1815:equals および operator equals を値型でオーバーライドします", Justification = "<保留中>")]
-    [System.Diagnostics.CodeAnalysis.SuppressMessage("Design", "CA1051:参照可能なインスタンス フィールドを宣言しません", Justification = "<保留中>")]
     public struct VstParameterProperties
     {
         [Flags]
-        [System.Diagnostics.CodeAnalysis.SuppressMessage("Naming", "CA1711:識別子は、不適切なサフィックスを含むことはできません", Justification = "<保留中>")]
         public enum VstParameterFlags : int
         {
             //-------------------------------------------------------------------------------------------------------
@@ -493,12 +492,9 @@ namespace Momiji.Interop.Vst
     /** Pin Properties used in #effGetInputProperties and #effGetOutputProperties. */
     //-------------------------------------------------------------------------------------------------------
     [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Ansi)]
-    [System.Diagnostics.CodeAnalysis.SuppressMessage("Performance", "CA1815:equals および operator equals を値型でオーバーライドします", Justification = "<保留中>")]
-    [System.Diagnostics.CodeAnalysis.SuppressMessage("Design", "CA1051:参照可能なインスタンス フィールドを宣言しません", Justification = "<保留中>")]
     public struct VstPinProperties
     {
         [Flags]
-        [System.Diagnostics.CodeAnalysis.SuppressMessage("Naming", "CA1711:識別子は、不適切なサフィックスを含むことはできません", Justification = "<保留中>")]
         public enum VstPinPropertiesFlags : int
         {
             //-------------------------------------------------------------------------------------------------------
@@ -528,13 +524,11 @@ namespace Momiji.Interop.Vst
     /** A generic timestamped event. */
     //-------------------------------------------------------------------------------------------------------
     [StructLayout(LayoutKind.Explicit, CharSet = CharSet.Ansi)]
-    [System.Diagnostics.CodeAnalysis.SuppressMessage("Performance", "CA1815:equals および operator equals を値型でオーバーライドします", Justification = "<保留中>")]
     public struct VstEvent
     {
         //-------------------------------------------------------------------------------------------------------
         /** VstEvent Types used by #VstEvent. */
         //-------------------------------------------------------------------------------------------------------
-        [System.Diagnostics.CodeAnalysis.SuppressMessage("Design", "CA1008:列挙型は 0 値を含んでいなければなりません", Justification = "<保留中>")]
         public enum VstEventTypes : int
         {
             //-------------------------------------------------------------------------------------------------------
@@ -552,15 +546,11 @@ namespace Momiji.Interop.Vst
     /** MIDI Event (to be casted from VstEvent). */
     //-------------------------------------------------------------------------------------------------------
     [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Ansi)]
-    [System.Diagnostics.CodeAnalysis.SuppressMessage("Performance", "CA1815:equals および operator equals を値型でオーバーライドします", Justification = "<保留中>")]
-    [System.Diagnostics.CodeAnalysis.SuppressMessage("Design", "CA1051:参照可能なインスタンス フィールドを宣言しません", Justification = "<保留中>")]
     public struct VstMidiEvent
     {
         //-------------------------------------------------------------------------------------------------------
         /** Flags used in #VstMidiEvent. */
         //-------------------------------------------------------------------------------------------------------
-        [System.Diagnostics.CodeAnalysis.SuppressMessage("Design", "CA1008:列挙型は 0 値を含んでいなければなりません", Justification = "<保留中>")]
-        [System.Diagnostics.CodeAnalysis.SuppressMessage("Naming", "CA1711:識別子は、不適切なサフィックスを含むことはできません", Justification = "<保留中>")]
         public enum VstMidiEventFlags : int
         {
             //-------------------------------------------------------------------------------------------------------
@@ -594,8 +584,6 @@ namespace Momiji.Interop.Vst
     /** A block of events for the current processed audio block. */
     //-------------------------------------------------------------------------------------------------------
     [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Ansi)]
-    [System.Diagnostics.CodeAnalysis.SuppressMessage("Performance", "CA1815:equals および operator equals を値型でオーバーライドします", Justification = "<保留中>")]
-    [System.Diagnostics.CodeAnalysis.SuppressMessage("Design", "CA1051:参照可能なインスタンス フィールドを宣言しません", Justification = "<保留中>")]
     public struct VstEvents
     {
         //-------------------------------------------------------------------------------------------------------
@@ -619,14 +607,12 @@ namespace Momiji.Interop.Vst
     */
     //-------------------------------------------------------------------------------------------------------
     [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Ansi)]
-    [System.Diagnostics.CodeAnalysis.SuppressMessage("Design", "CA1051:参照可能なインスタンス フィールドを宣言しません", Justification = "<保留中>")]
     public class VstTimeInfo
     {
         //-------------------------------------------------------------------------------------------------------
         /** Flags used in #VstTimeInfo. */
         //-------------------------------------------------------------------------------------------------------
         [Flags]
-        [System.Diagnostics.CodeAnalysis.SuppressMessage("Naming", "CA1711:識別子は、不適切なサフィックスを含むことはできません", Justification = "<保留中>")]
         public enum VstTimeInfoFlags : int
         {
             //-------------------------------------------------------------------------------------------------------
@@ -692,8 +678,6 @@ namespace Momiji.Interop.Vst
     /** Variable IO for Offline Processing. */
     //-------------------------------------------------------------------------------------------------------
     [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Ansi)]
-    [System.Diagnostics.CodeAnalysis.SuppressMessage("Performance", "CA1815:equals および operator equals を値型でオーバーライドします", Justification = "<保留中>")]
-    [System.Diagnostics.CodeAnalysis.SuppressMessage("Design", "CA1051:参照可能なインスタンス フィールドを宣言しません", Justification = "<保留中>")]
     public struct VstVariableIo
     {
         //-------------------------------------------------------------------------------------------------------
@@ -710,8 +694,6 @@ namespace Momiji.Interop.Vst
     /** Structure used for #effEditGetRect. */
     //-------------------------------------------------------------------------------------------------------
     [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Ansi)]
-    [System.Diagnostics.CodeAnalysis.SuppressMessage("Performance", "CA1815:equals および operator equals を値型でオーバーライドします", Justification = "<保留中>")]
-    [System.Diagnostics.CodeAnalysis.SuppressMessage("Design", "CA1051:参照可能なインスタンス フィールドを宣言しません", Justification = "<保留中>")]
     public struct ERect
     {
         //-------------------------------------------------------------------------------------------------------
@@ -722,3 +704,9 @@ namespace Momiji.Interop.Vst
         //-------------------------------------------------------------------------------------------------------
     };
 }
+
+#pragma warning restore CA1069 // 列挙値を重複させることはできない
+#pragma warning restore CA1711 // 識別子は、不適切なサフィックスを含むことはできません
+#pragma warning restore CA1051 // 参照可能なインスタンス フィールドを宣言しません
+#pragma warning restore CA1815 // equals および operator equals を値型でオーバーライドします
+#pragma warning restore CA1008 // 列挙型は 0 値を含んでいなければなりません

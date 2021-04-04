@@ -115,9 +115,6 @@ namespace Momiji.Core.Ftl
                 status = SafeNativeMethods.ftl_ingest_disconnect(handle.AddrOfPinnedObject);
                 Logger.LogInformation($"ftl_ingest_disconnect:{status}");
 
-                status = SafeNativeMethods.ftl_ingest_destroy(handle.AddrOfPinnedObject);
-                Logger.LogInformation($"ftl_ingest_destroy:{status}");
-
                 logCancel.Cancel();
                 if (logTask != null)
                 {
@@ -135,6 +132,9 @@ namespace Momiji.Core.Ftl
                     }
                     logTask = null;
                 }
+
+                status = SafeNativeMethods.ftl_ingest_destroy(handle.AddrOfPinnedObject);
+                Logger.LogInformation($"ftl_ingest_destroy:{status}");
 
                 handle.Dispose();
                 handle = null;

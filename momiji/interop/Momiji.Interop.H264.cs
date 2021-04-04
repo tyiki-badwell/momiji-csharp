@@ -2,13 +2,20 @@
 using System.Diagnostics;
 using System.Runtime.InteropServices;
 
+#pragma warning disable CA1707 // 識別子はアンダースコアを含むことはできません
+#pragma warning disable CA1815 // equals および operator equals を値型でオーバーライドします
+#pragma warning disable CA1051 // 参照可能なインスタンス フィールドを宣言しません
+#pragma warning disable CA1712 // 列挙値の前に型名を付けないでください
+#pragma warning disable CA1711 // 識別子は、不適切なサフィックスを含むことはできません
+#pragma warning disable CA1008 // 列挙型は 0 値を含んでいなければなりません
+#pragma warning disable CA1700 // 列挙型値に 'Reserved' という名前を指定しません
+#pragma warning disable CA1069 // 列挙値を重複させることはできない
+
 namespace Momiji.Interop.H264
 {
     /**
     * @brief Option types introduced in SVC encoder application
     */
-    [System.Diagnostics.CodeAnalysis.SuppressMessage("Naming", "CA1707:識別子はアンダースコアを含むことはできません", Justification = "<保留中>")]
-    [System.Diagnostics.CodeAnalysis.SuppressMessage("Naming", "CA1712:列挙値の前に型名を付けないでください", Justification = "<保留中>")]
     public enum ENCODER_OPTION : int
     {
         ENCODER_OPTION_DATAFORMAT = 0,
@@ -54,7 +61,6 @@ namespace Momiji.Interop.H264
     /**
     * @brief Encoder usage type
     */
-    [System.Diagnostics.CodeAnalysis.SuppressMessage("Naming", "CA1707:識別子はアンダースコアを含むことはできません", Justification = "<保留中>")]
     public enum EUsageType : int
     { 
         CAMERA_VIDEO_REAL_TIME,      ///< camera video for real-time communication
@@ -66,7 +72,6 @@ namespace Momiji.Interop.H264
     /**
     * @brief Enumulate the complexity mode
     */
-    [System.Diagnostics.CodeAnalysis.SuppressMessage("Naming", "CA1707:識別子はアンダースコアを含むことはできません", Justification = "<保留中>")]
     public enum ECOMPLEXITY_MODE : int
     {
         LOW_COMPLEXITY = 0,              ///< the lowest compleixty,the fastest speed,
@@ -76,7 +81,6 @@ namespace Momiji.Interop.H264
     /**
         * @brief Enumulate for the stategy of SPS/PPS strategy
         */
-    [System.Diagnostics.CodeAnalysis.SuppressMessage("Naming", "CA1707:識別子はアンダースコアを含むことはできません", Justification = "<保留中>")]
     public enum EParameterSetStrategy : int
     {
         CONSTANT_ID = 0,           ///< constant id in SPS/PPS
@@ -88,7 +92,6 @@ namespace Momiji.Interop.H264
     /**
     * @brief Enumerate the type of rate control mode
     */
-    [System.Diagnostics.CodeAnalysis.SuppressMessage("Naming", "CA1707:識別子はアンダースコアを含むことはできません", Justification = "<保留中>")]
     public enum RC_MODES : int
     {
         RC_QUALITY_MODE = 0,     ///< quality mode
@@ -101,7 +104,6 @@ namespace Momiji.Interop.H264
     /**
     * @brief Enumerate the type of profile id
     */
-    [System.Diagnostics.CodeAnalysis.SuppressMessage("Naming", "CA1707:識別子はアンダースコアを含むことはできません", Justification = "<保留中>")]
     public enum EProfileIdc : int
     {
         PRO_UNKNOWN = 0,
@@ -120,7 +122,6 @@ namespace Momiji.Interop.H264
     /**
     * @brief Enumerate the type of level id
     */
-    [System.Diagnostics.CodeAnalysis.SuppressMessage("Naming", "CA1707:識別子はアンダースコアを含むことはできません", Justification = "<保留中>")]
     public enum ELevelIdc : int
     {
         LEVEL_UNKNOWN = 0,
@@ -147,9 +148,6 @@ namespace Momiji.Interop.H264
     * @brief Enumerate the type of wels log
     */
     [Flags]
-    [System.Diagnostics.CodeAnalysis.SuppressMessage("Naming", "CA1707:識別子はアンダースコアを含むことはできません", Justification = "<保留中>")]
-    [System.Diagnostics.CodeAnalysis.SuppressMessage("Naming", "CA1712:列挙値の前に型名を付けないでください", Justification = "<保留中>")]
-    [System.Diagnostics.CodeAnalysis.SuppressMessage("Design", "CA1008:列挙型は 0 値を含んでいなければなりません", Justification = "<保留中>")]
     public enum WELS_LOG : int
     {
         WELS_LOG_QUIET = 0x00,          ///< quiet mode
@@ -166,8 +164,6 @@ namespace Momiji.Interop.H264
     /**
     * @brief Enumerate the type of slice mode
     */
-    [System.Diagnostics.CodeAnalysis.SuppressMessage("Naming", "CA1707:識別子はアンダースコアを含むことはできません", Justification = "<保留中>")]
-    [System.Diagnostics.CodeAnalysis.SuppressMessage("Naming", "CA1711:識別子は、不適切なサフィックスを含むことはできません", Justification = "<保留中>")]
     public enum SliceModeEnum : int
     {
         SM_SINGLE_SLICE = 0, ///< | SliceNum==1
@@ -179,7 +175,6 @@ namespace Momiji.Interop.H264
     /**
     * @brief Enumerate the type of sample aspect ratio
     */
-    [System.Diagnostics.CodeAnalysis.SuppressMessage("Naming", "CA1707:識別子はアンダースコアを含むことはできません", Justification = "<保留中>")]
     public enum ESampleAspectRatio : int
     {
         ASP_UNSPECIFIED = 0,
@@ -202,7 +197,6 @@ namespace Momiji.Interop.H264
     /**
     * @brief Enumerate the type of video format
     */
-    [System.Diagnostics.CodeAnalysis.SuppressMessage("Design", "CA1008:列挙型は 0 値を含んでいなければなりません", Justification = "<保留中>")]
     public enum EVideoFormatType : uint
     {
         videoFormatRGB = 1,             ///< rgb color formats
@@ -242,7 +236,6 @@ namespace Momiji.Interop.H264
     * @brief SVC Encoding Parameters
     */
     [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Ansi)]
-    [System.Diagnostics.CodeAnalysis.SuppressMessage("Design", "CA1051:参照可能なインスタンス フィールドを宣言しません", Justification = "<保留中>")]
     public class SEncParamBase
     {
         public EUsageType iUsageType;   ///< application type; please refer to the definition of EUsageType
@@ -256,8 +249,6 @@ namespace Momiji.Interop.H264
     * @brief Structure for slice argument
     */
     [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Ansi)]
-    [System.Diagnostics.CodeAnalysis.SuppressMessage("Performance", "CA1815:equals および operator equals を値型でオーバーライドします", Justification = "<保留中>")]
-    [System.Diagnostics.CodeAnalysis.SuppressMessage("Design", "CA1051:参照可能なインスタンス フィールドを宣言しません", Justification = "<保留中>")]
     public struct SSliceArgument
     {
         public SliceModeEnum uiSliceMode;    ///< by default, uiSliceMode will be SM_SINGLE_SLICE
@@ -270,8 +261,6 @@ namespace Momiji.Interop.H264
     * @brief  Structure for spatial layer configuration
     */
     [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Ansi)]
-    [System.Diagnostics.CodeAnalysis.SuppressMessage("Performance", "CA1815:equals および operator equals を値型でオーバーライドします", Justification = "<保留中>")]
-    [System.Diagnostics.CodeAnalysis.SuppressMessage("Design", "CA1051:参照可能なインスタンス フィールドを宣言しません", Justification = "<保留中>")]
     public struct SSpatialLayerConfig
     {
         public int iVideoWidth;           ///< width of picture in luminance samples of a layer
@@ -306,8 +295,6 @@ namespace Momiji.Interop.H264
     * @brief SVC Encoding Parameters extention
     */
     [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Ansi)]
-    [System.Diagnostics.CodeAnalysis.SuppressMessage("Performance", "CA1815:equals および operator equals を値型でオーバーライドします", Justification = "<保留中>")]
-    [System.Diagnostics.CodeAnalysis.SuppressMessage("Design", "CA1051:参照可能なインスタンス フィールドを宣言しません", Justification = "<保留中>")]
     public struct SEncParamExt
     {
         public EUsageType iUsageType;         ///< same as in TagEncParamBase
@@ -366,8 +353,6 @@ namespace Momiji.Interop.H264
     * @brief Bitstream inforamtion of a layer being encoded
     */
     [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Ansi)]
-    [System.Diagnostics.CodeAnalysis.SuppressMessage("Performance", "CA1815:equals および operator equals を値型でオーバーライドします", Justification = "<保留中>")]
-    [System.Diagnostics.CodeAnalysis.SuppressMessage("Design", "CA1051:参照可能なインスタンス フィールドを宣言しません", Justification = "<保留中>")]
     public struct SLayerBSInfo
     {
         public byte uiTemporalId;
@@ -388,7 +373,6 @@ namespace Momiji.Interop.H264
     * @brief Frame bit stream info
     */
     [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Ansi)]
-    [System.Diagnostics.CodeAnalysis.SuppressMessage("Design", "CA1051:参照可能なインスタンス フィールドを宣言しません", Justification = "<保留中>")]
     public class SFrameBSInfo
     {
         public int iLayerNum;
@@ -529,7 +513,6 @@ namespace Momiji.Interop.H264
     *  @brief Structure for source picture
     */
     [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Ansi)]
-    [System.Diagnostics.CodeAnalysis.SuppressMessage("Design", "CA1051:参照可能なインスタンス フィールドを宣言しません", Justification = "<保留中>")]
     public class SSourcePicture
     {
         public EVideoFormatType iColorFormat;          ///< color space type
@@ -552,8 +535,6 @@ namespace Momiji.Interop.H264
     ///
     /// E.g. SDK version is 1.2.0.0, major version number is 1, minor version number is 2, and revision number is 0.
     [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Ansi)]
-    [System.Diagnostics.CodeAnalysis.SuppressMessage("Performance", "CA1815:equals および operator equals を値型でオーバーライドします", Justification = "<保留中>")]
-    [System.Diagnostics.CodeAnalysis.SuppressMessage("Design", "CA1051:参照可能なインスタンス フィールドを宣言しません", Justification = "<保留中>")]
     public struct OpenH264Version
     {
         public readonly uint uMajor;                  ///< The major version number
@@ -765,3 +746,12 @@ namespace Momiji.Interop.H264
         );
     }
 }
+
+#pragma warning restore CA1069 // 列挙値を重複させることはできない
+#pragma warning restore CA1700 // 列挙型値に 'Reserved' という名前を指定しません
+#pragma warning restore CA1008 // 列挙型は 0 値を含んでいなければなりません
+#pragma warning restore CA1711 // 識別子は、不適切なサフィックスを含むことはできません
+#pragma warning restore CA1712 // 列挙値の前に型名を付けないでください
+#pragma warning restore CA1051 // 参照可能なインスタンス フィールドを宣言しません
+#pragma warning restore CA1815 // equals および operator equals を値型でオーバーライドします
+#pragma warning restore CA1707 // 識別子はアンダースコアを含むことはできません

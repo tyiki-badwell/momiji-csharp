@@ -2,9 +2,12 @@
 using System.Diagnostics;
 using System.Runtime.InteropServices;
 
+#pragma warning disable CA1008 // 列挙型は 0 値を含んでいなければなりません
+#pragma warning disable CA1712 // 列挙値の前に型名を付けないでください
+#pragma warning disable CA1069 // 列挙値を重複させることはできない
+
 namespace Momiji.Interop.Opus
 {
-    [System.Diagnostics.CodeAnalysis.SuppressMessage("Design", "CA1008:列挙型は 0 値を含んでいなければなりません", Justification = "<保留中>")]
     public enum Bandwidth : int
     {
         /// <summary>
@@ -28,7 +31,6 @@ namespace Momiji.Interop.Opus
         /// </summary>
         Fullband = 1105
     }
-    [System.Diagnostics.CodeAnalysis.SuppressMessage("Design", "CA1008:列挙型は 0 値を含んでいなければなりません", Justification = "<保留中>")]
     public enum Channels : int
     {
         /// <summary>
@@ -41,7 +43,6 @@ namespace Momiji.Interop.Opus
         Stereo = 2
     }
 
-    [System.Diagnostics.CodeAnalysis.SuppressMessage("Naming", "CA1712:列挙値の前に型名を付けないでください", Justification = "<保留中>")]
     public enum Complexity : int
     {
         Complexity0 = 0,
@@ -61,8 +62,6 @@ namespace Momiji.Interop.Opus
     /// <summary>
     /// Using a duration of less than 10 ms will prevent the encoder from using the LPC or hybrid modes. 
     /// </summary>
-    [System.Diagnostics.CodeAnalysis.SuppressMessage("Naming", "CA1712:列挙値の前に型名を付けないでください", Justification = "<保留中>")]
-    [System.Diagnostics.CodeAnalysis.SuppressMessage("Design", "CA1008:列挙型は 0 値を含んでいなければなりません", Justification = "<保留中>")]
     public enum Delay
     {
         /// <summary>
@@ -90,14 +89,14 @@ namespace Momiji.Interop.Opus
         /// </summary>
         Delay60ms = 120
     }
-    [System.Diagnostics.CodeAnalysis.SuppressMessage("Design", "CA1008:列挙型は 0 値を含んでいなければなりません", Justification = "<保留中>")]
+
     public enum ForceChannels : int
     {
         NoForce = -1000,
         Mono = 1,
         Stereo = 2
     }
-    [System.Diagnostics.CodeAnalysis.SuppressMessage("Design", "CA1008:列挙型は 0 値を含んでいなければなりません", Justification = "<保留中>")]
+
     public enum OpusApplicationType : int
     {
         /// <summary>
@@ -118,7 +117,7 @@ namespace Momiji.Interop.Opus
         /// </summary>
         RestrictedLowDelay = 2051
     }
-    [System.Diagnostics.CodeAnalysis.SuppressMessage("Design", "CA1008:列挙型は 0 値を含んでいなければなりません", Justification = "<保留中>")]
+
     public enum OpusCtlGetRequest : int
     {
         Application = 4001,
@@ -140,7 +139,7 @@ namespace Momiji.Interop.Opus
         Gain = 4035,
         LsbDepth = 4037
     }
-    [System.Diagnostics.CodeAnalysis.SuppressMessage("Design", "CA1008:列挙型は 0 値を含んでいなければなりません", Justification = "<保留中>")]
+
     public enum OpusCtlSetRequest : int
     {
         Application = 4000,
@@ -169,7 +168,7 @@ namespace Momiji.Interop.Opus
         InvalidState = -6,
         AllocFail = -7
     }
-    [System.Diagnostics.CodeAnalysis.SuppressMessage("Design", "CA1008:列挙型は 0 値を含んでいなければなりません", Justification = "<保留中>")]
+
     public enum SamplingRate : int
     {
         Sampling08000 = 8000,
@@ -178,7 +177,7 @@ namespace Momiji.Interop.Opus
         Sampling24000 = 24000,
         Sampling48000 = 48000
     }
-    [System.Diagnostics.CodeAnalysis.SuppressMessage("Design", "CA1008:列挙型は 0 値を含んでいなければなりません", Justification = "<保留中>")]
+
     public enum SignalHint : int
     {
         /// <summary>
@@ -355,3 +354,7 @@ namespace Momiji.Interop.Opus
         }
     }
 }
+
+#pragma warning restore CA1069 // 列挙値を重複させることはできない
+#pragma warning restore CA1712 // 列挙値の前に型名を付けないでください
+#pragma warning restore CA1008 // 列挙型は 0 値を含んでいなければなりません
