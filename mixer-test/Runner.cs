@@ -315,10 +315,9 @@ namespace mixerTest
                                 buffer.Log.Add("[video] start", timer.USecDouble);
 
                                 //FFT
-                                var bmp = bmpPool.Receive(ct);
-                                fft.Execute(bmp);
+                                fft.Execute(buffer);
 
-                                return bmp;
+                                return buffer;
                             }, options);
                         taskSet.Add(fftBlock.Completion);
                         bmpPool.LinkTo(fftBlock);

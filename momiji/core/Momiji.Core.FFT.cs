@@ -25,6 +25,8 @@ namespace Momiji.Core.FFT
 
         private Bitmap bitmap;
 
+        private readonly object sync = new();
+
         public FFTEncoder(
             int picWidth,
             int picHeight,
@@ -115,12 +117,14 @@ namespace Momiji.Core.FFT
             }
             source.Log.Add("[fft] start", Timer.USecDouble);
 
-            using (var g = Graphics.FromImage(bitmap))
-            using (var fontFamily = new FontFamily(GenericFontFamilies.Monospace))
-            using (var font = new Font(fontFamily, 15.0f))
-            using (var black = new SolidBrush(Color.Black))
-            using (var white = new SolidBrush(Color.White))
+            lock(sync)
             {
+                using var g = Graphics.FromImage(bitmap);
+                using var fontFamily = new FontFamily(GenericFontFamilies.Monospace);
+                using var font = new Font(fontFamily, 15.0f);
+                using var black = new SolidBrush(Color.Black);
+                using var white = new SolidBrush(Color.White);
+
                 g.FillRectangle(black, 0, 0, PicWidth, PicHeight);
 
                 //TODO FFT
@@ -179,55 +183,58 @@ namespace Momiji.Core.FFT
                 throw new ArgumentNullException(nameof(dest));
             }
 
-            var bitmapData = bitmap.LockBits(new Rectangle(0, 0, PicWidth, PicHeight), ImageLockMode.ReadOnly, PixelFormat.Format24bppRgb);
-            try
+            lock (sync)
             {
-                //dest.Log.Marge(source.Log);
-                unsafe
+                var bitmapData = bitmap.LockBits(new Rectangle(0, 0, PicWidth, PicHeight), ImageLockMode.ReadOnly, PixelFormat.Format24bppRgb);
+                try
                 {
-                    var target = dest.Target;
-                    var length = target.iPicWidth * target.iPicHeight;
-
-                    var s = new Span<byte>((byte*)bitmapData.Scan0, length * 3);
-                    var y = new Span<byte>((byte*)target.pData0, length);
-                    var u = new Span<byte>((byte*)target.pData1, length >> 2);
-                    var v = new Span<byte>((byte*)target.pData2, length >> 2);
-
-                    var (sPos, yPos, uPos, vPos) = (0, 0, 0, 0);
-
-                    /*
-                      Y = round( 0.256788 * R + 0.504129 * G + 0.097906 * B) +  16
-                      U = round(-0.148223 * R - 0.290993 * G + 0.439216 * B) + 128
-                      V = round( 0.439216 * R - 0.367788 * G - 0.071427 * B) + 128
-                    */
-
-                    var hOdd = true;
-                    for (var h = 0; h < bitmapData.Height; h++)
+                    //dest.Log.Marge(source.Log);
+                    unsafe
                     {
-                        var wOdd = true;
-                        for (var w = 0; w < bitmapData.Width; w++)
+                        var target = dest.Target;
+                        var length = target.iPicWidth * target.iPicHeight;
+
+                        var s = new Span<byte>((byte*)bitmapData.Scan0, length * 3);
+                        var y = new Span<byte>((byte*)target.pData0, length);
+                        var u = new Span<byte>((byte*)target.pData1, length >> 2);
+                        var v = new Span<byte>((byte*)target.pData2, length >> 2);
+
+                        var (sPos, yPos, uPos, vPos) = (0, 0, 0, 0);
+
+                        /*
+                          Y = round( 0.256788 * R + 0.504129 * G + 0.097906 * B) +  16
+                          U = round(-0.148223 * R - 0.290993 * G + 0.439216 * B) + 128
+                          V = round( 0.439216 * R - 0.367788 * G - 0.071427 * B) + 128
+                        */
+
+                        var hOdd = true;
+                        for (var h = 0; h < bitmapData.Height; h++)
                         {
-                            var b = s[sPos++];
-                            var g = s[sPos++];
-                            var r = s[sPos++];
-
-                            y[yPos++] = (byte)(((256788 * r + 504129 * g + 97906 * b) / 1000000) + 16);
-
-                            if (hOdd && wOdd)
+                            var wOdd = true;
+                            for (var w = 0; w < bitmapData.Width; w++)
                             {
-                                u[uPos++] = (byte)(((-148223 * r - 290993 * g + 439216 * b) / 1000000) + 128);
-                                v[vPos++] = (byte)(((439216 * r - 367788 * g - 71427 * b) / 1000000) + 128);
+                                var b = s[sPos++];
+                                var g = s[sPos++];
+                                var r = s[sPos++];
+
+                                y[yPos++] = (byte)(((256788 * r + 504129 * g + 97906 * b) / 1000000) + 16);
+
+                                if (hOdd && wOdd)
+                                {
+                                    u[uPos++] = (byte)(((-148223 * r - 290993 * g + 439216 * b) / 1000000) + 128);
+                                    v[vPos++] = (byte)(((439216 * r - 367788 * g - 71427 * b) / 1000000) + 128);
+                                }
+                                wOdd = !wOdd;
                             }
-                            wOdd = !wOdd;
+                            hOdd = !hOdd;
                         }
-                        hOdd = !hOdd;
                     }
+                    dest.Log.Add("[fft] end", Timer.USecDouble);
                 }
-                dest.Log.Add("[fft] end", Timer.USecDouble);
-            }
-            finally
-            {
-                bitmap.UnlockBits(bitmapData);
+                finally
+                {
+                    bitmap.UnlockBits(bitmapData);
+                }
             }
         }
     }
