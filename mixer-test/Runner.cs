@@ -209,9 +209,12 @@ namespace mixerTest
                     }
 
                     var blockSize = (int)(Param.SamplingRate * Param.SampleLength);
-                    
+                    Logger.LogInformation($"[loop3] blockSize {blockSize}");
+
                     var audioInterval = 1_000_000.0 * Param.SampleLength;
+                    Logger.LogInformation($"[loop3] audioInterval {audioInterval}");
                     var videoInterval = 1_000_000.0 / Param.MaxFrameRate;
+                    Logger.LogInformation($"[loop3] videoInterval {videoInterval}");
 
                     using var timer = new Momiji.Core.Timer();
                     using var audioWaiter = new Waiter(timer, audioInterval, ct);
@@ -243,6 +246,10 @@ namespace mixerTest
                         var vstBlock =
                             new TransformBlock<VstBuffer<float>, PcmBuffer<float>>(buffer =>
                             {
+                                if (Logger.IsEnabled(LogLevel.Debug))
+                                {
+                                    Logger.LogDebug($"[audio] vst -> pcm start {timer.USecDouble}");
+                                }
                                 buffer.Log.Clear();
                                 audioWaiter.Wait();
                                 buffer.Log.Add("[audio] start", timer.USecDouble);
@@ -250,12 +257,28 @@ namespace mixerTest
                                 //VST
                                 var nowTime = timer.USecDouble;
                                 effect.ProcessEvent(nowTime, midiEventInput);
+                                if (Logger.IsEnabled(LogLevel.Debug))
+                                {
+                                    Logger.LogDebug($"[audio] ProcessEvent {timer.USecDouble}");
+                                }
                                 effect.ProcessReplacing(nowTime, buffer);
+                                if (Logger.IsEnabled(LogLevel.Debug))
+                                {
+                                    Logger.LogDebug($"[audio] ProcessReplacing {timer.USecDouble}");
+                                }
 
                                 var pcmTask = pcmPool.ReceiveAsync(ct);
                                 //trans
                                 var pcm = toPcm.Execute(buffer, pcmTask);
+                                if (Logger.IsEnabled(LogLevel.Debug))
+                                {
+                                    Logger.LogDebug($"[audio] toPcm {timer.USecDouble}");
+                                }
                                 vstBufferPool.SendAsync(buffer);
+                                if (Logger.IsEnabled(LogLevel.Debug))
+                                {
+                                    Logger.LogDebug($"[audio] vst -> pcm end {timer.USecDouble}");
+                                }
                                 return pcm;
                             }, options);
                         taskSet.Add(vstBlock.Completion);
@@ -264,6 +287,10 @@ namespace mixerTest
                         var opusBlock =
                             new TransformBlock<PcmBuffer<float>, OpusOutputBuffer>(buffer =>
                             {
+                                if (Logger.IsEnabled(LogLevel.Debug))
+                                {
+                                    Logger.LogDebug($"[audio] pcm -> opus start {timer.USecDouble}");
+                                }
                                 buffer.Log.Add("[audio] opus input get", timer.USecDouble);
                                 var audio = audioPool.Receive(ct);
                                 buffer.Log.Add("[audio] ftl output get", timer.USecDouble);
@@ -271,6 +298,10 @@ namespace mixerTest
 
                                 pcmDrowPool.SendAsync(buffer);
 
+                                if (Logger.IsEnabled(LogLevel.Debug))
+                                {
+                                    Logger.LogDebug($"[audio] pcm -> opus end {timer.USecDouble}");
+                                }
                                 return audio;
                             }, options);
                         taskSet.Add(opusBlock.Completion);
@@ -279,10 +310,18 @@ namespace mixerTest
                         var ftlBlock =
                             new ActionBlock<OpusOutputBuffer>(buffer =>
                             {
+                                if (Logger.IsEnabled(LogLevel.Debug))
+                                {
+                                    Logger.LogDebug($"[audio] opus -> ftl start {timer.USecDouble}");
+                                }
                                 //FTL
                                 buffer.Log.Add("[audio] ftl input get", timer.USecDouble);
                                 ftl.Execute(buffer);
                                 audioPool.SendAsync(buffer);
+                                if (Logger.IsEnabled(LogLevel.Debug))
+                                {
+                                    Logger.LogDebug($"[audio] opus -> ftl end {timer.USecDouble}");
+                                }
                             }, options);
                         taskSet.Add(ftlBlock.Completion);
                         opusBlock.LinkTo(ftlBlock);
@@ -522,7 +561,7 @@ namespace mixerTest
                     {
                         break;
                     }
-                    Logger.LogInformation("websocket try receive");
+
                     var result = await webSocket.ReceiveAsync(buf, ct).ConfigureAwait(false);
                     if (result.CloseStatus.HasValue)
                     {

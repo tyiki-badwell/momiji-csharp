@@ -207,7 +207,7 @@ namespace Momiji.Interop.Opus
 
         override protected bool ReleaseHandle()
         {
-            Trace.WriteLine("opus_encoder_destroy");
+            //Trace.WriteLine("opus_encoder_destroy");
             SafeNativeMethods.opus_encoder_destroy(handle);
             return true;
         }

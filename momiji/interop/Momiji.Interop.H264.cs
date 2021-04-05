@@ -675,7 +675,7 @@ namespace Momiji.Interop.H264
 
         override protected bool ReleaseHandle()
         {
-            Trace.WriteLine("WelsDestroySVCEncoder");
+            //Trace.WriteLine("WelsDestroySVCEncoder");
             SafeNativeMethods.WelsDestroySVCEncoder(handle);
             return true;
         }
