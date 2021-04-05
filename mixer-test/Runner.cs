@@ -510,59 +510,42 @@ namespace mixerTest
             Logger.LogInformation("websocket start");
 
             var ct = processCancel.Token;
+            var buf = new byte[1024];
 
+            webSocketPool.Add(webSocket, 0);
             try
             {
-                await Task.Run(() =>
+                using var timer = new Momiji.Core.Timer();
+                while (webSocket.State == WebSocketState.Open)
                 {
                     if (ct.IsCancellationRequested)
                     {
-                        return;
+                        break;
                     }
-
-                    var buf = new byte[1024];
-
-                    using var timer = new Momiji.Core.Timer();
-                    while (webSocket.State == WebSocketState.Open)
+                    Logger.LogInformation("websocket try receive");
+                    var result = await webSocket.ReceiveAsync(buf, ct).ConfigureAwait(false);
+                    if (result.CloseStatus.HasValue)
                     {
-                        if (ct.IsCancellationRequested)
-                        {
-                            break;
-                        }
-                        //Logger.LogInformation("websocket try receive");
-                        var task = webSocket.ReceiveAsync(buf, ct);
-                        task.Wait(ct);
-                        var result = task.Result;
-                        if (result.CloseStatus.HasValue)
-                        {
-                            webSocket.CloseAsync(result.CloseStatus.Value, result.CloseStatusDescription, ct);
-                            break;
-                        }
-
-                        MIDIMessageEvent midiEvent;
-                        unsafe
-                        {
-                            var s = new Span<byte>(buf);
-                            fixed (byte* p = &s.GetPinnableReference())
-                            {
-                                midiEvent = *(MIDIMessageEvent*)p;
-                            }
-                        }
-                        /*
-                        Logger.LogInformation(
-                            $"note {DateTimeOffset.FromUnixTimeMilliseconds((long)(timer.USecDouble / 1000)).ToUniversalTime():HH:mm:ss.fff} {DateTimeOffset.FromUnixTimeMilliseconds((long)midiEvent.receivedTime).ToUniversalTime():HH:mm:ss.fff} => " +
-                            $"{midiEvent.data0:X2}" +
-                            $"{midiEvent.data1:X2}" +
-                            $"{midiEvent.data2:X2}" +
-                            $"{midiEvent.data3:X2}"
-                        );*/
-                        MIDIMessageEvent2 midiEvent2;
-                        midiEvent2.midiMessageEvent = midiEvent;
-                        midiEvent2.receivedTimeUSec = timer.USecDouble;
-                        midiEventInput.SendAsync(midiEvent2);
-                        midiEventOutput.SendAsync(midiEvent2);
+                        await webSocket.CloseAsync(result.CloseStatus.Value, result.CloseStatusDescription, ct).ConfigureAwait(false);
+                        break;
                     }
-                }).ConfigureAwait(false);
+
+                    MIDIMessageEvent midiEvent = toMIDIMessageEvent(buf);
+
+                    /*
+                    Logger.LogInformation(
+                        $"note {DateTimeOffset.FromUnixTimeMilliseconds((long)(timer.USecDouble / 1000)).ToUniversalTime():HH:mm:ss.fff} {DateTimeOffset.FromUnixTimeMilliseconds((long)midiEvent.receivedTime).ToUniversalTime():HH:mm:ss.fff} => " +
+                        $"{midiEvent.data0:X2}" +
+                        $"{midiEvent.data1:X2}" +
+                        $"{midiEvent.data2:X2}" +
+                        $"{midiEvent.data3:X2}"
+                    );*/
+                    MIDIMessageEvent2 midiEvent2;
+                    midiEvent2.midiMessageEvent = midiEvent;
+                    midiEvent2.receivedTimeUSec = timer.USecDouble;
+                    await midiEventInput.SendAsync(midiEvent2).ConfigureAwait(false);
+                    await midiEventOutput.SendAsync(midiEvent2).ConfigureAwait(false);
+                }
             }
             catch (Exception e)
             {
@@ -571,10 +554,20 @@ namespace mixerTest
             }
             finally
             {
-                webSocket.Dispose();
-                webSocket = null;
-
+                webSocketPool.Remove(webSocket);
                 Logger.LogInformation("websocket end");
+            }
+        }
+
+        static MIDIMessageEvent toMIDIMessageEvent(byte[] buf)
+        {
+            unsafe
+            {
+                var s = new Span<byte>(buf);
+                fixed (byte* p = &s.GetPinnableReference())
+                {
+                    return *(MIDIMessageEvent*)p;
+                }
             }
         }
     }
