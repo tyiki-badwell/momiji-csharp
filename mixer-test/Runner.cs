@@ -675,7 +675,7 @@ namespace mixerTest
                 throw new ArgumentNullException(nameof(webSocket));
             }
 
-            Logger.LogInformation("websocket start");
+            Logger.LogInformation("[web socket] start");
 
             var ct = processCancel.Token;
             var buf = new byte[1024];
@@ -715,15 +715,19 @@ namespace mixerTest
                     await midiEventOutput.SendAsync(midiEvent2).ConfigureAwait(false);
                 }
             }
+            catch (OperationCanceledException _)
+            {
+                Logger.LogInformation("[web socket] operation canceled.");
+            }
             catch (Exception e)
             {
-                Logger.LogInformation(e, "Exception");
+                Logger.LogInformation(e, "[web socket] exception");
                 throw;
             }
             finally
             {
                 webSocketPool.Remove(webSocket);
-                Logger.LogInformation("websocket end");
+                Logger.LogInformation("[web socket] end");
             }
         }
 
