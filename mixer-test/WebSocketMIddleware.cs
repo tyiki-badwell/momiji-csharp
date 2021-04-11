@@ -7,18 +7,19 @@ using System.Threading.Tasks;
 
 namespace mixerTest
 {
-    public class WebSocketMIddleware : IMiddleware
+    public class WebSocketMiddleware
+        : IMiddleware
     {
         private IConfiguration Configuration { get; }
         private ILoggerFactory LoggerFactory { get; }
         private ILogger Logger { get; }
         private IRunner Runner { get; }
 
-        public WebSocketMIddleware(IConfiguration configuration, ILoggerFactory loggerFactory, IRunner runner)
+        public WebSocketMiddleware(IConfiguration configuration, ILoggerFactory loggerFactory, IRunner runner)
         {
             Configuration = configuration ?? throw new ArgumentNullException(nameof(configuration));
             LoggerFactory = loggerFactory;
-            Logger = LoggerFactory.CreateLogger<WebSocketMIddleware>();
+            Logger = LoggerFactory.CreateLogger<WebSocketMiddleware>();
             Runner = runner;
         }
 

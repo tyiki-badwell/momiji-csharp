@@ -29,7 +29,7 @@ namespace mixerTest
             services.AddSingleton<IDllManager, DllManager>();
             services.AddSingleton<IRunner, Runner>();
 
-            services.AddTransient<WebSocketMIddleware>();
+            services.AddTransient<WebSocketMiddleware>();
         }
 
         public void Configure(IApplicationBuilder app, IWebHostEnvironment env, IHostApplicationLifetime appLifetime, ILoggerFactory loggerFactory)
@@ -61,7 +61,7 @@ namespace mixerTest
 
             app.Map("/ws", subApp => {
                 subApp.UseWebSockets();
-                subApp.UseMiddleware<WebSocketMIddleware>();
+                subApp.UseMiddleware<WebSocketMiddleware>();
             });
 
             appLifetime?.ApplicationStarted.Register(() => {
