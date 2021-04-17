@@ -41,7 +41,7 @@ namespace mixerTest
                 {
                     await Runner.Play(webSocket).ConfigureAwait(false);
                 }
-                catch (OperationCanceledException e)
+                catch (OperationCanceledException)
                 {
                     Logger.LogInformation("[middleware web socket] operation canceled.");
                 }

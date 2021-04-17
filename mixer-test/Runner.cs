@@ -715,7 +715,7 @@ namespace mixerTest
                     await midiEventOutput.SendAsync(midiEvent2).ConfigureAwait(false);
                 }
             }
-            catch (OperationCanceledException _)
+            catch (OperationCanceledException)
             {
                 Logger.LogInformation("[web socket] operation canceled.");
             }
