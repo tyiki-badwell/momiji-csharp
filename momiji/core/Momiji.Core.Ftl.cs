@@ -201,7 +201,7 @@ namespace Momiji.Core.Ftl
             {
                 var log = "AUDIO ";
                 double? temp = null;
-                source.Log.Copy().ForEach((a) => {
+                source.Log.ForEach((a) => {
                     var lap = temp.HasValue ? (a.time - temp) : 0;
                     log += $"\n[{ new DateTime((long)(a.time * 10), DateTimeKind.Utc):HH:mm:ss ffffff}][{lap:0000000000.000}]{a.label}";
                     temp = a.time;
@@ -260,7 +260,7 @@ namespace Momiji.Core.Ftl
             {
                 var log = "VIDEO ";
                 double? temp = null;
-                source.Log.Copy().ForEach((a) => {
+                source.Log.ForEach((a) => {
                     var lap = temp.HasValue ? (a.time - temp) : 0;
                     log += $"\n[{ new DateTime((long)(a.time * 10), DateTimeKind.Utc):HH:mm:ss ffffff}][{lap:0000000000.000}]{a.label}";
                     temp = a.time;

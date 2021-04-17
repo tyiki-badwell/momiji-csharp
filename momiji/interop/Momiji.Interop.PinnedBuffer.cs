@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Collections.ObjectModel;
 using System.Runtime.InteropServices;
 
 namespace Momiji.Interop
@@ -32,15 +33,15 @@ namespace Momiji.Interop
             Marge(source.Log);
         }
 
-        public void Marge(List<(string, double)> source)
+        public void Marge(IEnumerable<(string, double)> source)
         {
             Clear();
             Log.InsertRange(0, source);
         }
 
-        public List<(string label, double time)> Copy()
+        public void ForEach(Action<(string label, double time)> action)
         {
-            return new List<(string, double)>(Log);
+            Log.ForEach(action);
         }
 
         public double GetSpentTime()

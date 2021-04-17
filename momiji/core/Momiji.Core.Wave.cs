@@ -351,7 +351,7 @@ namespace Momiji.Core.Wave
                 source.Log.Add("[wave] unprepare", Timer.USecDouble);
                 var log = "";
                 double? temp = null;
-                source.Log.Copy().ForEach((a) =>
+                source.Log.ForEach((a) =>
                 {
                     var lap = temp.HasValue ? (a.time - temp) : 0;
                     log += $"\n[{ new DateTime((long)(a.time * 10), DateTimeKind.Utc):yyyy/MM/dd HH:mm:ss ffffff}][{a.time:0000000000.000}][{lap:0000000000.000}]{a.label}";
