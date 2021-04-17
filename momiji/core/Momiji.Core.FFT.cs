@@ -7,7 +7,6 @@ using System.Collections.Generic;
 using System.Drawing;
 using System.Drawing.Imaging;
 using System.Drawing.Text;
-using System.Threading.Tasks;
 
 namespace Momiji.Core.FFT
 {
@@ -23,9 +22,12 @@ namespace Momiji.Core.FFT
 
         private bool disposed;
 
-        private Bitmap bitmap;
+        private Bitmap bitmapInput;
+        private Bitmap bitmapOutput;
+        private Bitmap bitmapTemp;
 
-        private readonly object sync = new();
+        private readonly object syncInput = new();
+        private readonly object syncOutput = new();
 
         public FFTEncoder(
             int picWidth,
@@ -43,8 +45,18 @@ namespace Momiji.Core.FFT
             PicHeight = picHeight;
             MaxFrameRate = maxFrameRate;
 
-
-            bitmap = new Bitmap(PicWidth, PicHeight, PixelFormat.Format24bppRgb);
+            bitmapInput = new Bitmap(PicWidth, PicHeight, PixelFormat.Format24bppRgb)
+            {
+                Tag = "A"
+            };
+            bitmapOutput = new Bitmap(bitmapInput)
+            {
+                Tag = "B"
+            };
+            bitmapTemp = new Bitmap(bitmapInput)
+            {
+                Tag = "C"
+            };
         }
 
         ~FFTEncoder()
@@ -66,8 +78,14 @@ namespace Momiji.Core.FFT
             {
             }
 
-            bitmap?.Dispose();
-            bitmap = null;
+            bitmapInput?.Dispose();
+            bitmapInput = null;
+
+            bitmapOutput?.Dispose();
+            bitmapOutput = null;
+
+            bitmapTemp?.Dispose();
+            bitmapTemp = null;
 
             disposed = true;
         }
@@ -117,9 +135,9 @@ namespace Momiji.Core.FFT
             }
             source.Log.Add("[fft] start", Timer.USecDouble);
 
-            lock(sync)
+            lock(syncInput)
             {
-                using var g = Graphics.FromImage(bitmap);
+                using var g = Graphics.FromImage(bitmapInput);
                 using var fontFamily = new FontFamily(GenericFontFamilies.Monospace);
                 using var font = new Font(fontFamily, 15.0f);
                 using var black = new SolidBrush(Color.Black);
@@ -183,9 +201,9 @@ namespace Momiji.Core.FFT
                 throw new ArgumentNullException(nameof(dest));
             }
 
-            lock (sync)
+            lock (syncOutput)
             {
-                var bitmapData = bitmap.LockBits(new Rectangle(0, 0, PicWidth, PicHeight), ImageLockMode.ReadOnly, PixelFormat.Format24bppRgb);
+                var bitmapData = bitmapOutput.LockBits(new Rectangle(0, 0, PicWidth, PicHeight), ImageLockMode.ReadOnly, PixelFormat.Format24bppRgb);
                 try
                 {
                     //dest.Log.Marge(source.Log);
@@ -233,8 +251,11 @@ namespace Momiji.Core.FFT
                 }
                 finally
                 {
-                    bitmap.UnlockBits(bitmapData);
+                    bitmapOutput.UnlockBits(bitmapData);
                 }
+
+                //flip
+                (bitmapInput, bitmapOutput, bitmapTemp) = (bitmapOutput, bitmapTemp, bitmapInput);
             }
         }
     }

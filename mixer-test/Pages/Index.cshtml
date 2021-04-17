@@ -1,7 +1,9 @@
 ﻿@page
-@model IndexModel
 @using Microsoft.Extensions.Configuration
+@using Microsoft.AspNetCore.Antiforgery
+@model IndexModel
 @inject IConfiguration configuration
+@inject IAntiforgery Xsrf
 @{
     ViewData["Title"] = "Home Page";
 
@@ -10,6 +12,12 @@
 
     var mixerUserName = configuration["MIXER_USER_NAME"];
 }
+@functions{
+    public string GetAntiXsrfRequestToken()
+    {
+        return Xsrf.GetAndStoreTokens(HttpContext).RequestToken;
+    }
+}
 @if (param.Local)
 {
     <video id="video-area" controls autoplay>v</video>
@@ -17,9 +25,17 @@
 }
 else
 {
-    <!--iframe allowfullscreen="true" src="https://glimesh.tv/@(mixerUserName)" width="@(param.Width)" height="@(param.Height)"></iframe-->
+    <a href="https://glimesh.tv/@(mixerUserName)" target="_blank">Glimesh</a>
 }
 <br />
+
+<input type="hidden" id="RequestVerificationToken"
+       name="RequestVerificationToken" value="@GetAntiXsrfRequestToken()">
+
+<input type="button" class="control" value="start" data-control="Start" />
+<input type="button" class="control" value="cancel" data-control="Cancel" />
+
+<input type="button" class="ws" value="ws" />
 
 <select id="midiout"></select>
 <br />
@@ -27,68 +43,68 @@ else
     <tr>
         <td>
             C<br />
-            <input type="button" value="ON" data-short-message1="0x90" data-short-message2="0x3C" data-short-message3="0x40" /><br />
-            <input type="button" value="OFF" data-short-message1="0x80" data-short-message2="0x3C" data-short-message3="0x40" />
+            <input type="button" class="key" value="ON" data-short-message1="0x90" data-short-message2="0x3C" data-short-message3="0x40" /><br />
+            <input type="button" class="key" value="OFF" data-short-message1="0x80" data-short-message2="0x3C" data-short-message3="0x40" />
         </td>
         <td>
             C#<br />
-            <input type="button" value="ON" data-short-message1="0x90" data-short-message2="0x3D" data-short-message3="0x40" /><br />
-            <input type="button" value="OFF" data-short-message1="0x80" data-short-message2="0x3D" data-short-message3="0x40" />
+            <input type="button" class="key" value="ON" data-short-message1="0x90" data-short-message2="0x3D" data-short-message3="0x40" /><br />
+            <input type="button" class="key" value="OFF" data-short-message1="0x80" data-short-message2="0x3D" data-short-message3="0x40" />
         </td>
         <td>
             D<br />
-            <input type="button" value="ON" data-short-message1="0x90" data-short-message2="0x3E" data-short-message3="0x40" /><br />
-            <input type="button" value="OFF" data-short-message1="0x80" data-short-message2="0x3E" data-short-message3="0x40" />
+            <input type="button" class="key" value="ON" data-short-message1="0x90" data-short-message2="0x3E" data-short-message3="0x40" /><br />
+            <input type="button" class="key" value="OFF" data-short-message1="0x80" data-short-message2="0x3E" data-short-message3="0x40" />
         </td>
         <td>
             D#<br />
-            <input type="button" value="ON" data-short-message1="0x90" data-short-message2="0x3F" data-short-message3="0x40" /><br />
-            <input type="button" value="OFF" data-short-message1="0x80" data-short-message2="0x3F" data-short-message3="0x40" />
+            <input type="button" class="key" value="ON" data-short-message1="0x90" data-short-message2="0x3F" data-short-message3="0x40" /><br />
+            <input type="button" class="key" value="OFF" data-short-message1="0x80" data-short-message2="0x3F" data-short-message3="0x40" />
         </td>
         <td>
             E<br />
-            <input type="button" value="ON" data-short-message1="0x90" data-short-message2="0x40" data-short-message3="0x40" /><br />
-            <input type="button" value="OFF" data-short-message1="0x80" data-short-message2="0x40" data-short-message3="0x40" />
+            <input type="button" class="key" value="ON" data-short-message1="0x90" data-short-message2="0x40" data-short-message3="0x40" /><br />
+            <input type="button" class="key" value="OFF" data-short-message1="0x80" data-short-message2="0x40" data-short-message3="0x40" />
         </td>
         <td>
             F<br />
-            <input type="button" value="ON" data-short-message1="0x90" data-short-message2="0x41" data-short-message3="0x40" /><br />
-            <input type="button" value="OFF" data-short-message1="0x80" data-short-message2="0x41" data-short-message3="0x40" />
+            <input type="button" class="key" value="ON" data-short-message1="0x90" data-short-message2="0x41" data-short-message3="0x40" /><br />
+            <input type="button" class="key" value="OFF" data-short-message1="0x80" data-short-message2="0x41" data-short-message3="0x40" />
         </td>
         <td>
             F#<br />
-            <input type="button" value="ON" data-short-message1="0x90" data-short-message2="0x42" data-short-message3="0x40" /><br />
-            <input type="button" value="OFF" data-short-message1="0x80" data-short-message2="0x42" data-short-message3="0x40" />
+            <input type="button" class="key" value="ON" data-short-message1="0x90" data-short-message2="0x42" data-short-message3="0x40" /><br />
+            <input type="button" class="key" value="OFF" data-short-message1="0x80" data-short-message2="0x42" data-short-message3="0x40" />
         </td>
         <td>
             G<br />
-            <input type="button" value="ON" data-short-message1="0x90" data-short-message2="0x43" data-short-message3="0x40" /><br />
-            <input type="button" value="OFF" data-short-message1="0x80" data-short-message2="0x43" data-short-message3="0x40" />
+            <input type="button" class="key" value="ON" data-short-message1="0x90" data-short-message2="0x43" data-short-message3="0x40" /><br />
+            <input type="button" class="key" value="OFF" data-short-message1="0x80" data-short-message2="0x43" data-short-message3="0x40" />
         </td>
         <td>
             G#<br />
-            <input type="button" value="ON" data-short-message1="0x90" data-short-message2="0x44" data-short-message3="0x40" /><br />
-            <input type="button" value="OFF" data-short-message1="0x80" data-short-message2="0x44" data-short-message3="0x40" />
+            <input type="button" class="key" value="ON" data-short-message1="0x90" data-short-message2="0x44" data-short-message3="0x40" /><br />
+            <input type="button" class="key" value="OFF" data-short-message1="0x80" data-short-message2="0x44" data-short-message3="0x40" />
         </td>
         <td>
             A<br />
-            <input type="button" value="ON" data-short-message1="0x90" data-short-message2="0x45" data-short-message3="0x40" /><br />
-            <input type="button" value="OFF" data-short-message1="0x80" data-short-message2="0x45" data-short-message3="0x40" />
+            <input type="button" class="key" value="ON" data-short-message1="0x90" data-short-message2="0x45" data-short-message3="0x40" /><br />
+            <input type="button" class="key" value="OFF" data-short-message1="0x80" data-short-message2="0x45" data-short-message3="0x40" />
         </td>
         <td>
             A#<br />
-            <input type="button" value="ON" data-short-message1="0x90" data-short-message2="0x46" data-short-message3="0x40" /><br />
-            <input type="button" value="OFF" data-short-message1="0x80" data-short-message2="0x46" data-short-message3="0x40" />
+            <input type="button" class="key" value="ON" data-short-message1="0x90" data-short-message2="0x46" data-short-message3="0x40" /><br />
+            <input type="button" class="key" value="OFF" data-short-message1="0x80" data-short-message2="0x46" data-short-message3="0x40" />
         </td>
         <td>
             B<br />
-            <input type="button" value="ON" data-short-message1="0x90" data-short-message2="0x47" data-short-message3="0x40" /><br />
-            <input type="button" value="OFF" data-short-message1="0x80" data-short-message2="0x47" data-short-message3="0x40" />
+            <input type="button" class="key" value="ON" data-short-message1="0x90" data-short-message2="0x47" data-short-message3="0x40" /><br />
+            <input type="button" class="key" value="OFF" data-short-message1="0x80" data-short-message2="0x47" data-short-message3="0x40" />
         </td>
         <td>
             C<br />
-            <input type="button" value="ON" data-short-message1="0x90" data-short-message2="0x48" data-short-message3="0x40" /><br />
-            <input type="button" value="OFF" data-short-message1="0x80" data-short-message2="0x48" data-short-message3="0x40" />
+            <input type="button" class="key" value="ON" data-short-message1="0x90" data-short-message2="0x48" data-short-message3="0x40" /><br />
+            <input type="button" class="key" value="OFF" data-short-message1="0x80" data-short-message2="0x48" data-short-message3="0x40" />
         </td>
     </tr>
 </table>

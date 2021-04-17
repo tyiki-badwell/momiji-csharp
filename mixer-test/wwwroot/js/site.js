@@ -47,46 +47,8 @@
         });
     }
     
-    const ws = new WebSocket(((document.location.protocol === 'https:') ? 'wss://' : 'ws://') + document.location.host + '/ws');
-    ws.addEventListener('close', (e) => {
-        console.log(e);
-    });
-    ws.addEventListener('open', (e) => {
-        console.log(e);
-    });
-    ws.addEventListener('message', (e) => {
-        if (!sb) return;
-
-        if (queue.length > 100) return;
-
-        const fr = new FileReader();
-        fr.addEventListener('load', (e) => {
-            //queue.push(e.target.result);
-            if (sb) sb.appendBuffer(e.target.result);
-            /*
-            ac.decodeAudioData(e.target.result)
-                .then((buffer) => {
-                    console.log(buffer);
-                })
-                .catch((err) => {
-                    console.log(err);
-                });*/
-        });
-        fr.readAsArrayBuffer(e.data);
-    });
 
 
-    const buf = new ArrayBuffer(Float64Array.BYTES_PER_ELEMENT + Uint8Array.BYTES_PER_ELEMENT * 4);
-    const view = new DataView(buf);
-
-    function send(t, m1, m2, m3) {
-        view.setFloat64(0, t, true);
-        view.setUint8(8, Number(m1), true);
-        view.setUint8(9, Number(m2), true);
-        view.setUint8(10, Number(m3), true);
-        view.setUint8(11, 0, true);
-        ws.send(buf);
-    }
 
     /*
     var pool = [];
@@ -112,7 +74,81 @@
     */
 
     window.onload = function () {
-        document.querySelectorAll('input').forEach((i) => {
+        var requestVerificationToken = document.getElementById('RequestVerificationToken').value;
+
+        document.querySelectorAll('input.control').forEach((i) => {
+            i.onclick = function () {
+                fetch('/?handler=' + this.dataset.control, {
+                    method: 'POST',
+                    headers: {
+                        "Content-Type": "application/json; charset=utf-8",
+                        "RequestVerificationToken": requestVerificationToken
+                    },
+                    body: "",
+                    mode: "same-origin",
+                    credentials: "same-origin",
+                    redirect: "error",
+                    referrer: "client"
+                });
+            }
+        });
+
+        var ws; 
+        const buf = new ArrayBuffer(Float64Array.BYTES_PER_ELEMENT + Uint8Array.BYTES_PER_ELEMENT * 4);
+        const view = new DataView(buf);
+
+        function send(t, m1, m2, m3) {
+            if (!ws) {
+                console.log("disconnected.");
+                return;
+            }
+            view.setFloat64(0, t, true);
+            view.setUint8(8, Number(m1), true);
+            view.setUint8(9, Number(m2), true);
+            view.setUint8(10, Number(m3), true);
+            view.setUint8(11, 0, true);
+            ws.send(buf);
+        }
+
+        document.querySelectorAll('input.ws').forEach((i) => {
+            i.onclick = function () {
+                if (ws) {
+                    console.log("already connected.");
+                    return;
+                } 
+
+                ws = new WebSocket(((document.location.protocol === 'https:') ? 'wss://' : 'ws://') + document.location.host + '/ws');
+                ws.addEventListener('close', (e) => {
+                    ws = null;
+                    console.log(e);
+                });
+                ws.addEventListener('open', (e) => {
+                    console.log(e);
+                });
+                ws.addEventListener('message', (e) => {
+                    if (!sb) return;
+
+                    if (queue.length > 100) return;
+
+                    const fr = new FileReader();
+                    fr.addEventListener('load', (e) => {
+                        //queue.push(e.target.result);
+                        if (sb) sb.appendBuffer(e.target.result);
+                        /*
+                        ac.decodeAudioData(e.target.result)
+                            .then((buffer) => {
+                                console.log(buffer);
+                            })
+                            .catch((err) => {
+                                console.log(err);
+                            });*/
+                    });
+                    fr.readAsArrayBuffer(e.data);
+                });
+            }
+        });
+
+        document.querySelectorAll('input.key').forEach((i) => {
             i.onclick = function () {
                 send(
                     navigationStart + window.performance.now(),

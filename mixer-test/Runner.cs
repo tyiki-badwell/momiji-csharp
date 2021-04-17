@@ -837,13 +837,14 @@ namespace mixerTest
         */
         public async Task Play(WebSocket webSocket)
         {
-            if (processCancel == null)
-            {
-                return;
-            }
             if (webSocket == default)
             {
                 throw new ArgumentNullException(nameof(webSocket));
+            }
+            if (processCancel == null)
+            {
+                Logger.LogInformation("[web socket] already stopped.");
+                return;
             }
 
             Logger.LogInformation("[web socket] start");

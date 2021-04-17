@@ -65,7 +65,7 @@ namespace mixerTest
             });
 
             appLifetime?.ApplicationStarted.Register(() => {
-                app.ApplicationServices.GetService<IRunner>().Start();
+                //app.ApplicationServices.GetService<IRunner>().Start();
                 logger.LogInformation("ApplicationStarted");
             });
             appLifetime?.ApplicationStopped.Register(() => {

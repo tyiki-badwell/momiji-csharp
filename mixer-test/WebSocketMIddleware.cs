@@ -34,6 +34,8 @@ namespace mixerTest
                 throw new ArgumentNullException(nameof(next));
             }
 
+            Logger.LogInformation("[middleware web socket] start.");
+
             if (context.WebSockets.IsWebSocketRequest)
             {
                 using var webSocket = await context.WebSockets.AcceptWebSocketAsync().ConfigureAwait(false);
@@ -57,6 +59,7 @@ namespace mixerTest
                     return;
                 }
             }
+            //TODO 正しい終わらせ方
             await next(context).ConfigureAwait(false);
         }
     }
