@@ -126,25 +126,18 @@
                     console.log(e);
                 });
                 ws.addEventListener('message', (e) => {
-                    if (!sb) return;
-
-                    if (queue.length > 100) return;
-
-                    const fr = new FileReader();
-                    fr.addEventListener('load', (e) => {
-                        //queue.push(e.target.result);
-                        if (sb) sb.appendBuffer(e.target.result);
-                        /*
-                        ac.decodeAudioData(e.target.result)
-                            .then((buffer) => {
-                                console.log(buffer);
-                            })
-                            .catch((err) => {
-                                console.log(err);
-                            });*/
-                    });
-                    fr.readAsArrayBuffer(e.data);
+                    console.log(e);
                 });
+            }
+        });
+
+        document.querySelectorAll('input.ws-close').forEach((i) => {
+            i.onclick = function () {
+                if (!ws) {
+                    console.log("already closed.");
+                    return;
+                }
+                ws.send("close");
             }
         });
 

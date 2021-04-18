@@ -939,8 +939,14 @@ namespace mixerTest
                     }
                     else if (result.MessageType == WebSocketMessageType.Text)
                     {
-                        var text = Encoding.UTF8.GetString(buf);
+                        var text = Encoding.UTF8.GetString(buf.Array, 0, result.Count).Trim();
                         Logger.LogInformation($"[web socket] text [{text}]");
+                        
+                        if (text == "close")
+                        {
+                            await webSocket.CloseAsync(WebSocketCloseStatus.NormalClosure, "close request", ct).ConfigureAwait(false);
+                            break;
+                        }
                     }
                 }
             }
