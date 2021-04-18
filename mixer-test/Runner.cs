@@ -12,11 +12,11 @@ using Momiji.Core.WebMidi;
 using Momiji.Interop.Opus;
 using Momiji.Interop.Wave;
 using System;
-using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.IO;
 using System.Net.WebSockets;
 using System.Reflection;
+using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Threading.Tasks.Dataflow;
@@ -89,11 +89,14 @@ namespace mixerTest
         private readonly BufferBlock<MIDIMessageEvent2> midiEventInput = new();
         private readonly BufferBlock<MIDIMessageEvent2> midiEventOutput = new();
 
-        private readonly IDictionary<WebSocket, int> webSocketPool = new ConcurrentDictionary<WebSocket, int>();
+        //private readonly IDictionary<WebSocket, int> webSocketPool = new ConcurrentDictionary<WebSocket, int>();
+
+        private BroadcastBlock<string> wsBroadcaster = new(null);
+        private CancellationTokenSource wsProcessCancel = new();
 
         //private BufferBlock<OpusOutputBuffer> audioOutput = new BufferBlock<OpusOutputBuffer>();
         //private BufferBlock<H264OutputBuffer> videoOutput = new BufferBlock<H264OutputBuffer>();
-        
+
         public Runner(IConfiguration configuration, ILoggerFactory loggerFactory, IDllManager dllManager)
         {
             Configuration = configuration ?? throw new ArgumentNullException(nameof(configuration));
@@ -114,6 +117,8 @@ namespace mixerTest
                     "lib",
                     "cacert.pem"
                 );
+
+            //webSocketTask = WebSocketLoop();
         }
         public void Dispose()
         {
@@ -127,6 +132,17 @@ namespace mixerTest
 
             if (disposing)
             {
+                try
+                {
+                    wsProcessCancel.Cancel();
+                }
+                catch (AggregateException e)
+                {
+                    Logger.LogInformation(e, "[home] WebSocket Process Cancel Exception");
+                }
+                wsProcessCancel.Dispose();
+                wsProcessCancel = null;
+
                 Cancel();
             }
             disposed = true;
@@ -134,6 +150,8 @@ namespace mixerTest
 
         public bool Start()
         {
+            //TODO make thread safe
+
             if (processCancel != null)
             {
                 Logger.LogInformation("[home] already started.");
@@ -157,6 +175,8 @@ namespace mixerTest
 
         public bool Cancel()
         {
+            //TODO make thread safe
+
             if (processCancel == null)
             {
                 Logger.LogInformation("[home] already stopped.");
@@ -193,11 +213,37 @@ namespace mixerTest
             Logger.LogInformation("[home] stopped.");
             return true;
         }
+        /*
+        private async Task WebSocketLoop()
+        {
+            var ct = processCancel.Token;
+
+            Logger.LogInformation("web socket loop start");
+
+            try
+            {
+                await Task.Run(() =>
+                {
+
+                }).ConfigureAwait(false);
+            }
+            catch (Exception e)
+            {
+                Logger.LogInformation(e, "Exception");
+                throw;
+            }
+            finally
+            {
+                Logger.LogInformation("web socket loop end");
+            }
+        }
+        */
 
         private async Task Loop5()
         {
             var ct = processCancel.Token;
 
+            wsBroadcaster.Post("start");
             Logger.LogInformation("main loop start");
 
             try
@@ -334,6 +380,8 @@ namespace mixerTest
                         bmpPool.LinkTo(videoBlock);
                     }
 
+                    wsBroadcaster.Post("run");
+
                     while (taskSet.Count > 0)
                     {
                         var any = Task.WhenAny(taskSet);
@@ -356,6 +404,7 @@ namespace mixerTest
             }
             finally
             {
+                wsBroadcaster.Post("end");
                 Logger.LogInformation("main loop end");
             }
         }
@@ -841,21 +890,22 @@ namespace mixerTest
             {
                 throw new ArgumentNullException(nameof(webSocket));
             }
-            if (processCancel == null)
-            {
-                Logger.LogInformation("[web socket] already stopped.");
-                return;
-            }
 
             Logger.LogInformation("[web socket] start");
 
-            var ct = processCancel.Token;
-            var buf = new byte[1024];
+            var ct = wsProcessCancel.Token;
 
-            webSocketPool.Add(webSocket, 0);
+            var actionBlock = new ActionBlock<string>(message => {
+                var bytes = Encoding.UTF8.GetBytes(message);
+                webSocket.SendAsync(bytes, WebSocketMessageType.Text, true, ct);
+            });
+            wsBroadcaster.LinkTo(actionBlock);
+
+            //webSocketPool.Add(webSocket, 0);
             try
             {
                 using var timer = new Momiji.Core.Timer();
+                var buf = WebSocket.CreateServerBuffer(1024);
                 while (webSocket.State == WebSocketState.Open)
                 {
                     if (ct.IsCancellationRequested)
@@ -870,21 +920,28 @@ namespace mixerTest
                         break;
                     }
 
-                    MIDIMessageEvent midiEvent = ToMIDIMessageEvent(buf);
-
-                    /*
-                    Logger.LogInformation(
-                        $"note {DateTimeOffset.FromUnixTimeMilliseconds((long)(timer.USecDouble / 1000)).ToUniversalTime():HH:mm:ss.fff} {DateTimeOffset.FromUnixTimeMilliseconds((long)midiEvent.receivedTime).ToUniversalTime():HH:mm:ss.fff} => " +
-                        $"{midiEvent.data0:X2}" +
-                        $"{midiEvent.data1:X2}" +
-                        $"{midiEvent.data2:X2}" +
-                        $"{midiEvent.data3:X2}"
-                    );*/
-                    MIDIMessageEvent2 midiEvent2;
-                    midiEvent2.midiMessageEvent = midiEvent;
-                    midiEvent2.receivedTimeUSec = timer.USecDouble;
-                    await midiEventInput.SendAsync(midiEvent2).ConfigureAwait(false);
-                    await midiEventOutput.SendAsync(midiEvent2).ConfigureAwait(false);
+                    if (result.MessageType == WebSocketMessageType.Binary)
+                    {
+                        MIDIMessageEvent midiEvent = ToMIDIMessageEvent(buf.Array);
+                        /*
+                        Logger.LogInformation(
+                            $"note {DateTimeOffset.FromUnixTimeMilliseconds((long)(timer.USecDouble / 1000)).ToUniversalTime():HH:mm:ss.fff} {DateTimeOffset.FromUnixTimeMilliseconds((long)midiEvent.receivedTime).ToUniversalTime():HH:mm:ss.fff} => " +
+                            $"{midiEvent.data0:X2}" +
+                            $"{midiEvent.data1:X2}" +
+                            $"{midiEvent.data2:X2}" +
+                            $"{midiEvent.data3:X2}"
+                        );*/
+                        MIDIMessageEvent2 midiEvent2;
+                        midiEvent2.midiMessageEvent = midiEvent;
+                        midiEvent2.receivedTimeUSec = timer.USecDouble;
+                        await midiEventInput.SendAsync(midiEvent2).ConfigureAwait(false);
+                        await midiEventOutput.SendAsync(midiEvent2).ConfigureAwait(false);
+                    }
+                    else if (result.MessageType == WebSocketMessageType.Text)
+                    {
+                        var text = Encoding.UTF8.GetString(buf);
+                        Logger.LogInformation($"[web socket] text [{text}]");
+                    }
                 }
             }
             catch (OperationCanceledException)
@@ -898,7 +955,10 @@ namespace mixerTest
             }
             finally
             {
-                webSocketPool.Remove(webSocket);
+                //Linkをはがす
+                actionBlock.Complete();
+
+                //webSocketPool.Remove(webSocket);
                 Logger.LogInformation("[web socket] end");
             }
         }
