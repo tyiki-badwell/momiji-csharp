@@ -3,79 +3,54 @@
 (() => {
 
     const navigationStart = window.performance.timing.navigationStart;
-    
-    const queue = [];
-    const ms = new MediaSource();
-    var sb;
-
-    const mimeCodec = 'audio/webm; codecs="opus';
-    if (MediaSource.isTypeSupported(mimeCodec)) {
-        ms.addEventListener('sourceopen', (e) => {
-            console.log(e);
-            sb = ms.addSourceBuffer(mimeCodec);
-            sb.addEventListener('update', (e) => {
-                console.log(e);
-/*                if (queue.length > 0) {
-                    e.target.appendBuffer(queue.shift());
-                }*/
-            });
-            sb.addEventListener('abort', (e) => {
-                console.log(e);
-            });
-            sb.addEventListener('error', (e) => {
-                console.log(e);
-            });
-            sb.addEventListener('updatestart', (e) => {
-                console.log(e);
-            });
-            sb.addEventListener('updateend', (e) => {
-                console.log(e);
-            });
-
-            const audio = document.querySelector('#audio-area');
-            if (audio) {
-                audio.srcObject = ms;
-                audio.play();
-            }
-
-        });
-        ms.addEventListener('sourceended', (e) => {
-            console.log(e);
-        });
-        ms.addEventListener('sourceclose', (e) => {
-            console.log(e);
-        });
-    }
-    
 
 
-
-    /*
-    var pool = [];
-    window.setInterval(() => {
-        if (pool.length > 0) {
-            var temp = pool;
-            pool = [];
-
-            fetch('/Operate/Note', {
-                method: 'POST',
-                headers: {
-                    "Content-Type": "application/json; charset=utf-8"
-                },
-                body: JSON.stringify(temp),
-                mode: "same-origin",
-                credentials: "same-origin",
-                redirect: "error",
-                referrer: "client"
-            });
-            console.log(temp);
-        }
-    }, 1);
-    */
 
     window.onload = function () {
-        var requestVerificationToken = document.getElementById('RequestVerificationToken').value;
 
+        document.querySelectorAll('input.rtc').forEach((i) => {
+            i.onclick = function () {
+                var video = document.getElementById('video-area');
+
+                const pc_config = {/* "iceServers": [{ "urls": "" }] */};
+                const peer = new RTCPeerConnection(pc_config);
+
+                peer.addEventListener('track', (e) => {
+                    console.log(e);
+                    video.srcObject = e.streams[0];
+                    video.play();
+                });
+                peer.addEventListener('removetrack', (e) => {
+                    console.log(e);
+                });
+                peer.addEventListener('icecandidate', (e) => {
+                    console.log(e);
+                });
+                peer.addEventListener('iceconnectionstatechange', (e) => {
+                    console.log(e);
+                });
+                peer.addEventListener('icegatheringstatechange', (e) => {
+                    console.log(e);
+                });
+                peer.addEventListener('signalingstatechange', (e) => {
+                    console.log(e);
+                });
+                peer.addEventListener('negotiationneeded', (e) => {
+                    console.log(e);
+                });
+
+                peer.createOffer().then((offer) => {
+                    return peer.setLocalDescription(offer);
+                }).then(() => {
+                    console.log("offer end");
+                }).catch((e) => {
+                    console.log(e);
+                });
+            }
+        });
+
+        // Runner control ajax
+        var requestVerificationToken = document.getElementById('RequestVerificationToken').value;
         document.querySelectorAll('input.control').forEach((i) => {
             i.onclick = function () {
                 fetch('/?handler=' + this.dataset.control, {
@@ -97,6 +72,7 @@
         const buf = new ArrayBuffer(Float64Array.BYTES_PER_ELEMENT + Uint8Array.BYTES_PER_ELEMENT * 4);
         const view = new DataView(buf);
 
+        //websocket binaly send
         function send(t, m1, m2, m3) {
             if (!ws) {
                 console.log("disconnected.");
@@ -110,6 +86,7 @@
             ws.send(buf);
         }
 
+        //websocket start
         document.querySelectorAll('input.ws').forEach((i) => {
             i.onclick = function () {
                 if (ws) {
@@ -131,16 +108,19 @@
             }
         });
 
+        //websocket close
         document.querySelectorAll('input.ws-close').forEach((i) => {
             i.onclick = function () {
                 if (!ws) {
                     console.log("already closed.");
                     return;
                 }
+                //websocket text send
                 ws.send("close");
             }
         });
 
+        //non midi control
         document.querySelectorAll('input.key').forEach((i) => {
             i.onclick = function () {
                 send(
@@ -149,22 +129,10 @@
                     Number(this.dataset.shortMessage2),
                     Number(this.dataset.shortMessage3)
                 );
-
-                /*
-                window.mixertest.pool.push(
-                    {
-                        "receivedTime": window.performance.timing.navigationStart + window.performance.now(),
-                        "data": [
-                            Number(this.dataset.shortMessage1),
-                            Number(this.dataset.shortMessage2),
-                            Number(this.dataset.shortMessage3),
-                            Number(0)
-                        ]
-                    }
-                );*/
             }
         });
 
+        //midi control
         if (navigator.requestMIDIAccess) {
             const midioutSelect = document.querySelector('#midiout');
             {
@@ -194,12 +162,6 @@
                                     (short.data.length > 1) ? short.data[1] : 0,
                                     (short.data.length > 2) ? short.data[2] : 0
                                 );
-
-                                /*
-                                pool.push({
-                                    "receivedTime": navigationStart + (short.receivedTime || short.timeStamp),
-                                    "data": Array.from(short.data)
-                                });*/
                             }
                         } else {
                             input.onmidimessage = undefined;
