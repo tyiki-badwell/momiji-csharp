@@ -41,7 +41,7 @@ namespace mixerTest
                 using var webSocket = await context.WebSockets.AcceptWebSocketAsync().ConfigureAwait(false);
                 try
                 {
-                    await Runner.Play(webSocket).ConfigureAwait(false);
+                    await Runner.AcceptWebSocket(webSocket).ConfigureAwait(false);
                 }
                 catch (OperationCanceledException)
                 {

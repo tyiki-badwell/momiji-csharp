@@ -30,7 +30,7 @@ namespace mixerTest
         bool Cancel();
 
         //void Note(MIDIMessageEvent[] midiMessage);
-        Task Play(WebSocket webSocket);
+        Task AcceptWebSocket(WebSocket webSocket);
     }
 
     public class Param
@@ -46,7 +46,6 @@ namespace mixerTest
         public int IntraFrameIntervalUs { get; set; }
 
         public string EffectName { get; set; }
-        //public string effectName = "Dexed.dll";
         public int SamplingRate { get; set; }
         public float SampleLength { get; set; }
         /*
@@ -214,32 +213,6 @@ namespace mixerTest
             Logger.LogInformation("[home] stopped.");
             return true;
         }
-        /*
-        private async Task WebSocketLoop()
-        {
-            var ct = processCancel.Token;
-
-            Logger.LogInformation("web socket loop start");
-
-            try
-            {
-                await Task.Run(() =>
-                {
-
-                }).ConfigureAwait(false);
-            }
-            catch (Exception e)
-            {
-                Logger.LogInformation(e, "Exception");
-                throw;
-            }
-            finally
-            {
-                Logger.LogInformation("web socket loop end");
-            }
-        }
-        */
-
         private async Task Loop5()
         {
             var ct = processCancel.Token;
@@ -885,7 +858,7 @@ namespace mixerTest
             }
         }
         */
-        public async Task Play(WebSocket webSocket)
+        public async Task AcceptWebSocket(WebSocket webSocket)
         {
             if (webSocket == default)
             {
@@ -902,7 +875,6 @@ namespace mixerTest
             });
             wsBroadcaster.LinkTo(actionBlock);
 
-            //webSocketPool.Add(webSocket, 0);
             try
             {
                 using var timer = new Momiji.Core.Timer();
@@ -989,8 +961,6 @@ namespace mixerTest
             {
                 //Linkをはがす
                 actionBlock.Complete();
-
-                //webSocketPool.Remove(webSocket);
                 Logger.LogInformation("[web socket] end");
             }
         }

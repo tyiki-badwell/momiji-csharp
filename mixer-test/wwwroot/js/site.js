@@ -5,11 +5,13 @@
     const navigationStart = window.performance.timing.navigationStart;
 
     var ws; 
+    var peer;
+
     const buf = new ArrayBuffer(Float64Array.BYTES_PER_ELEMENT + Uint8Array.BYTES_PER_ELEMENT * 4);
     const view = new DataView(buf);
 
     //websocket binaly send
-    function send(t, m1, m2, m3) {
+    async function send(t, m1, m2, m3) {
         if (!ws) {
             console.log("disconnected.");
             return;
@@ -19,29 +21,27 @@
         view.setUint8(9, Number(m2), true);
         view.setUint8(10, Number(m3), true);
         view.setUint8(11, 0, true);
-        ws.send(buf);
+        await ws.send(buf);
     }
 
-    function sendCommand(command) {
+    async function sendCommand(command) {
         if (!ws) {
             console.log("disconnected.");
             return;
         }
-        ws.send(JSON.stringify({ 'type': command }));
+        await ws.send(JSON.stringify({ 'type': command }));
     }
 
     async function setup() {
 
-        const video = document.getElementById('video-area');
+        if (ws) {
+            console.log("already connected.");
+            return;
+        }
 
-        const peer = new RTCPeerConnection(null);
+        peer = new RTCPeerConnection(null);
 
-        peer.addEventListener('track', async (e) => {
-            console.log(e);
-            video.srcObject = e.streams[0];
-            video.play();
-        });
-        peer.addEventListener('removetrack', async (e) => {
+        peer.addEventListener('connectionstatechange', async (e) => {
             console.log(e);
         });
         peer.addEventListener('icecandidate', async (e) => {
@@ -53,22 +53,79 @@
         peer.addEventListener('icegatheringstatechange', async (e) => {
             console.log(e);
         });
-        peer.addEventListener('signalingstatechange', async (e) => {
-            console.log(e);
-        });
         peer.addEventListener('negotiationneeded', async (e) => {
             console.log(e);
         });
-
-        peer.createOffer().then(async (offer) => {
-            console.log(offer);
-            return peer.setLocalDescription(offer);
-        }).then(async () => {
-            console.log("offer end");
-            ws.send(JSON.stringify(peer.localDescription));
-        }).catch(async (e) => {
+        peer.addEventListener('signalingstatechange', async (e) => {
             console.log(e);
         });
+
+        peer.addEventListener('track', async (e) => {
+            console.log(e);
+
+            var stream = e.streams[0];
+            stream.addEventListener('addtrack', async (e) => {
+                console.log(e);
+            });
+            stream.addEventListener('removetrack', async (e) => {
+                console.log(e);
+            });
+
+            const video = document.getElementById('video-area');
+            video.srcObject = stream;
+            video.play();
+        });
+
+        ws = new WebSocket(((document.location.protocol === 'https:') ? 'wss://' : 'ws://') + document.location.host + '/ws');
+        ws.addEventListener('open', async (e) => {
+            console.log(e);
+
+            //こちらからは繋ぎに行かない
+            /*
+            peer.createOffer().then(async (offer) => {
+                console.log(offer);
+                return peer.setLocalDescription(offer);
+            }).then(async () => {
+                console.log("offer end");
+                ws.send(JSON.stringify(peer.localDescription));
+            }).catch(async (e) => {
+                console.log(e);
+            });
+            */
+        });
+        ws.addEventListener('close', async (e) => {
+            console.log(e);
+            ws = null;
+
+            if (peer) {
+                peer.close();
+                peer = null;
+            }
+        });
+
+        ws.addEventListener('message', async (e) => {
+            console.log(e);
+
+            let param = JSON.parse(evt.data);
+
+            if (param.type === 'offer') {
+                peer.setRemoteDescription(new RTCSessionDescription(param)).then(async (e) => {
+                    console.log(e);
+                    peer.createAnswer().then(async (answer) => {
+                        console.log(answer);
+                        peer.setLocalDescription(answer);
+                        ws.send(JSON.stringify(answer));
+                    }).catch(async (e) => {
+                        console.log(e);
+                    });
+                }).catch(async (e) => {
+                    console.log(e);
+                });
+            } else if (param.type === 'ice') {
+                //
+            }
+        });
+
     } 
 
     window.onload = function () {
@@ -98,41 +155,26 @@
         // Runner control
         document.querySelectorAll('input.control').forEach((i) => {
             i.addEventListener('click', async (e) => {
-                sendCommand(e.currentTarget.dataset.control);
+                await sendCommand(e.currentTarget.dataset.control);
             });
         });
 
         //websocket start
         document.querySelectorAll('input.ws').forEach((i) => {
             i.addEventListener('click', async (e) => {
-                if (ws) {
-                    console.log("already connected.");
-                    return;
-                } 
-
-                ws = new WebSocket(((document.location.protocol === 'https:') ? 'wss://' : 'ws://') + document.location.host + '/ws');
-                ws.addEventListener('open', async (e) => {
-                    console.log(e);
-                    await setup();
-                });
-                ws.addEventListener('close', async (e) => {
-                    console.log(e);
-                    ws = null;
-                });
-                ws.addEventListener('message', async (e) => {
-                    console.log(e);
-                });
+                await setup();
             });
         });
 
         //non midi control
         document.querySelectorAll('input.key').forEach((i) => {
             i.addEventListener('click', async (e) => {
+                var d = e.currentTarget.dataset;
                 send(
                     navigationStart + window.performance.now(),
-                    Number(this.dataset.shortMessage1),
-                    Number(this.dataset.shortMessage2),
-                    Number(this.dataset.shortMessage3)
+                    Number(d.shortMessage1),
+                    Number(d.shortMessage2),
+                    Number(d.shortMessage3)
                 );
             });
         });
@@ -156,7 +198,7 @@
             });
 
             midioutSelect.addEventListener("change", (event) => {
-                navigator.requestMIDIAccess({ sysex: false }).then((midi) => {
+                navigator.requestMIDIAccess().then((midi) => {
                     midi.inputs.forEach((input) => {
                         if (event.target.value === input.id) {
                             input.open();
