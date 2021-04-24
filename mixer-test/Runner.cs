@@ -17,6 +17,7 @@ using System.IO;
 using System.Net.WebSockets;
 using System.Reflection;
 using System.Text;
+using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Threading.Tasks.Dataflow;
@@ -941,11 +942,36 @@ namespace mixerTest
                     {
                         var text = Encoding.UTF8.GetString(buf.Array, 0, result.Count).Trim();
                         Logger.LogInformation($"[web socket] text [{text}]");
-                        
-                        if (text == "close")
+
+                        var param = JsonSerializer.Deserialize<Dictionary<string, string>>(text);
+                        var type = param["type"];
+
+                        if (type == "start")
                         {
+                            Logger.LogInformation($"[web socket] type = {type}.");
+                            Start();
+                        }
+                        else if (type == "cancel")
+                        {
+                            Logger.LogInformation($"[web socket] type = {type}.");
+                            Cancel();
+                        }
+                        else if (type == "close")
+                        {
+                            Logger.LogInformation($"[web socket] type = {type}.");
                             await webSocket.CloseAsync(WebSocketCloseStatus.NormalClosure, "close request", ct).ConfigureAwait(false);
                             break;
+                        }
+                        else if (type == "offer")
+                        {
+                            Logger.LogInformation($"[web socket] type = {type}.");
+
+                            var sdp = param["sdp"];
+                            Logger.LogInformation($"[web socket] sdp = {sdp}");
+                        }
+                        else
+                        {
+
                         }
                     }
                 }

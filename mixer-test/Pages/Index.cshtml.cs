@@ -1,7 +1,5 @@
-﻿using Microsoft.AspNetCore.Mvc;
-using Microsoft.AspNetCore.Mvc.RazorPages;
+﻿using Microsoft.AspNetCore.Mvc.RazorPages;
 using Microsoft.Extensions.Logging;
-using System.Threading.Tasks;
 
 namespace mixerTest.Pages
 {
@@ -19,15 +17,6 @@ namespace mixerTest.Pages
         public void OnGet()
         {
 
-        }
-
-        public JsonResult OnPostStart()
-        {
-            return new JsonResult(_runner.Start());
-        }
-        public JsonResult OnPostCancel()
-        {
-            return new JsonResult(_runner.Cancel());
         }
     }
 }

@@ -4,132 +4,137 @@
 
     const navigationStart = window.performance.timing.navigationStart;
 
+    var ws; 
+    const buf = new ArrayBuffer(Float64Array.BYTES_PER_ELEMENT + Uint8Array.BYTES_PER_ELEMENT * 4);
+    const view = new DataView(buf);
 
+    //websocket binaly send
+    function send(t, m1, m2, m3) {
+        if (!ws) {
+            console.log("disconnected.");
+            return;
+        }
+        view.setFloat64(0, t, true);
+        view.setUint8(8, Number(m1), true);
+        view.setUint8(9, Number(m2), true);
+        view.setUint8(10, Number(m3), true);
+        view.setUint8(11, 0, true);
+        ws.send(buf);
+    }
+
+    function sendCommand(command) {
+        if (!ws) {
+            console.log("disconnected.");
+            return;
+        }
+        ws.send(JSON.stringify({ 'type': command }));
+    }
+
+    async function setup() {
+
+        const video = document.getElementById('video-area');
+
+        const peer = new RTCPeerConnection(null);
+
+        peer.addEventListener('track', async (e) => {
+            console.log(e);
+            video.srcObject = e.streams[0];
+            video.play();
+        });
+        peer.addEventListener('removetrack', async (e) => {
+            console.log(e);
+        });
+        peer.addEventListener('icecandidate', async (e) => {
+            console.log(e);
+        });
+        peer.addEventListener('iceconnectionstatechange', async (e) => {
+            console.log(e);
+        });
+        peer.addEventListener('icegatheringstatechange', async (e) => {
+            console.log(e);
+        });
+        peer.addEventListener('signalingstatechange', async (e) => {
+            console.log(e);
+        });
+        peer.addEventListener('negotiationneeded', async (e) => {
+            console.log(e);
+        });
+
+        peer.createOffer().then(async (offer) => {
+            console.log(offer);
+            return peer.setLocalDescription(offer);
+        }).then(async () => {
+            console.log("offer end");
+            ws.send(JSON.stringify(peer.localDescription));
+        }).catch(async (e) => {
+            console.log(e);
+        });
+    } 
 
     window.onload = function () {
 
         document.querySelectorAll('input.rtc').forEach((i) => {
-            i.onclick = function () {
-                var video = document.getElementById('video-area');
+            i.addEventListener('click', async (e) => {
 
-                const pc_config = {/* "iceServers": [{ "urls": "" }] */};
-                const peer = new RTCPeerConnection(pc_config);
+                const localVideo = document.getElementById('video-area-local');
+                if (localVideo) {
+                    const mediaConstraints = {
+                        'video': false,
+                        'audio': true
+                    }
 
-                peer.addEventListener('track', (e) => {
-                    console.log(e);
-                    video.srcObject = e.streams[0];
-                    video.play();
-                });
-                peer.addEventListener('removetrack', (e) => {
-                    console.log(e);
-                });
-                peer.addEventListener('icecandidate', (e) => {
-                    console.log(e);
-                });
-                peer.addEventListener('iceconnectionstatechange', (e) => {
-                    console.log(e);
-                });
-                peer.addEventListener('icegatheringstatechange', (e) => {
-                    console.log(e);
-                });
-                peer.addEventListener('signalingstatechange', (e) => {
-                    console.log(e);
-                });
-                peer.addEventListener('negotiationneeded', (e) => {
-                    console.log(e);
-                });
+                    try {
+                        const localStream = await navigator.mediaDevices.getUserMedia(mediaConstraints);
+                        localVideo.srcObject = localStream;
 
-                peer.createOffer().then((offer) => {
-                    return peer.setLocalDescription(offer);
-                }).then(() => {
-                    console.log("offer end");
-                }).catch((e) => {
-                    console.log(e);
-                });
-            }
+                    } catch (e) {
+                        console.log(e);
+                    }
+                }
+
+            });
         });
 
-        // Runner control ajax
-        var requestVerificationToken = document.getElementById('RequestVerificationToken').value;
+        // Runner control
         document.querySelectorAll('input.control').forEach((i) => {
-            i.onclick = function () {
-                fetch('/?handler=' + this.dataset.control, {
-                    method: 'POST',
-                    headers: {
-                        "Content-Type": "application/json; charset=utf-8",
-                        "RequestVerificationToken": requestVerificationToken
-                    },
-                    body: "",
-                    mode: "same-origin",
-                    credentials: "same-origin",
-                    redirect: "error",
-                    referrer: "client"
-                });
-            }
+            i.addEventListener('click', async (e) => {
+                sendCommand(e.currentTarget.dataset.control);
+            });
         });
-
-        var ws; 
-        const buf = new ArrayBuffer(Float64Array.BYTES_PER_ELEMENT + Uint8Array.BYTES_PER_ELEMENT * 4);
-        const view = new DataView(buf);
-
-        //websocket binaly send
-        function send(t, m1, m2, m3) {
-            if (!ws) {
-                console.log("disconnected.");
-                return;
-            }
-            view.setFloat64(0, t, true);
-            view.setUint8(8, Number(m1), true);
-            view.setUint8(9, Number(m2), true);
-            view.setUint8(10, Number(m3), true);
-            view.setUint8(11, 0, true);
-            ws.send(buf);
-        }
 
         //websocket start
         document.querySelectorAll('input.ws').forEach((i) => {
-            i.onclick = function () {
+            i.addEventListener('click', async (e) => {
                 if (ws) {
                     console.log("already connected.");
                     return;
                 } 
 
                 ws = new WebSocket(((document.location.protocol === 'https:') ? 'wss://' : 'ws://') + document.location.host + '/ws');
-                ws.addEventListener('close', (e) => {
+                ws.addEventListener('open', async (e) => {
+                    console.log(e);
+                    await setup();
+                });
+                ws.addEventListener('close', async (e) => {
+                    console.log(e);
                     ws = null;
+                });
+                ws.addEventListener('message', async (e) => {
                     console.log(e);
                 });
-                ws.addEventListener('open', (e) => {
-                    console.log(e);
-                });
-                ws.addEventListener('message', (e) => {
-                    console.log(e);
-                });
-            }
-        });
-
-        //websocket close
-        document.querySelectorAll('input.ws-close').forEach((i) => {
-            i.onclick = function () {
-                if (!ws) {
-                    console.log("already closed.");
-                    return;
-                }
-                //websocket text send
-                ws.send("close");
-            }
+            });
         });
 
         //non midi control
         document.querySelectorAll('input.key').forEach((i) => {
-            i.onclick = function () {
+            i.addEventListener('click', async (e) => {
                 send(
                     navigationStart + window.performance.now(),
                     Number(this.dataset.shortMessage1),
                     Number(this.dataset.shortMessage2),
                     Number(this.dataset.shortMessage3)
                 );
-            }
+            });
         });
 
         //midi control
@@ -141,7 +146,7 @@
                 midioutSelect.appendChild(option);
             }
 
-            navigator.requestMIDIAccess({ sysex: false }).then((midi) => {
+            navigator.requestMIDIAccess().then((midi) => {
                 midi.inputs.forEach((input) => {
                     const option = document.createElement("option");
                     option.text = input.name;

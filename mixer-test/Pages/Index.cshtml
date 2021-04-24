@@ -22,6 +22,9 @@
 {
     <video id="video-area" controls autoplay>v</video>
     <audio id="audio-area" controls autoplay>a</audio>
+
+
+    <video id="video-area-local" controls autoplay>l</video>
 }
 else
 {
@@ -29,14 +32,11 @@ else
 }
 <br />
 
-<input type="hidden" id="RequestVerificationToken"
-       name="RequestVerificationToken" value="@GetAntiXsrfRequestToken()">
-
-<input type="button" class="control" value="start" data-control="Start" />
-<input type="button" class="control" value="cancel" data-control="Cancel" />
+<input type="button" class="control" value="start" data-control="start" />
+<input type="button" class="control" value="cancel" data-control="cancel" />
 
 <input type="button" class="ws" value="ws" />
-<input type="button" class="ws-close" value="ws close" />
+<input type="button" class="control" value="ws close" data-control="close"/>
 
 <input type="button" class="rtc" value="rtc" />
 
