@@ -1,5 +1,6 @@
 ﻿using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
+using Microsoft.MixedReality.WebRTC;
 using Momiji.Core;
 using Momiji.Core.FFT;
 using Momiji.Core.Ftl;
@@ -877,6 +878,98 @@ namespace mixerTest
 
             try
             {
+                using var pc = new PeerConnection();
+                var config = new PeerConnectionConfiguration
+                {
+                    IceServers = new List<IceServer> {
+                        //new IceServer{ Urls = { "stun:stun.l.google.com:19302" } }
+                    }
+                };
+                await pc.InitializeAsync(config).ConfigureAwait(false);
+                pc.LocalSdpReadytoSend += (message) =>
+                {
+                    Logger.LogInformation($"[peer connection] LocalSdpReadytoSend {message}");
+
+                    var param = new Dictionary<string, string>();
+                    param.Add("type", "offer");
+                    param.Add("sdp", message.Content);
+
+                    var json = JsonSerializer.Serialize(param);
+
+                    var buf = new ArraySegment<byte>(Encoding.UTF8.GetBytes(json));
+                    webSocket.SendAsync(buf, WebSocketMessageType.Text, true, ct);
+                };
+                pc.DataChannelRemoved += (channel) =>
+                {
+                    Logger.LogInformation($"[peer connection] DataChannelRemoved {channel}");
+                };
+
+                pc.DataChannelAdded += (channel) =>
+                {
+                    Logger.LogInformation($"[peer connection] DataChannelAdded {channel}");
+                };
+
+                pc.IceGatheringStateChanged += (newState) =>
+                {
+                    Logger.LogInformation($"[peer connection] IceGatheringStateChanged {newState}");
+                };
+
+                pc.RenegotiationNeeded += () =>
+                {
+                    Logger.LogInformation($"[peer connection] RenegotiationNeeded");
+                };
+
+                pc.TransceiverAdded += (transceiver) =>
+                {
+                    Logger.LogInformation($"[peer connection] TransceiverAdded {transceiver}");
+                };
+
+                pc.AudioTrackAdded += (track) =>
+                {
+                    Logger.LogInformation($"[peer connection] AudioTrackAdded {track}");
+                };
+
+                pc.AudioTrackRemoved += (transceiver, track) =>
+                {
+                    Logger.LogInformation($"[peer connection] TransceiverAdded {transceiver} {track}");
+                };
+
+                pc.VideoTrackAdded += (track) =>
+                {
+                    Logger.LogInformation($"[peer connection] AudioTrackAdded {track}");
+                };
+
+                pc.VideoTrackRemoved += (transceiver, track) =>
+                {
+                    Logger.LogInformation($"[peer connection] TransceiverAdded {transceiver} {track}");
+                };
+
+                pc.IceCandidateReadytoSend += (candidate) =>
+                {
+                    Logger.LogInformation($"[peer connection] IceCandidateReadytoSend {candidate}");
+                };
+
+                pc.Connected += () => {
+                    Logger.LogInformation($"[peer connection] Connected");
+                };
+
+                pc.IceStateChanged += (newState) => {
+                    Logger.LogInformation($"[peer connection] IceStateChanged {newState}");
+                };
+
+                /*
+                var videoTransceiver = pc.AddTransceiver(MediaKind.Video);
+                videoTransceiver.LocalVideoTrack = localVideoTrack;
+                videoTransceiver.DesiredDirection = Transceiver.Direction.SendReceive;
+
+                var audioTransceiver = pc.AddTransceiver(MediaKind.Audio);
+                audioTransceiver.LocalAudioTrack = localAudioTrack;
+                audioTransceiver.DesiredDirection = Transceiver.Direction.SendReceive;
+                */
+
+
+                pc.CreateOffer();
+
                 using var timer = new Momiji.Core.Timer();
                 var buf = WebSocket.CreateServerBuffer(1024);
                 while (webSocket.State == WebSocketState.Open)
@@ -931,6 +1024,7 @@ namespace mixerTest
                         else if (type == "close")
                         {
                             Logger.LogInformation($"[web socket] type = {type}.");
+                            pc.Close();
                             await webSocket.CloseAsync(WebSocketCloseStatus.NormalClosure, "close request", ct).ConfigureAwait(false);
                             break;
                         }
@@ -941,9 +1035,19 @@ namespace mixerTest
                             var sdp = param["sdp"];
                             Logger.LogInformation($"[web socket] sdp = {sdp}");
                         }
-                        else
+                        else if (type == "answer")
                         {
+                            Logger.LogInformation($"[web socket] type = {type}.");
 
+                            var sdp = param["sdp"];
+                            Logger.LogInformation($"[web socket] sdp = {sdp}");
+                            var sdpMessage = new SdpMessage()
+                            {
+                                Type = SdpMessageType.Answer,
+                                Content = sdp
+                            };
+
+                            await pc.SetRemoteDescriptionAsync(sdpMessage).ConfigureAwait(false);
                         }
                     }
                 }

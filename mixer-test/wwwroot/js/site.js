@@ -106,7 +106,7 @@
         ws.addEventListener('message', async (e) => {
             console.log(e);
 
-            let param = JSON.parse(evt.data);
+            let param = JSON.parse(e.data);
 
             if (param.type === 'offer') {
                 peer.setRemoteDescription(new RTCSessionDescription(param)).then(async (e) => {
