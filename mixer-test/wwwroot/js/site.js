@@ -5,7 +5,6 @@
     const navigationStart = window.performance.timing.navigationStart;
 
     var ws; 
-    var peer;
 
     const buf = new ArrayBuffer(Float64Array.BYTES_PER_ELEMENT + Uint8Array.BYTES_PER_ELEMENT * 4);
     const view = new DataView(buf);
@@ -32,14 +31,8 @@
         await ws.send(JSON.stringify({ 'type': command }));
     }
 
-    async function setup() {
-
-        if (ws) {
-            console.log("already connected.");
-            return;
-        }
-
-        peer = new RTCPeerConnection(null);
+    async function setupPeer(offerSdp) {
+        var peer = new RTCPeerConnection(null);
 
         peer.addEventListener('connectionstatechange', async (e) => {
             console.log(e);
@@ -76,6 +69,31 @@
             video.play();
         });
 
+        peer.setRemoteDescription(new RTCSessionDescription(offerSdp)).then(async (e) => {
+            console.log(e);
+            peer.createAnswer().then(async (answer) => {
+                console.log(answer);
+                peer.setLocalDescription(answer);
+                ws.send(JSON.stringify(answer));
+            }).catch(async (e) => {
+                console.log(e);
+            });
+        }).catch(async (e) => {
+            console.log(e);
+        });
+
+        return peer;
+    }
+
+    async function setupWs() {
+
+        if (ws) {
+            console.log("already connected.");
+            return;
+        }
+
+        var peer;
+
         ws = new WebSocket(((document.location.protocol === 'https:') ? 'wss://' : 'ws://') + document.location.host + '/ws');
         ws.addEventListener('open', async (e) => {
             console.log(e);
@@ -109,18 +127,8 @@
             let param = JSON.parse(e.data);
 
             if (param.type === 'offer') {
-                peer.setRemoteDescription(new RTCSessionDescription(param)).then(async (e) => {
-                    console.log(e);
-                    peer.createAnswer().then(async (answer) => {
-                        console.log(answer);
-                        peer.setLocalDescription(answer);
-                        ws.send(JSON.stringify(answer));
-                    }).catch(async (e) => {
-                        console.log(e);
-                    });
-                }).catch(async (e) => {
-                    console.log(e);
-                });
+                peer = await setupPeer(param);
+
             } else if (param.type === 'ice') {
                 //
             }
@@ -162,7 +170,7 @@
         //websocket start
         document.querySelectorAll('input.ws').forEach((i) => {
             i.addEventListener('click', async (e) => {
-                await setup();
+                await setupWs();
             });
         });
 
