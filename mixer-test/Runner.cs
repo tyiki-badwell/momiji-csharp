@@ -2,21 +2,10 @@
 using Microsoft.Extensions.Logging;
 using Microsoft.MixedReality.WebRTC;
 using Momiji.Core;
-using Momiji.Core.FFT;
-using Momiji.Core.Ftl;
-using Momiji.Core.H264;
-using Momiji.Core.Opus;
-using Momiji.Core.Trans;
-using Momiji.Core.Vst;
-using Momiji.Core.Wave;
 using Momiji.Core.WebMidi;
-using Momiji.Interop.Opus;
-using Momiji.Interop.Wave;
 using System;
 using System.Collections.Generic;
-using System.IO;
 using System.Net.WebSockets;
-using System.Reflection;
 using System.Text;
 using System.Text.Json;
 using System.Threading;
@@ -79,9 +68,6 @@ namespace mixerTest
         private ILoggerFactory LoggerFactory { get; }
         private ILogger Logger { get; }
         private IDllManager DllManager { get; }
-        private string StreamKey { get; }
-        private string IngestHostname { get; }
-        private string CaInfoPath { get; }
         private Param Param { get; }
 
         private bool disposed;
@@ -108,16 +94,6 @@ namespace mixerTest
             var param = new Param();
             Configuration.GetSection("Param").Bind(param);
             Param = param;
-
-            StreamKey = Configuration["MIXER_STREAM_KEY"];
-            IngestHostname = Configuration["MIXER_INGEST_HOSTNAME"];
-
-            CaInfoPath =
-                Path.Combine(
-                    Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location),
-                    "lib",
-                    "cacert.pem"
-                );
 
             //webSocketTask = WebSocketLoop();
         }
@@ -159,15 +135,7 @@ namespace mixerTest
                 return false;
             }
             processCancel = new CancellationTokenSource();
-            if (Param.Local)
-            {
-                processTask = Loop5();
-            }
-            else
-            {
-                //processTask = Loop3();
-                processTask = Loop4();
-            }
+            processTask = Loop();
 
             Logger.LogInformation("[home] started.");
             return true;
@@ -214,7 +182,7 @@ namespace mixerTest
             Logger.LogInformation("[home] stopped.");
             return true;
         }
-        private async Task Loop5()
+        private async Task Loop()
         {
             var ct = processCancel.Token;
 
@@ -230,130 +198,10 @@ namespace mixerTest
                         return;
                     }
 
-                    var blockSize = (int)(Param.SamplingRate * Param.SampleLength);
-                    Logger.LogInformation($"[loop5] blockSize {blockSize}");
-
-                    var audioInterval = 1_000_000.0 * Param.SampleLength;
-                    Logger.LogInformation($"[loop5] audioInterval {audioInterval}");
-                    var videoInterval = 1_000_000.0 / Param.MaxFrameRate;
-                    Logger.LogInformation($"[loop5] videoInterval {videoInterval}");
-
-                    using var timer = new Momiji.Core.Timer();
-                    using var audioWaiter = new Waiter(timer, audioInterval, ct);
-                    using var videoWaiter = new Waiter(timer, videoInterval, ct);
-                    using var vstBufferPool = new BufferPool<VstBuffer<float>>(Param.BufferCount, () => new VstBuffer<float>(blockSize, 2), LoggerFactory);
-                    using var pcmPool = new BufferPool<PcmBuffer<float>>(Param.BufferCount, () => new PcmBuffer<float>(blockSize, 2), LoggerFactory);
-                    using var audioPool = new BufferPool<OpusOutputBuffer>(Param.BufferCount, () => new OpusOutputBuffer(5000), LoggerFactory);
-                    using var pcmDrowPool = new BufferPool<PcmBuffer<float>>(Param.BufferCount, () => new PcmBuffer<float>(blockSize, 2), LoggerFactory);
-                    using var bmpPool = new BufferPool<H264InputBuffer>(Param.BufferCount, () => new H264InputBuffer(Param.Width, Param.Height), LoggerFactory);
-                    using var videoPool = new BufferPool<H264OutputBuffer>(Param.BufferCount, () => new H264OutputBuffer(200000), LoggerFactory);
-                    using var vst = new AudioMaster<float>(Param.SamplingRate, blockSize, LoggerFactory, timer, DllManager);
-                    using var toPcm = new ToPcm<float>(LoggerFactory, timer);
-                    using var opus = new OpusEncoder(SamplingRate.Sampling48000, Channels.Stereo, LoggerFactory, timer);
-                    using var fft = new FFTEncoder(Param.Width, Param.Height, Param.MaxFrameRate, LoggerFactory, timer);
-                    using var h264 = new H264Encoder(Param.Width, Param.Height, Param.TargetBitrate, Param.MaxFrameRate, LoggerFactory, timer);
-                    var effect = vst.AddEffect(Param.EffectName);
-
                     var taskSet = new HashSet<Task>();
-                    var options = new ExecutionDataflowBlockOptions
-                    {
-                        CancellationToken = ct,
-                        MaxDegreeOfParallelism = 1,
-                        MaxMessagesPerTask = DataflowBlockOptions.Unbounded
-                    };
 
-                    {
-                        var audioBlock =
-                            new ActionBlock<VstBuffer<float>>(buffer =>
-                            {
-                                var pcmTask = pcmPool.ReceiveAsync(ct);
-                                var audioTask = audioPool.ReceiveAsync(ct);
-
-                                buffer.Log.Clear();
-                                audioWaiter.Wait();
-                                buffer.Log.Add("[audio] start", timer.USecDouble);
-
-                                //VST
-                                var nowTime = timer.USecDouble;
-                                effect.ProcessEvent(nowTime, midiEventInput);
-                                effect.ProcessReplacing(nowTime, buffer);
-
-                                //trans
-                                var pcm = pcmTask.Result;
-                                buffer.Log.Add("[audio] opus input get", timer.USecDouble);
-                                toPcm.Execute(buffer, pcm);
-                                vstBufferPool.SendAsync(buffer);
-
-                                var audio = audioTask.Result;
-                                pcm.Log.Add("[audio] opus output get", timer.USecDouble);
-                                opus.Execute(pcm, audio);
-
-                                pcmDrowPool.SendAsync(pcm);
-
-                                //FTL
-                             //   ftl.Execute(audio);
-
-                                audioPool.SendAsync(audio);
-                            }, options);
-                        taskSet.Add(audioBlock.Completion);
-                        vstBufferPool.LinkTo(audioBlock);
-                    }
-
-                    {
-                        var midiDataStoreBlock =
-                            new ActionBlock<MIDIMessageEvent2>(buffer =>
-                            {
-                                fft.Receive(buffer);
-                            }, options);
-                        taskSet.Add(midiDataStoreBlock.Completion);
-                        midiEventOutput.LinkTo(midiDataStoreBlock);
-
-                        var pcmDataStoreBlock =
-                            new ActionBlock<PcmBuffer<float>>(buffer =>
-                            {
-                                fft.Receive(buffer);
-                                pcmPool.SendAsync(buffer);
-                            }, options);
-                        taskSet.Add(pcmDataStoreBlock.Completion);
-                        pcmDrowPool.LinkTo(pcmDataStoreBlock);
-
-                        var intraFrameCount = 0.0;
-
-                        var videoBlock =
-                            new ActionBlock<H264InputBuffer>(buffer =>
-                            {
-                                var videoTask = videoPool.ReceiveAsync(ct);
-
-                                buffer.Log.Clear();
-
-                                videoWaiter.Wait();
-                                buffer.Log.Add("[video] start", timer.USecDouble);
-
-                                //FFT
-                                fft.Execute(buffer);
-
-                                //H264
-                                var video = videoTask.Result;
-                                buffer.Log.Add("[video] h264 output get", timer.USecDouble);
-
-                                var insertIntraFrame = (intraFrameCount <= 0);
-                                h264.Execute(buffer, video, insertIntraFrame);
-
-                                bmpPool.SendAsync(buffer);
-                                if (insertIntraFrame)
-                                {
-                                    intraFrameCount = Param.IntraFrameIntervalUs;
-                                }
-                                intraFrameCount -= videoInterval;
-
-                                //FTL
-                                //ftl.Execute(video);
-
-                                videoPool.SendAsync(video);
-                            }, options);
-                        taskSet.Add(videoBlock.Completion);
-                        bmpPool.LinkTo(videoBlock);
-                    }
+                    new Logic2(Configuration, LoggerFactory, DllManager, Param, midiEventInput, midiEventOutput, taskSet, ct).Run();
+                    //new Logic4(Configuration, LoggerFactory, DllManager, Param, midiEventInput, midiEventOutput, taskSet, ct).Run();
 
                     wsBroadcaster.Post("run");
 
@@ -380,462 +228,6 @@ namespace mixerTest
             finally
             {
                 wsBroadcaster.Post("end");
-                Logger.LogInformation("main loop end");
-            }
-        }
-
-        private async Task Loop4()
-        {
-            var ct = processCancel.Token;
-
-            Logger.LogInformation("main loop start");
-
-            try
-            {
-                await Task.Run(() =>
-                {
-                    if (ct.IsCancellationRequested)
-                    {
-                        return;
-                    }
-
-                    var blockSize = (int)(Param.SamplingRate * Param.SampleLength);
-                    Logger.LogInformation($"[loop4] blockSize {blockSize}");
-
-                    var audioInterval = 1_000_000.0 * Param.SampleLength;
-                    Logger.LogInformation($"[loop4] audioInterval {audioInterval}");
-                    var videoInterval = 1_000_000.0 / Param.MaxFrameRate;
-                    Logger.LogInformation($"[loop4] videoInterval {videoInterval}");
-
-                    using var timer = new Momiji.Core.Timer();
-                    using var audioWaiter = new Waiter(timer, audioInterval, ct);
-                    using var videoWaiter = new Waiter(timer, videoInterval, ct);
-                    using var vstBufferPool = new BufferPool<VstBuffer<float>>(Param.BufferCount, () => new VstBuffer<float>(blockSize, 2), LoggerFactory);
-                    using var pcmPool = new BufferPool<PcmBuffer<float>>(Param.BufferCount, () => new PcmBuffer<float>(blockSize, 2), LoggerFactory);
-                    using var audioPool = new BufferPool<OpusOutputBuffer>(Param.BufferCount, () => new OpusOutputBuffer(5000), LoggerFactory);
-                    using var pcmDrowPool = new BufferPool<PcmBuffer<float>>(Param.BufferCount, () => new PcmBuffer<float>(blockSize, 2), LoggerFactory);
-                    using var bmpPool = new BufferPool<H264InputBuffer>(Param.BufferCount, () => new H264InputBuffer(Param.Width, Param.Height), LoggerFactory);
-                    using var videoPool = new BufferPool<H264OutputBuffer>(Param.BufferCount, () => new H264OutputBuffer(200000), LoggerFactory);
-                    using var vst = new AudioMaster<float>(Param.SamplingRate, blockSize, LoggerFactory, timer, DllManager);
-                    using var toPcm = new ToPcm<float>(LoggerFactory, timer);
-                    using var opus = new OpusEncoder(SamplingRate.Sampling48000, Channels.Stereo, LoggerFactory, timer);
-                    using var fft = new FFTEncoder(Param.Width, Param.Height, Param.MaxFrameRate, LoggerFactory, timer);
-                    using var h264 = new H264Encoder(Param.Width, Param.Height, Param.TargetBitrate, Param.MaxFrameRate, LoggerFactory, timer);
-                    var effect = vst.AddEffect(Param.EffectName);
-
-                    using var ftl = new FtlIngest(StreamKey, IngestHostname, LoggerFactory, timer, audioInterval, videoInterval, Param.Connect, default, CaInfoPath);
-                    ftl.Connect();
-
-                    var taskSet = new HashSet<Task>();
-                    var options = new ExecutionDataflowBlockOptions
-                    {
-                        CancellationToken = ct,
-                        MaxDegreeOfParallelism = 1,
-                        MaxMessagesPerTask = DataflowBlockOptions.Unbounded
-                    };
-
-                    {
-                        var audioBlock =
-                            new ActionBlock<VstBuffer<float>>(buffer =>
-                            {
-                                var pcmTask = pcmPool.ReceiveAsync(ct);
-                                var audioTask = audioPool.ReceiveAsync(ct);
-
-                                buffer.Log.Clear();
-                                audioWaiter.Wait();
-                                buffer.Log.Add("[audio] start", timer.USecDouble);
-
-                                //VST
-                                var nowTime = timer.USecDouble;
-                                effect.ProcessEvent(nowTime, midiEventInput);
-                                effect.ProcessReplacing(nowTime, buffer);
-
-                                //trans
-                                var pcm = pcmTask.Result;
-                                toPcm.Execute(buffer, pcm);
-                                vstBufferPool.SendAsync(buffer);
-
-                                var audio = audioTask.Result;
-                                pcm.Log.Add("[audio] opus output get", timer.USecDouble);
-                                opus.Execute(pcm, audio);
-
-                                pcmDrowPool.SendAsync(pcm);
-
-                                //FTL
-                                ftl.Execute(audio);
-                                audioPool.SendAsync(audio);
-                            }, options);
-                        taskSet.Add(audioBlock.Completion);
-                        vstBufferPool.LinkTo(audioBlock);
-                    }
-
-                    {
-                        var midiDataStoreBlock =
-                            new ActionBlock<MIDIMessageEvent2>(buffer =>
-                            {
-                                fft.Receive(buffer);
-                            }, options);
-                        taskSet.Add(midiDataStoreBlock.Completion);
-                        midiEventOutput.LinkTo(midiDataStoreBlock);
-
-                        var pcmDataStoreBlock =
-                            new ActionBlock<PcmBuffer<float>>(buffer =>
-                            {
-                                fft.Receive(buffer);
-                                pcmPool.SendAsync(buffer);
-                            }, options);
-                        taskSet.Add(pcmDataStoreBlock.Completion);
-                        pcmDrowPool.LinkTo(pcmDataStoreBlock);
-
-                        var intraFrameCount = 0.0;
-
-                        var videoBlock =
-                            new ActionBlock<H264InputBuffer>(buffer =>
-                            {
-                                var videoTask = videoPool.ReceiveAsync(ct);
-
-                                buffer.Log.Clear();
-
-                                videoWaiter.Wait();
-                                buffer.Log.Add("[video] start", timer.USecDouble);
-
-                                //FFT
-                                fft.Execute(buffer);
-
-                                //H264
-                                var video = videoTask.Result;
-                                buffer.Log.Add("[video] h264 output get", timer.USecDouble);
-                                var insertIntraFrame = (intraFrameCount <= 0);
-                                h264.Execute(buffer, video, insertIntraFrame);
-                                bmpPool.SendAsync(buffer);
-                                if (insertIntraFrame)
-                                {
-                                    intraFrameCount = Param.IntraFrameIntervalUs;
-                                }
-                                intraFrameCount -= videoInterval;
-
-                                //FTL
-                                ftl.Execute(video);
-                                videoPool.SendAsync(video);
-                            }, options);
-                        taskSet.Add(videoBlock.Completion);
-                        bmpPool.LinkTo(videoBlock);
-                    }
-
-                    while (taskSet.Count > 0)
-                    {
-                        var any = Task.WhenAny(taskSet);
-                        any.ConfigureAwait(false);
-                        any.Wait();
-                        var task = any.Result;
-                        taskSet.Remove(task);
-                        if (task.IsFaulted)
-                        {
-                            processCancel.Cancel();
-                            Logger.LogError(task.Exception, "Process Exception");
-                        }
-                    }
-                }).ConfigureAwait(false);
-            }
-            catch (Exception e)
-            {
-                Logger.LogInformation(e, "Exception");
-                throw;
-            }
-            finally
-            {
-                Logger.LogInformation("main loop end");
-            }
-        }
-
-        private async Task Loop3()
-        {
-            var ct = processCancel.Token;
-
-            Logger.LogInformation("main loop start");
-
-            try
-            {
-                await Task.Run(() =>
-                {
-                    if (ct.IsCancellationRequested)
-                    {
-                        return;
-                    }
-
-                    var blockSize = (int)(Param.SamplingRate * Param.SampleLength);
-                    Logger.LogInformation($"[loop3] blockSize {blockSize}");
-
-                    var audioInterval = 1_000_000.0 * Param.SampleLength;
-                    Logger.LogInformation($"[loop3] audioInterval {audioInterval}");
-                    var videoInterval = 1_000_000.0 / Param.MaxFrameRate;
-                    Logger.LogInformation($"[loop3] videoInterval {videoInterval}");
-
-                    using var timer = new Momiji.Core.Timer();
-                    using var audioWaiter = new Waiter(timer, audioInterval, ct);
-                    using var videoWaiter = new Waiter(timer, videoInterval, ct);
-                    using var vstBufferPool = new BufferPool<VstBuffer<float>>(Param.BufferCount, () => new VstBuffer<float>(blockSize, 2), LoggerFactory);
-                    using var pcmPool = new BufferPool<PcmBuffer<float>>(Param.BufferCount, () => new PcmBuffer<float>(blockSize, 2), LoggerFactory);
-                    using var audioPool = new BufferPool<OpusOutputBuffer>(Param.BufferCount, () => new OpusOutputBuffer(5000), LoggerFactory);
-                    using var pcmDrowPool = new BufferPool<PcmBuffer<float>>(Param.BufferCount, () => new PcmBuffer<float>(blockSize, 2), LoggerFactory);
-                    using var bmpPool = new BufferPool<H264InputBuffer>(Param.BufferCount, () => new H264InputBuffer(Param.Width, Param.Height), LoggerFactory);
-                    using var videoPool = new BufferPool<H264OutputBuffer>(Param.BufferCount, () => new H264OutputBuffer(200000), LoggerFactory);
-                    using var vst = new AudioMaster<float>(Param.SamplingRate, blockSize, LoggerFactory, timer, DllManager);
-                    using var toPcm = new ToPcm<float>(LoggerFactory, timer);
-                    using var opus = new OpusEncoder(SamplingRate.Sampling48000, Channels.Stereo, LoggerFactory, timer);
-                    using var fft = new FFTEncoder(Param.Width, Param.Height, Param.MaxFrameRate, LoggerFactory, timer);
-                    using var h264 = new H264Encoder(Param.Width, Param.Height, Param.TargetBitrate, Param.MaxFrameRate, LoggerFactory, timer);
-                    var effect = vst.AddEffect(Param.EffectName);
-
-                    using var ftl = new FtlIngest(StreamKey, IngestHostname, LoggerFactory, timer, audioInterval, videoInterval, Param.Connect, default, CaInfoPath);
-                    ftl.Connect();
-
-                    var taskSet = new HashSet<Task>();
-                    var options = new ExecutionDataflowBlockOptions
-                    {
-                        CancellationToken = ct,
-                        MaxDegreeOfParallelism = 1
-                    };
-
-                    {
-                        var vstBlock =
-                            new TransformBlock<VstBuffer<float>, PcmBuffer<float>>(buffer =>
-                            {
-                                var pcmTask = pcmPool.ReceiveAsync(ct);
-
-                                buffer.Log.Clear();
-                                audioWaiter.Wait();
-                                buffer.Log.Add("[audio] start", timer.USecDouble);
-
-                                //VST
-                                var nowTime = timer.USecDouble;
-                                effect.ProcessEvent(nowTime, midiEventInput);
-                                effect.ProcessReplacing(nowTime, buffer);
-
-                                //trans
-                                var pcm = pcmTask.Result;
-                                toPcm.Execute(buffer, pcm);
-                                vstBufferPool.SendAsync(buffer);
-
-                                return pcm;
-                            }, options);
-                        taskSet.Add(vstBlock.Completion);
-                        vstBufferPool.LinkTo(vstBlock);
-
-                        var opusBlock =
-                            new TransformBlock<PcmBuffer<float>, OpusOutputBuffer>(buffer =>
-                            {
-                                buffer.Log.Add("[audio] opus input get", timer.USecDouble);
-                                var audio = audioPool.Receive(ct);
-                                buffer.Log.Add("[audio] ftl output get", timer.USecDouble);
-                                opus.Execute(buffer, audio);
-
-                                pcmDrowPool.SendAsync(buffer);
-
-                                return audio;
-                            }, options);
-                        taskSet.Add(opusBlock.Completion);
-                        vstBlock.LinkTo(opusBlock);
-
-                        var ftlBlock =
-                            new ActionBlock<OpusOutputBuffer>(buffer =>
-                            {
-                                //FTL
-                                buffer.Log.Add("[audio] ftl input get", timer.USecDouble);
-                                ftl.Execute(buffer);
-                                audioPool.SendAsync(buffer);
-                            }, options);
-                        taskSet.Add(ftlBlock.Completion);
-                        opusBlock.LinkTo(ftlBlock);
-                    }
-
-                    {
-                        var midiDataStoreBlock =
-                            new ActionBlock<MIDIMessageEvent2>(buffer =>
-                            {
-                                fft.Receive(buffer);
-                            }, options);
-                        taskSet.Add(midiDataStoreBlock.Completion);
-                        midiEventOutput.LinkTo(midiDataStoreBlock);
-
-                        var pcmDataStoreBlock =
-                            new ActionBlock<PcmBuffer<float>>(buffer =>
-                            {
-                                fft.Receive(buffer);
-                                pcmPool.SendAsync(buffer);
-                            }, options);
-                        taskSet.Add(pcmDataStoreBlock.Completion);
-                        pcmDrowPool.LinkTo(pcmDataStoreBlock);
-
-                        var fftBlock =
-                            new TransformBlock<H264InputBuffer, H264InputBuffer>(buffer =>
-                            {
-                                buffer.Log.Clear();
-
-                                videoWaiter.Wait();
-                                buffer.Log.Add("[video] start", timer.USecDouble);
-
-                                //FFT
-                                fft.Execute(buffer);
-
-                                return buffer;
-                            }, options);
-                        taskSet.Add(fftBlock.Completion);
-                        bmpPool.LinkTo(fftBlock);
-
-                        var intraFrameCount = 0.0;
-                        var h264Block =
-                            new TransformBlock<H264InputBuffer, H264OutputBuffer>(buffer =>
-                            {
-                                //H264
-                                buffer.Log.Add("[video] h264 input get", timer.USecDouble);
-                                var video = videoPool.Receive(ct);
-                                buffer.Log.Add("[video] ftl output get", timer.USecDouble);
-                                var insertIntraFrame = (intraFrameCount <= 0);
-                                h264.Execute(buffer, video, insertIntraFrame);
-                                bmpPool.SendAsync(buffer);
-                                if (insertIntraFrame)
-                                {
-                                    intraFrameCount = Param.IntraFrameIntervalUs;
-                                }
-                                intraFrameCount -= videoInterval;
-                                return video;
-                            }, options);
-                        taskSet.Add(h264Block.Completion);
-                        fftBlock.LinkTo(h264Block);
-
-                        var ftlBlock =
-                            new ActionBlock<H264OutputBuffer>(buffer =>
-                            {
-                                //FTL
-                                buffer.Log.Add("[video] ftl input get", timer.USecDouble);
-                                ftl.Execute(buffer);
-                                videoPool.SendAsync(buffer);
-                            }, options);
-                        taskSet.Add(ftlBlock.Completion);
-                        h264Block.LinkTo(ftlBlock);
-                    }
-
-                    while (taskSet.Count > 0)
-                    {
-                        var any = Task.WhenAny(taskSet);
-                        any.ConfigureAwait(false);
-                        any.Wait();
-                        var task = any.Result;
-                        taskSet.Remove(task);
-                        if (task.IsFaulted)
-                        {
-                            processCancel.Cancel();
-                            Logger.LogError(task.Exception, "Process Exception");
-                        }
-                    }
-                }).ConfigureAwait(false);
-            }
-            catch (Exception e)
-            {
-                Logger.LogInformation(e, "Exception");
-                throw;
-            }
-            finally
-            {
-                Logger.LogInformation("main loop end");
-            }
-        }
-
-        private async Task Loop2()
-        {
-            var ct = processCancel.Token;
-
-            Logger.LogInformation("main loop start");
-
-            try
-            {
-                await Task.Run(() =>
-                {
-                    if (ct.IsCancellationRequested)
-                    {
-                        return;
-                    }
-
-                    var blockSize = (int)(Param.SamplingRate * Param.SampleLength);
-                    var audioInterval = 1_000_000.0 * Param.SampleLength;
-
-                    using var vstBufferPool = new BufferPool<VstBuffer<float>>(Param.BufferCount, () => new VstBuffer<float>(blockSize, 2), LoggerFactory);
-                    using var pcmPool = new BufferPool<PcmBuffer<float>>(Param.BufferCount, () => new PcmBuffer<float>(blockSize, 2), LoggerFactory);
-                    using var timer = new Momiji.Core.Timer();
-                    using var audioWaiter = new Waiter(timer, audioInterval, ct);
-                    using var vst = new AudioMaster<float>(Param.SamplingRate, blockSize, LoggerFactory, timer, DllManager);
-                    using var toPcm = new ToPcm<float>(LoggerFactory, timer);
-                    var effect = vst.AddEffect(Param.EffectName);
-
-                    using var wave = new WaveOutFloat(
-                        0,
-                        2,
-                        (uint)Param.SamplingRate,
-                        WaveFormatExtensiblePart.SPEAKER.FRONT_LEFT | WaveFormatExtensiblePart.SPEAKER.FRONT_RIGHT,
-                        LoggerFactory,
-                        timer,
-                        pcmPool);
-
-                    var taskSet = new HashSet<Task>();
-                    var options = new ExecutionDataflowBlockOptions
-                    {
-                        CancellationToken = ct,
-                        MaxDegreeOfParallelism = 1
-                    };
-
-                    var vstBlock =
-                        new TransformBlock<VstBuffer<float>, PcmBuffer<float>>(buffer =>
-                        {
-                            var pcmTask = pcmPool.ReceiveAsync(ct);
-
-                            buffer.Log.Clear();
-                            audioWaiter.Wait();
-                            //VST
-                            var nowTime = timer.USecDouble;
-                            effect.ProcessEvent(nowTime, midiEventInput);
-                            effect.ProcessReplacing(nowTime, buffer);
-
-                            //trans
-                            var pcm = pcmTask.Result;
-                            toPcm.Execute(buffer, pcm);
-                            vstBufferPool.SendAsync(buffer);
-                            return pcm;
-                        }, options);
-                    taskSet.Add(vstBlock.Completion);
-                    vstBufferPool.LinkTo(vstBlock);
-
-                    var waveBlock =
-                        new ActionBlock<PcmBuffer<float>>(buffer =>
-                        {
-                            //WAVEOUT
-                            wave.Execute(buffer, ct);
-                        }, options);
-                    taskSet.Add(waveBlock.Completion);
-                    vstBlock.LinkTo(waveBlock);
-
-                    while (taskSet.Count > 0)
-                    {
-                        var any = Task.WhenAny(taskSet);
-                        any.ConfigureAwait(false);
-                        any.Wait();
-                        var task = any.Result;
-                        taskSet.Remove(task);
-                        if (task.IsFaulted)
-                        {
-                            processCancel.Cancel();
-                            Logger.LogError(task.Exception, "Process Exception");
-                        }
-                    }
-                }).ConfigureAwait(false);
-            }
-            catch (Exception e)
-            {
-                Logger.LogInformation(e, "Exception");
-                throw;
-            }
-            finally
-            {
                 Logger.LogInformation("main loop end");
             }
         }
@@ -949,15 +341,14 @@ namespace mixerTest
             
 
             var videoTransceiver = pc.AddTransceiver(MediaKind.Video);
+            
             videoTransceiver.LocalVideoTrack = LocalVideoTrack.CreateFromSource(exVideoTrackSource, new LocalVideoTrackInitConfig() { trackName = "video track" });
             videoTransceiver.DesiredDirection = Transceiver.Direction.SendOnly;
 
-            /*
-            LocalAudioTrack localAudioTrack = new LocalAudioTrack();
+//            LocalAudioTrack localAudioTrack = new LocalAudioTrack();
             var audioTransceiver = pc.AddTransceiver(MediaKind.Audio);
-            audioTransceiver.LocalAudioTrack = localAudioTrack;
+//            audioTransceiver.LocalAudioTrack = localAudioTrack;
             audioTransceiver.DesiredDirection = Transceiver.Direction.SendOnly;
-            */
 
             pc.CreateOffer();
 

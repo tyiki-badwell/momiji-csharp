@@ -6,26 +6,27 @@ using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Runtime.InteropServices;
 using System.Threading;
+using System.Threading.Tasks;
 using System.Threading.Tasks.Dataflow;
 
-namespace Momiji.Core.Wave
+namespace Momiji.Core.Midi
 {
-    public class WaveException : Exception
+    public class MidiException : Exception
     {
 
-        public WaveException()
+        public MidiException()
         {
         }
 
-        public WaveException(string message) : base(message)
+        public MidiException(string message) : base(message)
         {
         }
 
-        public WaveException(string message, Exception innerException) : base(message, innerException)
+        public MidiException(string message, Exception innerException) : base(message, innerException)
         {
         }
 
-        public WaveException(MMRESULT mmResult) : base(MakeMessage(mmResult))
+        public MidiException(MMRESULT mmResult) : base(MakeMessage(mmResult))
         {
         }
 
@@ -200,7 +201,7 @@ namespace Momiji.Core.Wave
                 );
             if (mmResult != MMRESULT.NOERROR)
             {
-                throw new WaveException(mmResult);
+                throw new MidiException(mmResult);
             }
 
             releaseAction = new TransformBlock<IntPtr, PcmBuffer<T>>(headerPtr => Unprepare(headerPtr));
@@ -287,7 +288,7 @@ namespace Momiji.Core.Wave
             if (mmResult != MMRESULT.NOERROR)
             {
                 headerPool.SendAsync(header);
-                throw new WaveException(mmResult);
+                throw new MidiException(mmResult);
             }
             headerBusyPool.Add(header.AddrOfPinnedObject, header);
             dataBusyPool.Add(source.AddrOfPinnedObject, source);
@@ -323,7 +324,7 @@ namespace Momiji.Core.Wave
                 );
             if (mmResult != MMRESULT.NOERROR)
             {
-                throw new WaveException(mmResult);
+                throw new MidiException(mmResult);
             }
 #if DEBUG
             {
@@ -373,7 +374,7 @@ namespace Momiji.Core.Wave
             if (mmResult != MMRESULT.NOERROR)
             {
                 releaseAction.SendAsync(headerPtr);
-                throw new WaveException(mmResult);
+                throw new MidiException(mmResult);
             }
         }
 
@@ -382,7 +383,7 @@ namespace Momiji.Core.Wave
             var mmResult = handle.waveOutReset();
             if (mmResult != MMRESULT.NOERROR)
             {
-                throw new WaveException(mmResult);
+                throw new MidiException(mmResult);
             }
         }
 

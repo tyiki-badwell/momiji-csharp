@@ -1,7 +1,7 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk.Web">
 
   <PropertyGroup>
-    <TargetFramework>net5.0</TargetFramework>
+    <TargetFramework>net5.0-windows10.0.19041.0</TargetFramework>
     <AspNetCoreHostingModel>InProcess</AspNetCoreHostingModel>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
     <UserSecretsId>bfad0b40-89a2-4a23-929b-1d26eaf7a254</UserSecretsId>
@@ -11,11 +11,19 @@
     <AnalysisMode>AllEnabledByDefault</AnalysisMode>
   </PropertyGroup>
 
+  <PropertyGroup>
+    <RestoreSources>
+      https://api.nuget.org/v3/index.json;
+      ../winrtc_client_projection/nuget
+    </RestoreSources>
+  </PropertyGroup>
+  
   <ItemGroup>
     <PackageReference Include="Microsoft.AspNetCore.AzureAppServices.HostingStartup" Version="5.0.5" />
     <PackageReference Include="Microsoft.AspNetCore.AzureAppServicesIntegration" Version="5.0.5" />
     <PackageReference Include="Microsoft.Extensions.Logging.AzureAppServices" Version="5.0.5" />
     <PackageReference Include="Microsoft.MixedReality.WebRTC" Version="2.0.2" />
+    <PackageReference Include="winrtc_client" Version="0.1.0-prerelease" />
   </ItemGroup>
 
   <ItemGroup>

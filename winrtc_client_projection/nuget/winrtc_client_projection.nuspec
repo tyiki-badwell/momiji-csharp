@@ -1,0 +1,25 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<package xmlns="http://schemas.microsoft.com/packaging/2012/06/nuspec.xsd">
+  <metadata>
+    <id>winrtc_client</id>
+    <version>0.1.0-prerelease</version>
+    <authors>tyiki badwell</authors>
+    <description>.</description>
+    <dependencies>
+      <group targetFramework=".NETCoreApp3.0" />
+      <group targetFramework="UAP10.0" />
+      <group targetFramework=".NETFramework4.6" />
+      <group targetFramework="net5.0">
+        <dependency id="Microsoft.Windows.CsWinRT" version="1.0.1" exclude="Build,Analyzers" />
+      </group>
+    </dependencies>
+  </metadata>
+  <files>
+    <!--Support netcore3, uap, net46+, net5, c++ -->
+    <file src="..\..\_build\x64\Release\winrtc_client\bin\winrtc_client\winrtc_client.winmd" target="lib\netcoreapp3.0\winrtc_client.winmd" />
+    <file src="..\..\_build\x64\Release\winrtc_client\bin\winrtc_client\winrtc_client.winmd" target="lib\uap10.0\winrtc_client.winmd" />
+    <file src="..\..\_build\x64\Release\winrtc_client\bin\winrtc_client\winrtc_client.winmd" target="lib\net46\winrtc_client.winmd" />
+    <file src="..\..\_build\x64\Release\winrtc_client_projection\bin\winrtc_client_projection.dll" target="lib\net5.0\winrtc_client_projection.dll" />
+    <file src="..\..\_build\x64\Release\winrtc_client\bin\winrtc_client\winrtc_client.dll" target="runtimes\win10-x64\native\winrtc_client.dll" />
+  </files>
+</package>

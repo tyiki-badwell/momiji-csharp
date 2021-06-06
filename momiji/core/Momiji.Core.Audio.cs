@@ -7,25 +7,49 @@ using System.Collections.Generic;
 using System.Runtime.InteropServices;
 using System.Threading;
 using System.Threading.Tasks.Dataflow;
+using Windows.Media.Audio;
+using Windows.Media.Render;
+using Windows.Media.Devices;
+using Windows.ApplicationModel.ConversationalAgent;
 
-namespace Momiji.Core.Wave
+namespace Momiji.Core.Audio
 {
-    public class WaveException : Exception
+    public class Test
+    {
+        public async void A()
+        {
+            var settings = new AudioGraphSettings(AudioRenderCategory.Media)
+            {
+                QuantumSizeSelectionMode = QuantumSizeSelectionMode.LowestLatency
+            };
+            var result = await AudioGraph.CreateAsync(settings);
+            var graph = result.Graph;
+
+            var outNode = await graph.CreateDeviceOutputNodeAsync();
+
+            var inNode = await graph.CreateFileInputNodeAsync(null);
+
+            graph.Start();
+        }
+    }
+
+
+    public class AudioException : Exception
     {
 
-        public WaveException()
+        public AudioException()
         {
         }
 
-        public WaveException(string message) : base(message)
+        public AudioException(string message) : base(message)
         {
         }
 
-        public WaveException(string message, Exception innerException) : base(message, innerException)
+        public AudioException(string message, Exception innerException) : base(message, innerException)
         {
         }
 
-        public WaveException(MMRESULT mmResult) : base(MakeMessage(mmResult))
+        public AudioException(MMRESULT mmResult) : base(MakeMessage(mmResult))
         {
         }
 
@@ -200,7 +224,7 @@ namespace Momiji.Core.Wave
                 );
             if (mmResult != MMRESULT.NOERROR)
             {
-                throw new WaveException(mmResult);
+                throw new AudioException(mmResult);
             }
 
             releaseAction = new TransformBlock<IntPtr, PcmBuffer<T>>(headerPtr => Unprepare(headerPtr));
@@ -287,7 +311,7 @@ namespace Momiji.Core.Wave
             if (mmResult != MMRESULT.NOERROR)
             {
                 headerPool.SendAsync(header);
-                throw new WaveException(mmResult);
+                throw new AudioException(mmResult);
             }
             headerBusyPool.Add(header.AddrOfPinnedObject, header);
             dataBusyPool.Add(source.AddrOfPinnedObject, source);
@@ -323,7 +347,7 @@ namespace Momiji.Core.Wave
                 );
             if (mmResult != MMRESULT.NOERROR)
             {
-                throw new WaveException(mmResult);
+                throw new AudioException(mmResult);
             }
 #if DEBUG
             {
@@ -373,7 +397,7 @@ namespace Momiji.Core.Wave
             if (mmResult != MMRESULT.NOERROR)
             {
                 releaseAction.SendAsync(headerPtr);
-                throw new WaveException(mmResult);
+                throw new AudioException(mmResult);
             }
         }
 
@@ -382,7 +406,7 @@ namespace Momiji.Core.Wave
             var mmResult = handle.waveOutReset();
             if (mmResult != MMRESULT.NOERROR)
             {
-                throw new WaveException(mmResult);
+                throw new AudioException(mmResult);
             }
         }
 
