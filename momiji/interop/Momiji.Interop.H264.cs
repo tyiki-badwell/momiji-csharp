@@ -1,17 +1,18 @@
 ﻿using System;
 using System.Diagnostics;
-using System.Runtime.ConstrainedExecution;
 using System.Runtime.InteropServices;
-using System.Security.Permissions;
+
+#pragma warning disable CA1707 // 識別子はアンダースコアを含むことはできません
+#pragma warning disable CA1815 // equals および operator equals を値型でオーバーライドします
+#pragma warning disable CA1051 // 参照可能なインスタンス フィールドを宣言しません
+#pragma warning disable CA1712 // 列挙値の前に型名を付けないでください
+#pragma warning disable CA1711 // 識別子は、不適切なサフィックスを含むことはできません
+#pragma warning disable CA1008 // 列挙型は 0 値を含んでいなければなりません
+#pragma warning disable CA1700 // 列挙型値に 'Reserved' という名前を指定しません
+#pragma warning disable CA1069 // 列挙値を重複させることはできない
 
 namespace Momiji.Interop.H264
 {
-#pragma warning disable CA1028 // 列挙ストレージは Int32 でなければなりません
-#pragma warning disable CA1815 // equals および operator equals を値型でオーバーライドします
-#pragma warning disable CA1717 // FlagsAttribute 列挙型のみが複数形の名前を含んでいなければなりません
-#pragma warning disable CA1712 // 列挙値の前に型名を付けないでください
-#pragma warning disable CA1707 // 識別子はアンダースコアを含むことはできません
-#pragma warning disable CA1051 // 参照可能なインスタンス フィールドを宣言しません
     /**
     * @brief Option types introduced in SVC encoder application
     */
@@ -147,9 +148,7 @@ namespace Momiji.Interop.H264
     * @brief Enumerate the type of wels log
     */
     [Flags]
-#pragma warning disable CA1714 // フラグ列挙型は、複数形の名前を含んでいなければなりません
     public enum WELS_LOG : int
-#pragma warning restore CA1714 // フラグ列挙型は、複数形の名前を含んでいなければなりません
     {
         WELS_LOG_QUIET = 0x00,          ///< quiet mode
         WELS_LOG_ERROR = 1 << 0,        ///< error log iLevel
@@ -161,7 +160,7 @@ namespace Momiji.Interop.H264
         WELS_LOG_LEVEL_COUNT = 6,
         WELS_LOG_DEFAULT = WELS_LOG_WARNING   ///< default log iLevel in Wels codec
     };
-    
+
     /**
     * @brief Enumerate the type of slice mode
     */
@@ -668,18 +667,15 @@ namespace Momiji.Interop.H264
         public const string OpenH264 = "openH264.dll";
     }
 
-    [SecurityPermission(SecurityAction.InheritanceDemand, UnmanagedCode = true)]
-    [SecurityPermission(SecurityAction.Demand, UnmanagedCode = true)]
     public sealed class SVCEncoder : Microsoft.Win32.SafeHandles.SafeHandleZeroOrMinusOneIsInvalid
     {
         private SVCEncoder() : base(true)
         {
         }
 
-        [ReliabilityContract(Consistency.WillNotCorruptState, Cer.MayFail)]
         override protected bool ReleaseHandle()
         {
-            Trace.WriteLine("WelsDestroySVCEncoder");
+            //Trace.WriteLine("WelsDestroySVCEncoder");
             SafeNativeMethods.WelsDestroySVCEncoder(handle);
             return true;
         }
@@ -694,6 +690,7 @@ namespace Momiji.Interop.H264
         //int WelsCreateSVCEncoder(ISVCEncoder** ppEncoder);
         [DllImport(Libraries.OpenH264, CallingConvention = CallingConvention.Cdecl)]
         [DefaultDllImportSearchPaths(DllImportSearchPath.UserDirectories | DllImportSearchPath.UseDllDirectoryForDependencies)]
+        [System.Diagnostics.CodeAnalysis.SuppressMessage("Security", "CA5393:安全でない DllImportSearchPath 値を使用しない", Justification = "<保留中>")]
         internal static extern int WelsCreateSVCEncoder(
             [Out] out SVCEncoder ppEncoder
         );
@@ -705,6 +702,7 @@ namespace Momiji.Interop.H264
         //void WelsDestroySVCEncoder(ISVCEncoder* pEncoder);
         [DllImport(Libraries.OpenH264, CallingConvention = CallingConvention.Cdecl)]
         [DefaultDllImportSearchPaths(DllImportSearchPath.UserDirectories | DllImportSearchPath.UseDllDirectoryForDependencies)]
+        [System.Diagnostics.CodeAnalysis.SuppressMessage("Security", "CA5393:安全でない DllImportSearchPath 値を使用しない", Justification = "<保留中>")]
         internal static extern void WelsDestroySVCEncoder(
             [In] IntPtr pEncoder
         );
@@ -742,14 +740,18 @@ namespace Momiji.Interop.H264
         */
         [DllImport(Libraries.OpenH264, CallingConvention = CallingConvention.Cdecl)]
         [DefaultDllImportSearchPaths(DllImportSearchPath.UserDirectories | DllImportSearchPath.UseDllDirectoryForDependencies)]
+        [System.Diagnostics.CodeAnalysis.SuppressMessage("Security", "CA5393:安全でない DllImportSearchPath 値を使用しない", Justification = "<保留中>")]
         internal static extern void WelsGetCodecVersionEx(
             [Out] out OpenH264Version pVersion
         );
     }
-#pragma warning restore CA1051 // 参照可能なインスタンス フィールドを宣言しません
-#pragma warning restore CA1707 // 識別子はアンダースコアを含むことはできません
-#pragma warning restore CA1712 // 列挙値の前に型名を付けないでください
-#pragma warning restore CA1717 // FlagsAttribute 列挙型のみが複数形の名前を含んでいなければなりません
-#pragma warning restore CA1815 // equals および operator equals を値型でオーバーライドします
-#pragma warning restore CA1028 // 列挙ストレージは Int32 でなければなりません
 }
+
+#pragma warning restore CA1069 // 列挙値を重複させることはできない
+#pragma warning restore CA1700 // 列挙型値に 'Reserved' という名前を指定しません
+#pragma warning restore CA1008 // 列挙型は 0 値を含んでいなければなりません
+#pragma warning restore CA1711 // 識別子は、不適切なサフィックスを含むことはできません
+#pragma warning restore CA1712 // 列挙値の前に型名を付けないでください
+#pragma warning restore CA1051 // 参照可能なインスタンス フィールドを宣言しません
+#pragma warning restore CA1815 // equals および operator equals を値型でオーバーライドします
+#pragma warning restore CA1707 // 識別子はアンダースコアを含むことはできません

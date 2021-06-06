@@ -1,14 +1,14 @@
 ﻿using System;
 using System.Runtime.InteropServices;
 
+#pragma warning disable CA1008 // 列挙型は 0 値を含んでいなければなりません
+#pragma warning disable CA1815 // equals および operator equals を値型でオーバーライドします
+#pragma warning disable CA1051 // 参照可能なインスタンス フィールドを宣言しません
+#pragma warning disable CA1711 // 識別子は、不適切なサフィックスを含むことはできません
+#pragma warning disable CA1069 // 列挙値を重複させることはできない
+
 namespace Momiji.Interop.Vst
 {
-#pragma warning disable CA1051 // 参照可能なインスタンス フィールドを宣言しません
-#pragma warning disable CA1815 // equals および operator equals を値型でオーバーライドします
-#pragma warning disable CA1714 // フラグ列挙型は、複数形の名前を含んでいなければなりません
-#pragma warning disable CA1707 // 識別子はアンダースコアを含むことはできません
-#pragma warning disable CA1028 // 列挙ストレージは Int32 でなければなりません
-#pragma warning disable CA1717 // FlagsAttribute 列挙型のみが複数形の名前を含んでいなければなりません
     //-------------------------------------------------------------------------------------------------------
     /** String length limits (in characters excl. 0 byte) */
     //-------------------------------------------------------------------------------------------------------
@@ -41,22 +41,22 @@ namespace Momiji.Interop.Vst
             audioMasterVersion,         ///< [return value]: Host VST version (for example 2400 for VST 2.4) @see AudioEffect::getMasterVersion
             audioMasterCurrentId,       ///< [return value]: current unique identifier on shell plug-in  @see AudioEffect::getCurrentUniqueId
             audioMasterIdle,            ///< no arguments  @see AudioEffect::masterIdle
-            audioMasterPinConnectedDeprecated,      ///< \deprecated deprecated in VST 2.4 r2
+            audioMasterDeprecatedPinConnected,      ///< \deprecated deprecated in VST 2.4 r2
 
             audioMasterDeprecated,
-            audioMasterWantMidiDeprecated,  ///< \deprecated deprecated in VST 2.4
+            audioMasterDeprecatedWantMidi,  ///< \deprecated deprecated in VST 2.4
 
             audioMasterGetTime,             ///< [return value]: #VstTimeInfo* or null if not supported [value]: request mask  @see VstTimeInfoFlags @see AudioEffectX::getTimeInfo
             audioMasterProcessEvents,       ///< [ptr]: pointer to #VstEvents  @see VstEvents @see AudioEffectX::sendVstEventsToHost
 
-            audioMasterSetTimeDeprecated,   ///< \deprecated deprecated in VST 2.4
-            audioMasterTempoAtDeprecated,   ///< \deprecated deprecated in VST 2.4
-            audioMasterGetNumAutomatableParametersDeprecated,   ///< \deprecated deprecated in VST 2.4
-            audioMasterGetParameterQuantizationDeprecated,      ///< \deprecated deprecated in VST 2.4
+            audioMasterDeprecatedSetTime,   ///< \deprecated deprecated in VST 2.4
+            audioMasterDeprecatedTempoAt,   ///< \deprecated deprecated in VST 2.4
+            audioMasterDeprecatedGetNumAutomatableParameters,   ///< \deprecated deprecated in VST 2.4
+            audioMasterDeprecatedGetParameterQuantization,      ///< \deprecated deprecated in VST 2.4
 
             audioMasterIOChanged,           ///< [return value]: 1 if supported  @see AudioEffectX::ioChanged
 
-            audioMasterNeedIdleDeprecated,  ///< \deprecated deprecated in VST 2.4
+            audioMasterDeprecatedNeedIdle,  ///< \deprecated deprecated in VST 2.4
 
             audioMasterSizeWindow,          ///< [index]: new width [value]: new height [return value]: 1 if supported  @see AudioEffectX::sizeWindow
             audioMasterGetSampleRate,       ///< [return value]: current sample rate  @see AudioEffectX::updateSampleRate
@@ -64,9 +64,9 @@ namespace Momiji.Interop.Vst
             audioMasterGetInputLatency,     ///< [return value]: input latency in audio samples  @see AudioEffectX::getInputLatency
             audioMasterGetOutputLatency,    ///< [return value]: output latency in audio samples  @see AudioEffectX::getOutputLatency
 
-            audioMasterGetPreviousPlugDeprecated,           ///< \deprecated deprecated in VST 2.4
-            audioMasterGetNextPlugDeprecated,               ///< \deprecated deprecated in VST 2.4
-            audioMasterWillReplaceOrAccumulateDeprecated,   ///< \deprecated deprecated in VST 2.4
+            audioMasterDeprecatedGetPreviousPlug,           ///< \deprecated deprecated in VST 2.4
+            audioMasterDeprecatedGetNextPlug,               ///< \deprecated deprecated in VST 2.4
+            audioMasterDeprecatedWillReplaceOrAccumulate,   ///< \deprecated deprecated in VST 2.4
 
             audioMasterGetCurrentProcessLevel,  ///< [return value]: current process level  @see VstProcessLevels
             audioMasterGetAutomationState,      ///< [return value]: current automation state  @see VstAutomationStates
@@ -77,21 +77,21 @@ namespace Momiji.Interop.Vst
             audioMasterOfflineGetCurrentPass,   ///< @see AudioEffectX::offlineGetCurrentPass
             audioMasterOfflineGetCurrentMetaPass,   ///< @see AudioEffectX::offlineGetCurrentMetaPass
 
-            audioMasterSetOutputSampleRateDeprecated,           ///< \deprecated deprecated in VST 2.4
-            audioMasterGetOutputSpeakerArrangementDeprecated,   ///< \deprecated deprecated in VST 2.4
+            audioMasterDeprecatedSetOutputSampleRate,           ///< \deprecated deprecated in VST 2.4
+            audioMasterDeprecatedGetOutputSpeakerArrangement,   ///< \deprecated deprecated in VST 2.4
 
             audioMasterGetVendorString,         ///< [ptr]: char buffer for vendor string, limited to #kVstMaxVendorStrLen  @see AudioEffectX::getHostVendorString
             audioMasterGetProductString,        ///< [ptr]: char buffer for vendor string, limited to #kVstMaxProductStrLen  @see AudioEffectX::getHostProductString
             audioMasterGetVendorVersion,        ///< [return value]: vendor-specific version  @see AudioEffectX::getHostVendorVersion
             audioMasterVendorSpecific,          ///< no definition, vendor specific handling  @see AudioEffectX::hostVendorSpecific
 
-            audioMasterSetIconDeprecated,       ///< \deprecated deprecated in VST 2.4
+            audioMasterDeprecatedSetIcon,       ///< \deprecated deprecated in VST 2.4
 
             audioMasterCanDo,                   ///< [ptr]: "can do" string [return value]: 1 for supported
             audioMasterGetLanguage,             ///< [return value]: language code  @see VstHostLanguage
 
-            audioMasterOpenWindowDeprecated,        ///< \deprecated deprecated in VST 2.4
-            audioMasterCloseWindowDeprecated,   ///< \deprecated deprecated in VST 2.4
+            audioMasterDeprecatedOpenWindow,        ///< \deprecated deprecated in VST 2.4
+            audioMasterDeprecatedCloseWindow,   ///< \deprecated deprecated in VST 2.4
 
             audioMasterGetDirectory,            ///< [return value]: FSSpec on MAC, else char*  @see AudioEffectX::getDirectory
             audioMasterUpdateDisplay,           ///< no arguments	
@@ -100,14 +100,41 @@ namespace Momiji.Interop.Vst
             audioMasterOpenFileSelector,        ///< [ptr]: VstFileSelect* [return value]: 1 if supported  @see AudioEffectX::openFileSelector
             audioMasterCloseFileSelector,       ///< [ptr]: VstFileSelect*  @see AudioEffectX::closeFileSelector
 
-            audioMasterEditFileDeprecated,      ///< \deprecated deprecated in VST 2.4
+            audioMasterDeprecatedEditFile,      ///< \deprecated deprecated in VST 2.4
 
-            audioMasterGetChunkFileDeprecated,  ///< \deprecated deprecated in VST 2.4 [ptr]: char[2048] or sizeof (FSSpec) [return value]: 1 if supported  @see AudioEffectX::getChunkFile
+            audioMasterDeprecatedGetChunkFile,  ///< \deprecated deprecated in VST 2.4 [ptr]: char[2048] or sizeof (FSSpec) [return value]: 1 if supported  @see AudioEffectX::getChunkFile
 
-            audioMasterGetInputSpeakerArrangementDeprecated,    ///< \deprecated deprecated in VST 2.4
+            audioMasterDeprecatedGetInputSpeakerArrangement,    ///< \deprecated deprecated in VST 2.4
 
             //-------------------------------------------------------------------------------------------------------
         };
+
+        //-------------------------------------------------------------------------------------------------------
+        /** Process Levels returned by #audioMasterGetCurrentProcessLevel. */
+        //-------------------------------------------------------------------------------------------------------
+        public enum VstProcessLevels : int
+        {
+            kVstProcessLevelUnknown = 0,    ///< not supported by Host
+            kVstProcessLevelUser,           ///< 1: currently in user thread (GUI)
+            kVstProcessLevelRealtime,       ///< 2: currently in audio thread (where process is called)
+            kVstProcessLevelPrefetch,       ///< 3: currently in 'sequencer' thread (MIDI, timer etc)
+            kVstProcessLevelOffline			///< 4: currently offline processing and thus in user thread
+        }
+
+        //-------------------------------------------------------------------------------------------------------
+        /** Automation States returned by #audioMasterGetAutomationState. */
+        //-------------------------------------------------------------------------------------------------------
+        public enum VstAutomationStates : int
+        {
+            //-------------------------------------------------------------------------------------------------------
+            kVstAutomationUnsupported = 0,  ///< not supported by Host
+            kVstAutomationOff,              ///< off
+            kVstAutomationRead,             ///< read
+            kVstAutomationWrite,            ///< write
+            kVstAutomationReadWrite         ///< read and write
+            //-------------------------------------------------------------------------------------------------------
+        };
+
         [UnmanagedFunctionPointer(CallingConvention.Cdecl, CharSet = CharSet.Ansi, SetLastError = false)]
         internal delegate IntPtr CallBack(
             [In]IntPtr/*AEffect^*/		effect,
@@ -140,7 +167,7 @@ namespace Momiji.Interop.Vst
             effGetParamDisplay, ///< [ptr]: char buffer for parameter display, limited to #kVstMaxParamStrLen  @see AudioEffect::getParameterDisplay
             effGetParamName,    ///< [ptr]: char buffer for parameter name, limited to #kVstMaxParamStrLen  @see AudioEffect::getParameterName
 
-            effGetVuDeprecated, ///< \deprecated deprecated in VST 2.4
+            effDeprecatedGetVu, ///< \deprecated deprecated in VST 2.4
 
             effSetSampleRate,   ///< [opt]: new sample rate for audio processing  @see AudioEffect::setSampleRate
             effSetBlockSize,    ///< [value]: new maximum block size for audio processing  @see AudioEffect::setBlockSize
@@ -150,15 +177,15 @@ namespace Momiji.Interop.Vst
             effEditOpen,        ///< [ptr]: system dependent Window pointer, e.g. HWND on Windows  @see AEffEditor::open
             effEditClose,       ///< no arguments @see AEffEditor::close
 
-            effEditDrawDeprecated,  ///< \deprecated deprecated in VST 2.4
-            effEditMouseDeprecated, ///< \deprecated deprecated in VST 2.4
-            effEditKeyDeprecated,   ///< \deprecated deprecated in VST 2.4
+            effDeprecatedEditDraw,  ///< \deprecated deprecated in VST 2.4
+            effDeprecatedEditMouse, ///< \deprecated deprecated in VST 2.4
+            effDeprecatedEditKey,   ///< \deprecated deprecated in VST 2.4
 
             effEditIdle,        ///< no arguments @see AEffEditor::idle
 
-            effEditTopDeprecated,   ///< \deprecated deprecated in VST 2.4
-            effEditSleepDeprecated, ///< \deprecated deprecated in VST 2.4
-            effIdentifyDeprecated,  ///< \deprecated deprecated in VST 2.4
+            effDeprecatedEditTop,   ///< \deprecated deprecated in VST 2.4
+            effDeprecatedEditSleep, ///< \deprecated deprecated in VST 2.4
+            effDeprecatedIdentify,  ///< \deprecated deprecated in VST 2.4
 
             effGetChunk,        ///< [ptr]: void** for chunk data address [index]: 0 for bank, 1 for program  @see AudioEffect::getChunk
             effSetChunk,        ///< [ptr]: chunk data [value]: byte size [index]: 0 for bank, 1 for program  @see AudioEffect::setChunk
@@ -168,20 +195,20 @@ namespace Momiji.Interop.Vst
             effCanBeAutomated,                      ///< [index]: parameter index [return value]: 1=true, 0=false  @see AudioEffectX::canParameterBeAutomated
             effString2Parameter,                    ///< [index]: parameter index [ptr]: parameter string [return value]: true for success  @see AudioEffectX::string2parameter
 
-            effGetNumProgramCategoriesDeprecated,   ///< \deprecated deprecated in VST 2.4
+            effDeprecatedGetNumProgramCategories,   ///< \deprecated deprecated in VST 2.4
 
             effGetProgramNameIndexed,               ///< [index]: program index [ptr]: buffer for program name, limited to #kVstMaxProgNameLen [return value]: true for success  @see AudioEffectX::getProgramNameIndexed
 
-            effCopyProgramDeprecated,   ///< \deprecated deprecated in VST 2.4
-            effConnectInputDeprecated,  ///< \deprecated deprecated in VST 2.4
-            effConnectOutputDeprecated, ///< \deprecated deprecated in VST 2.4
+            effDeprecatedCopyProgram,   ///< \deprecated deprecated in VST 2.4
+            effDeprecatedConnectInput,  ///< \deprecated deprecated in VST 2.4
+            effDeprecatedConnectOutput, ///< \deprecated deprecated in VST 2.4
 
             effGetInputProperties,                  ///< [index]: input index [ptr]: #VstPinProperties* [return value]: 1 if supported  @see AudioEffectX::getInputProperties
             effGetOutputProperties,             ///< [index]: output index [ptr]: #VstPinProperties* [return value]: 1 if supported  @see AudioEffectX::getOutputProperties
             effGetPlugCategory,                 ///< [return value]: category  @see VstPlugCategory @see AudioEffectX::getPlugCategory
 
-            effGetCurrentPositionDeprecated,    ///< \deprecated deprecated in VST 2.4
-            effGetDestinationBufferDeprecated,  ///< \deprecated deprecated in VST 2.4
+            effDeprecatedGetCurrentPosition,    ///< \deprecated deprecated in VST 2.4
+            effDeprecatedGetDestinationBuffer,  ///< \deprecated deprecated in VST 2.4
 
             effOfflineNotify,                       ///< [ptr]: #VstAudioFile array [value]: count [index]: start flag  @see AudioEffectX::offlineNotify
             effOfflinePrepare,                      ///< [ptr]: #VstOfflineTask array [value]: count  @see AudioEffectX::offlinePrepare
@@ -190,12 +217,12 @@ namespace Momiji.Interop.Vst
             effProcessVarIo,                        ///< [ptr]: #VstVariableIo*  @see AudioEffectX::processVariableIo
             effSetSpeakerArrangement,               ///< [value]: input #VstSpeakerArrangement* [ptr]: output #VstSpeakerArrangement*  @see AudioEffectX::setSpeakerArrangement
 
-            effSetBlockSizeAndSampleRateDeprecated, ///< \deprecated deprecated in VST 2.4
+            effDeprecatedSetBlockSizeAndSampleRate, ///< \deprecated deprecated in VST 2.4
 
             effSetBypass,                           ///< [value]: 1 = bypass, 0 = no bypass  @see AudioEffectX::setBypass
             effGetEffectName,                       ///< [ptr]: buffer for effect name, limited to #kVstMaxEffectNameLen  @see AudioEffectX::getEffectName
 
-            effGetErrorTextDeprecated,  ///< \deprecated deprecated in VST 2.4
+            effDeprecatedGetErrorText,  ///< \deprecated deprecated in VST 2.4
 
             effGetVendorString,                 ///< [ptr]: buffer for effect vendor string, limited to #kVstMaxVendorStrLen  @see AudioEffectX::getVendorString
             effGetProductString,                    ///< [ptr]: buffer for effect vendor string, limited to #kVstMaxProductStrLen  @see AudioEffectX::getProductString
@@ -204,13 +231,13 @@ namespace Momiji.Interop.Vst
             effCanDo,                               ///< [ptr]: "can do" string [return value]: 0: "don't know" -1: "no" 1: "yes"  @see AudioEffectX::canDo
             effGetTailSize,                     ///< [return value]: tail size (for example the reverb time of a reverb plug-in); 0 is default (return 1 for 'no tail')
 
-            effIdleDeprecated,              ///< \deprecated deprecated in VST 2.4
-            effGetIconDeprecated,           ///< \deprecated deprecated in VST 2.4
-            effSetViewPositionDeprecated,   ///< \deprecated deprecated in VST 2.4
+            effDeprecatedIdle,              ///< \deprecated deprecated in VST 2.4
+            effDeprecatedGetIcon,           ///< \deprecated deprecated in VST 2.4
+            effDeprecatedSetViewPosition,   ///< \deprecated deprecated in VST 2.4
 
             effGetParameterProperties,              ///< [index]: parameter index [ptr]: #VstParameterProperties* [return value]: 1 if supported  @see AudioEffectX::getParameterProperties
 
-            effKeysRequiredDeprecated,  ///< \deprecated deprecated in VST 2.4
+            effDeprecatedKeysRequired,  ///< \deprecated deprecated in VST 2.4
 
             effGetVstVersion,                       ///< [return value]: VST version  @see AudioEffectX::getVstVersion
 
@@ -337,14 +364,6 @@ namespace Momiji.Interop.Vst
         );
 
         [UnmanagedFunctionPointer(CallingConvention.Cdecl, CharSet = CharSet.Ansi, SetLastError = false)]
-        internal delegate void ProcessDoubleProc(
-            [In]IntPtr/*AEffect^*/		effect,
-            [In]IntPtr inputs,
-            [In]IntPtr outputs,
-            [In]int sampleFrames
-        );
-
-        [UnmanagedFunctionPointer(CallingConvention.Cdecl, CharSet = CharSet.Ansi, SetLastError = false)]
         internal delegate void SetParameterProc(
             [In]IntPtr/*AEffect^*/		effect,
             [In]int index,
@@ -360,12 +379,21 @@ namespace Momiji.Interop.Vst
 
 
     //-------------------------------------------------------------------------------------------------------
+    /** Symbolic precision constants used for effSetProcessPrecision. */
+    //-------------------------------------------------------------------------------------------------------
+    public enum VstProcessPrecision : int
+    {
+        kVstProcessPrecision32 = 0,     ///< single precision float (32bits)
+        kVstProcessPrecision64          ///< double precision (64bits)
+    };
+
+    //-------------------------------------------------------------------------------------------------------
     /** Parameter Properties used in #effGetParameterProperties. */
     //-------------------------------------------------------------------------------------------------------
     [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Ansi)]
     public struct VstParameterProperties
     {
-        [FlagsAttribute]
+        [Flags]
         public enum VstParameterFlags : int
         {
             //-------------------------------------------------------------------------------------------------------
@@ -466,7 +494,7 @@ namespace Momiji.Interop.Vst
     [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Ansi)]
     public struct VstPinProperties
     {
-        [FlagsAttribute]
+        [Flags]
         public enum VstPinPropertiesFlags : int
         {
             //-------------------------------------------------------------------------------------------------------
@@ -675,11 +703,10 @@ namespace Momiji.Interop.Vst
         public short right;     ///< right coordinate
         //-------------------------------------------------------------------------------------------------------
     };
-
-#pragma warning restore CA1028 // 列挙ストレージは Int32 でなければなりません
-#pragma warning restore CA1707 // 識別子はアンダースコアを含むことはできません
-#pragma warning restore CA1714 // フラグ列挙型は、複数形の名前を含んでいなければなりません
-#pragma warning restore CA1815 // equals および operator equals を値型でオーバーライドします
-#pragma warning restore CA1051 // 参照可能なインスタンス フィールドを宣言しません
-#pragma warning restore CA1717 // FlagsAttribute 列挙型のみが複数形の名前を含んでいなければなりません
 }
+
+#pragma warning restore CA1069 // 列挙値を重複させることはできない
+#pragma warning restore CA1711 // 識別子は、不適切なサフィックスを含むことはできません
+#pragma warning restore CA1051 // 参照可能なインスタンス フィールドを宣言しません
+#pragma warning restore CA1815 // equals および operator equals を値型でオーバーライドします
+#pragma warning restore CA1008 // 列挙型は 0 値を含んでいなければなりません

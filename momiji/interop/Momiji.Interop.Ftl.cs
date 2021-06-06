@@ -1,14 +1,12 @@
 ﻿using System;
-using System.Runtime.ConstrainedExecution;
 using System.Runtime.InteropServices;
-using System.Security.Permissions;
+
+#pragma warning disable CA1707 // 識別子はアンダースコアを含むことはできません
+#pragma warning disable CA1815 // equals および operator equals を値型でオーバーライドします
+#pragma warning disable CA1051 // 参照可能なインスタンス フィールドを宣言しません
 
 namespace Momiji.Interop.Ftl
 {
-#pragma warning disable CA1707 // 識別子はアンダースコアを含むことはできません
-#pragma warning disable CA1717 // FlagsAttribute 列挙型のみが複数形の名前を含んでいなければなりません
-#pragma warning disable CA1815 // equals および operator equals を値型でオーバーライドします
-#pragma warning disable CA1051 // 参照可能なインスタンス フィールドを宣言しません
     public enum Status : int
     {
         FTL_SUCCESS,                  /**< Operation was successful */
@@ -47,28 +45,33 @@ namespace Momiji.Interop.Ftl
         FTL_INGEST_SOCKET_CLOSED,
         FTL_INGEST_SOCKET_TIMEOUT,
     }
+
     public enum ConnectionStatus : int
     {
         FTL_CONNECTION_DISCONNECTED,
         FTL_CONNECTION_RECONNECTED
     }
+
     public enum VideoCodec : int
     {
         FTL_VIDEO_NULL, /**< No video for this stream */
         FTL_VIDEO_VP8,  /**< Google's VP8 codec (recommended default) */
         FTL_VIDEO_H264
     }
+
     public enum AudioCodec : int
     {
         FTL_AUDIO_NULL, /**< No audio for this stream */
         FTL_AUDIO_OPUS, /**< Xiph's Opus audio codec */
         FTL_AUDIO_AAC
     }
+
     public enum MediaType : int
     {
         FTL_AUDIO_DATA,
         FTL_VIDEO_DATA
     }
+
     public enum LogSeverity : int
     {
         FTL_LOG_CRITICAL,
@@ -77,6 +80,7 @@ namespace Momiji.Interop.Ftl
         FTL_LOG_INFO,
         FTL_LOG_DEBUG
     }
+
     public enum StatusTypes : int
     {
         FTL_STATUS_NONE,
@@ -91,6 +95,7 @@ namespace Momiji.Interop.Ftl
         FTL_STATUS_NETWORK,
         FTL_BITRATE_CHANGED
     }
+
     public enum StatusEventType : int
     {
         FTL_STATUS_EVENT_TYPE_UNKNOWN,
@@ -99,6 +104,7 @@ namespace Momiji.Interop.Ftl
         FTL_STATUS_EVENT_TYPE_DESTROYED,
         FTL_STATUS_EVENT_INGEST_ERROR_CODE
     }
+
     public enum StatusEventReasons : int
     {
         FTL_STATUS_EVENT_REASON_NONE,
@@ -106,12 +112,14 @@ namespace Momiji.Interop.Ftl
         FTL_STATUS_EVENT_REASON_API_REQUEST,
         FTL_STATUS_EVENT_REASON_UNKNOWN,
     }
+
     public enum BitrateChangedType : int
     {
         FTL_BITRATE_DECREASED,
         FTL_BITRATE_INCREASED,
         FTL_BITRATE_STABILIZED
     }
+
     public enum BitrateChangedReason : int
     {
         FTL_BANDWIDTH_CONSTRAINED,
@@ -137,10 +145,12 @@ namespace Momiji.Interop.Ftl
         public string vendor_name;
         [MarshalAs(UnmanagedType.LPStr)]
         public string vendor_version;
+        /*
         [MarshalAs(UnmanagedType.LPStr)]
         public string ca_info_path;
         [MarshalAs(UnmanagedType.LPStr)]
         public string mixer_api_client_id;
+        */
     }
 
     internal static class Libraries
@@ -156,15 +166,16 @@ namespace Momiji.Interop.Ftl
 
     public static class SafeNativeMethods
     {
-#pragma warning disable IDE1006 // 命名スタイル
         //FTL_API ftl_status_t ftl_init();
         [DllImport(Libraries.Ftl, CallingConvention = CallingConvention.Cdecl)]
         [DefaultDllImportSearchPaths(DllImportSearchPath.UserDirectories | DllImportSearchPath.UseDllDirectoryForDependencies)]
+        [System.Diagnostics.CodeAnalysis.SuppressMessage("Security", "CA5393:安全でない DllImportSearchPath 値を使用しない", Justification = "<保留中>")]
         internal static extern Status ftl_init();
 
         //FTL_API ftl_status_t ftl_ingest_create(ftl_handle_t* ftl_handle, ftl_ingest_params_t*params);
         [DllImport(Libraries.Ftl, CallingConvention = CallingConvention.Cdecl)]
         [DefaultDllImportSearchPaths(DllImportSearchPath.UserDirectories | DllImportSearchPath.UseDllDirectoryForDependencies)]
+        [System.Diagnostics.CodeAnalysis.SuppressMessage("Security", "CA5393:安全でない DllImportSearchPath 値を使用しない", Justification = "<保留中>")]
         internal static extern Status ftl_ingest_create(
             [In] IntPtr ftl_handle,
             [In] ref IngestParams _params
@@ -173,6 +184,7 @@ namespace Momiji.Interop.Ftl
         //FTL_API ftl_status_t ftl_ingest_connect(ftl_handle_t* ftl_handle);
         [DllImport(Libraries.Ftl, CallingConvention = CallingConvention.Cdecl)]
         [DefaultDllImportSearchPaths(DllImportSearchPath.UserDirectories | DllImportSearchPath.UseDllDirectoryForDependencies)]
+        [System.Diagnostics.CodeAnalysis.SuppressMessage("Security", "CA5393:安全でない DllImportSearchPath 値を使用しない", Justification = "<保留中>")]
         internal static extern Status ftl_ingest_connect(
             [In] IntPtr ftl_handle
         );
@@ -180,6 +192,7 @@ namespace Momiji.Interop.Ftl
         //FTL_API int ftl_ingest_speed_test(ftl_handle_t* ftl_handle, int speed_kbps, int duration_ms);
         [DllImport(Libraries.Ftl, CallingConvention = CallingConvention.Cdecl)]
         [DefaultDllImportSearchPaths(DllImportSearchPath.UserDirectories | DllImportSearchPath.UseDllDirectoryForDependencies)]
+        [System.Diagnostics.CodeAnalysis.SuppressMessage("Security", "CA5393:安全でない DllImportSearchPath 値を使用しない", Justification = "<保留中>")]
         internal static extern Status ftl_ingest_speed_test(
             [In] IntPtr ftl_handle,
             [In] int speed_kbps,
@@ -191,6 +204,7 @@ namespace Momiji.Interop.Ftl
         //FTL_API int ftl_ingest_send_media_dts(ftl_handle_t* ftl_handle, ftl_media_type_t media_type, int64_t dts_usec, uint8_t* data, int32_t len, int end_of_frame);
         [DllImport(Libraries.Ftl, CallingConvention = CallingConvention.Cdecl)]
         [DefaultDllImportSearchPaths(DllImportSearchPath.UserDirectories | DllImportSearchPath.UseDllDirectoryForDependencies)]
+        [System.Diagnostics.CodeAnalysis.SuppressMessage("Security", "CA5393:安全でない DllImportSearchPath 値を使用しない", Justification = "<保留中>")]
         internal static extern int ftl_ingest_send_media_dts(
             [In] IntPtr ftl_handle,
             [In] MediaType media_type,
@@ -203,6 +217,7 @@ namespace Momiji.Interop.Ftl
         //FTL_API ftl_status_t ftl_ingest_get_status(ftl_handle_t* ftl_handle, ftl_status_msg_t* msg, int ms_timeout);
         [DllImport(Libraries.Ftl, CallingConvention = CallingConvention.Cdecl)]
         [DefaultDllImportSearchPaths(DllImportSearchPath.UserDirectories | DllImportSearchPath.UseDllDirectoryForDependencies)]
+        [System.Diagnostics.CodeAnalysis.SuppressMessage("Security", "CA5393:安全でない DllImportSearchPath 値を使用しない", Justification = "<保留中>")]
         internal static extern Status ftl_ingest_get_status(
             [In] IntPtr ftl_handle,
             [In] IntPtr msg,
@@ -214,6 +229,7 @@ namespace Momiji.Interop.Ftl
         //FTL_API ftl_status_t ftl_ingest_disconnect(ftl_handle_t* ftl_handle);
         [DllImport(Libraries.Ftl, CallingConvention = CallingConvention.Cdecl)]
         [DefaultDllImportSearchPaths(DllImportSearchPath.UserDirectories | DllImportSearchPath.UseDllDirectoryForDependencies)]
+        [System.Diagnostics.CodeAnalysis.SuppressMessage("Security", "CA5393:安全でない DllImportSearchPath 値を使用しない", Justification = "<保留中>")]
         internal static extern Status ftl_ingest_disconnect(
             [In] IntPtr ftl_handle
         );
@@ -221,6 +237,7 @@ namespace Momiji.Interop.Ftl
         //FTL_API ftl_status_t ftl_ingest_destroy(ftl_handle_t* ftl_handle);
         [DllImport(Libraries.Ftl, CallingConvention = CallingConvention.Cdecl)]
         [DefaultDllImportSearchPaths(DllImportSearchPath.UserDirectories | DllImportSearchPath.UseDllDirectoryForDependencies)]
+        [System.Diagnostics.CodeAnalysis.SuppressMessage("Security", "CA5393:安全でない DllImportSearchPath 値を使用しない", Justification = "<保留中>")]
         internal static extern Status ftl_ingest_destroy(
             [In] IntPtr ftl_handle
         );
@@ -241,7 +258,6 @@ namespace Momiji.Interop.Ftl
         uint64_t max_encoding_bitrate
     );
     */
-#pragma warning restore IDE1006 // 命名スタイル
     }
 
     [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Ansi)]
@@ -341,8 +357,8 @@ namespace Momiji.Interop.Ftl
         speed_test_t;
     */
 
+}
+
 #pragma warning restore CA1051 // 参照可能なインスタンス フィールドを宣言しません
 #pragma warning restore CA1815 // equals および operator equals を値型でオーバーライドします
-#pragma warning restore CA1717 // FlagsAttribute 列挙型のみが複数形の名前を含んでいなければなりません
 #pragma warning restore CA1707 // 識別子はアンダースコアを含むことはできません
-}

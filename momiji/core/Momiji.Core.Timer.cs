@@ -6,7 +6,7 @@ namespace Momiji.Core
 {
     public class Timer : IDisposable
     {
-        private bool disposed = false;
+        private bool disposed;
         
         private double StartUsec { get; }
 
@@ -60,7 +60,7 @@ namespace Momiji.Core
 
     public class Waiter : IDisposable
     {
-        private bool disposed = false;
+        private bool disposed;
 
         private Timer Timer { get; }
         private double Interval { get; }

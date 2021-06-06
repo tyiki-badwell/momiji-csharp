@@ -1,7 +1,7 @@
 ﻿namespace Momiji.Core.WebMidi
 {
-#pragma warning disable CA1815 // equals および operator equals を値型でオーバーライドします
-#pragma warning disable CA1051 // 参照可能なインスタンス フィールドを宣言しません
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("Performance", "CA1815:equals および operator equals を値型でオーバーライドします", Justification = "<保留中>")]
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("Design", "CA1051:参照可能なインスタンス フィールドを宣言しません", Justification = "<保留中>")]
     public struct MIDIMessageEvent
     {
         public double receivedTime;
@@ -11,11 +11,11 @@
         public byte data3;
     }
 
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("Performance", "CA1815:equals および operator equals を値型でオーバーライドします", Justification = "<保留中>")]
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("Design", "CA1051:参照可能なインスタンス フィールドを宣言しません", Justification = "<保留中>")]
     public struct MIDIMessageEvent2
     {
         public MIDIMessageEvent midiMessageEvent;
         public double receivedTimeUSec;
     }
-#pragma warning restore CA1051 // 参照可能なインスタンス フィールドを宣言しません
-#pragma warning restore CA1815 // equals および operator equals を値型でオーバーライドします
 }

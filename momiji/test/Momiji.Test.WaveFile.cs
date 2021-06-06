@@ -16,17 +16,20 @@ namespace Momiji.Test
         private ILoggerFactory LoggerFactory { get; }
         private ILogger Logger { get; }
 
-        private bool disposed = false;
+        private bool disposed;
 
         private readonly FileStream file;
         private readonly BinaryWriter writer;
-
+        [System.Diagnostics.CodeAnalysis.SuppressMessage("CodeQuality", "IDE0052:読み取られていないプライベート メンバーを削除", Justification = "<保留中>")]
         private readonly long riffSizePosition;
+        [System.Diagnostics.CodeAnalysis.SuppressMessage("CodeQuality", "IDE0052:読み取られていないプライベート メンバーを削除", Justification = "<保留中>")]
         private readonly long dataSizePosition;
+        [System.Diagnostics.CodeAnalysis.SuppressMessage("CodeQuality", "IDE0052:読み取られていないプライベート メンバーを削除", Justification = "<保留中>")]
         private uint size;
         
         private Task processTask;
 
+        [System.Diagnostics.CodeAnalysis.SuppressMessage("Usage", "CA1801:使用されていないパラメーターの確認", Justification = "<保留中>")]
         public WaveFile(
             uint deviceID,
             ushort channels,
@@ -93,8 +96,8 @@ namespace Momiji.Test
 
                 writer.Flush();
 
+                /*
                 var fileSize = file.Position;
-/*
                 file.Seek(riffSizePosition, SeekOrigin.Begin);
                 writer.Write(fileSize - 8);
                 writer.Flush();
@@ -146,7 +149,7 @@ namespace Momiji.Test
                     inputReleaseQueue.Post(data);
                 }
                 Logger.LogInformation("[wave] loop end");
-            }).ConfigureAwait(false);
+            }, ct).ConfigureAwait(false);
         }
     }
 }

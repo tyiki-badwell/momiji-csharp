@@ -3,139 +3,191 @@
 (() => {
 
     const navigationStart = window.performance.timing.navigationStart;
-    
-    const queue = [];
-    const ms = new MediaSource();
-    var sb;
 
-    const mimeCodec = 'audio/webm; codecs="opus';
-    if (MediaSource.isTypeSupported(mimeCodec)) {
-        ms.addEventListener('sourceopen', (e) => {
-            console.log(e);
-            sb = ms.addSourceBuffer(mimeCodec);
-            sb.addEventListener('update', (e) => {
-                console.log(e);
-/*                if (queue.length > 0) {
-                    e.target.appendBuffer(queue.shift());
-                }*/
-            });
-            sb.addEventListener('abort', (e) => {
-                console.log(e);
-            });
-            sb.addEventListener('error', (e) => {
-                console.log(e);
-            });
-            sb.addEventListener('updatestart', (e) => {
-                console.log(e);
-            });
-            sb.addEventListener('updateend', (e) => {
-                console.log(e);
-            });
-
-            const audio = document.querySelector('#audio-area');
-            if (audio) {
-                audio.srcObject = ms;
-                audio.play();
-            }
-
-        });
-        ms.addEventListener('sourceended', (e) => {
-            console.log(e);
-        });
-        ms.addEventListener('sourceclose', (e) => {
-            console.log(e);
-        });
-    }
-    
-    const ws = new WebSocket(((document.location.protocol === 'https:') ? 'wss://' : 'ws://') + document.location.host + '/ws');
-    ws.addEventListener('close', (e) => {
-        console.log(e);
-    });
-    ws.addEventListener('open', (e) => {
-        console.log(e);
-    });
-    ws.addEventListener('message', (e) => {
-        if (!sb) return;
-
-        if (queue.length > 100) return;
-
-        const fr = new FileReader();
-        fr.addEventListener('load', (e) => {
-            //queue.push(e.target.result);
-            if (sb) sb.appendBuffer(e.target.result);
-            /*
-            ac.decodeAudioData(e.target.result)
-                .then((buffer) => {
-                    console.log(buffer);
-                })
-                .catch((err) => {
-                    console.log(err);
-                });*/
-        });
-        fr.readAsArrayBuffer(e.data);
-    });
-
+    var ws; 
 
     const buf = new ArrayBuffer(Float64Array.BYTES_PER_ELEMENT + Uint8Array.BYTES_PER_ELEMENT * 4);
     const view = new DataView(buf);
 
-    function send(t, m1, m2, m3) {
+    //websocket binaly send
+    async function send(t, m1, m2, m3) {
+        if (!ws) {
+            console.log("disconnected.");
+            return;
+        }
         view.setFloat64(0, t, true);
         view.setUint8(8, Number(m1), true);
         view.setUint8(9, Number(m2), true);
         view.setUint8(10, Number(m3), true);
         view.setUint8(11, 0, true);
-        ws.send(buf);
+        await ws.send(buf);
     }
 
-    /*
-    var pool = [];
-    window.setInterval(() => {
-        if (pool.length > 0) {
-            var temp = pool;
-            pool = [];
-
-            fetch('/Operate/Note', {
-                method: 'POST',
-                headers: {
-                    "Content-Type": "application/json; charset=utf-8"
-                },
-                body: JSON.stringify(temp),
-                mode: "same-origin",
-                credentials: "same-origin",
-                redirect: "error",
-                referrer: "client"
-            });
-            console.log(temp);
+    async function sendCommand(command) {
+        if (!ws) {
+            console.log("disconnected.");
+            return;
         }
-    }, 1);
-    */
+        await ws.send(JSON.stringify({ 'type': command }));
+    }
 
-    window.onload = function () {
-        document.querySelectorAll('input').forEach((i) => {
-            i.onclick = function () {
-                send(
-                    navigationStart + window.performance.now(),
-                    Number(this.dataset.shortMessage1),
-                    Number(this.dataset.shortMessage2),
-                    Number(this.dataset.shortMessage3)
-                );
+    async function setupPeer(offerSdp) {
+        var peer = new RTCPeerConnection(null);
 
-                /*
-                window.mixertest.pool.push(
-                    {
-                        "receivedTime": window.performance.timing.navigationStart + window.performance.now(),
-                        "data": [
-                            Number(this.dataset.shortMessage1),
-                            Number(this.dataset.shortMessage2),
-                            Number(this.dataset.shortMessage3),
-                            Number(0)
-                        ]
-                    }
-                );*/
+        peer.addEventListener('connectionstatechange', async (e) => {
+            console.log(e);
+        });
+        peer.addEventListener('icecandidate', async (e) => {
+            console.log(e);
+        });
+        peer.addEventListener('iceconnectionstatechange', async (e) => {
+            console.log(e);
+        });
+        peer.addEventListener('icegatheringstatechange', async (e) => {
+            console.log(e);
+        });
+        peer.addEventListener('negotiationneeded', async (e) => {
+            console.log(e);
+        });
+        peer.addEventListener('signalingstatechange', async (e) => {
+            console.log(e);
+        });
+
+        peer.addEventListener('track', async (e) => {
+            console.log(e);
+
+            var stream = e.streams[0];
+            stream.addEventListener('addtrack', async (e) => {
+                console.log(e);
+            });
+            stream.addEventListener('removetrack', async (e) => {
+                console.log(e);
+            });
+
+            const video = document.getElementById('video-area');
+            video.srcObject = stream;
+            video.play();
+        });
+
+        peer.setRemoteDescription(new RTCSessionDescription(offerSdp)).then(async (e) => {
+            console.log(e);
+            peer.createAnswer().then(async (answer) => {
+                console.log(answer);
+                peer.setLocalDescription(answer);
+                ws.send(JSON.stringify(answer));
+            }).catch(async (e) => {
+                console.log(e);
+            });
+        }).catch(async (e) => {
+            console.log(e);
+        });
+
+        return peer;
+    }
+
+    async function setupWs() {
+
+        if (ws) {
+            console.log("already connected.");
+            return;
+        }
+
+        var peer;
+
+        ws = new WebSocket(((document.location.protocol === 'https:') ? 'wss://' : 'ws://') + document.location.host + '/ws');
+        ws.addEventListener('open', async (e) => {
+            console.log(e);
+
+            //こちらからは繋ぎに行かない
+            /*
+            peer.createOffer().then(async (offer) => {
+                console.log(offer);
+                return peer.setLocalDescription(offer);
+            }).then(async () => {
+                console.log("offer end");
+                ws.send(JSON.stringify(peer.localDescription));
+            }).catch(async (e) => {
+                console.log(e);
+            });
+            */
+        });
+        ws.addEventListener('close', async (e) => {
+            console.log(e);
+            ws = null;
+
+            if (peer) {
+                peer.close();
+                peer = null;
             }
         });
 
+        ws.addEventListener('message', async (e) => {
+            console.log(e);
+
+            let param = JSON.parse(e.data);
+
+            if (param.type === 'offer') {
+                peer = await setupPeer(param);
+
+            } else if (param.type === 'ice') {
+                //
+            }
+        });
+
+    } 
+
+    window.onload = function () {
+
+        document.querySelectorAll('input.rtc').forEach((i) => {
+            i.addEventListener('click', async (e) => {
+
+                const localVideo = document.getElementById('video-area-local');
+                if (localVideo) {
+                    const mediaConstraints = {
+                        'video': false,
+                        'audio': true
+                    }
+
+                    try {
+                        const localStream = await navigator.mediaDevices.getUserMedia(mediaConstraints);
+                        localVideo.srcObject = localStream;
+
+                    } catch (e) {
+                        console.log(e);
+                    }
+                }
+
+            });
+        });
+
+        // Runner control
+        document.querySelectorAll('input.control').forEach((i) => {
+            i.addEventListener('click', async (e) => {
+                await sendCommand(e.currentTarget.dataset.control);
+            });
+        });
+
+        //websocket start
+        document.querySelectorAll('input.ws').forEach((i) => {
+            i.addEventListener('click', async (e) => {
+                await setupWs();
+            });
+        });
+
+        //non midi control
+        document.querySelectorAll('input.key').forEach((i) => {
+            i.addEventListener('click', async (e) => {
+                var d = e.currentTarget.dataset;
+                send(
+                    navigationStart + window.performance.now(),
+                    Number(d.shortMessage1),
+                    Number(d.shortMessage2),
+                    Number(d.shortMessage3)
+                );
+            });
+        });
+
+        //midi control
         if (navigator.requestMIDIAccess) {
             const midioutSelect = document.querySelector('#midiout');
             {
@@ -144,7 +196,7 @@
                 midioutSelect.appendChild(option);
             }
 
-            navigator.requestMIDIAccess({ sysex: false }).then((midi) => {
+            navigator.requestMIDIAccess().then((midi) => {
                 midi.inputs.forEach((input) => {
                     const option = document.createElement("option");
                     option.text = input.name;
@@ -154,7 +206,7 @@
             });
 
             midioutSelect.addEventListener("change", (event) => {
-                navigator.requestMIDIAccess({ sysex: false }).then((midi) => {
+                navigator.requestMIDIAccess().then((midi) => {
                     midi.inputs.forEach((input) => {
                         if (event.target.value === input.id) {
                             input.open();
@@ -165,12 +217,6 @@
                                     (short.data.length > 1) ? short.data[1] : 0,
                                     (short.data.length > 2) ? short.data[2] : 0
                                 );
-
-                                /*
-                                pool.push({
-                                    "receivedTime": navigationStart + (short.receivedTime || short.timeStamp),
-                                    "data": Array.from(short.data)
-                                });*/
                             }
                         } else {
                             input.onmidimessage = undefined;

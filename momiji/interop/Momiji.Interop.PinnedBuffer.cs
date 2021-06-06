@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Collections.ObjectModel;
 using System.Runtime.InteropServices;
 
 namespace Momiji.Interop
@@ -25,23 +26,27 @@ namespace Momiji.Interop
 
         public void Marge(BufferLog source)
         {
+            if (source == null)
+            {
+                throw new ArgumentNullException(paramName: nameof(source));
+            }
             Marge(source.Log);
         }
 
-        public void Marge(List<(string, double)> source)
+        public void Marge(IEnumerable<(string, double)> source)
         {
             Clear();
             Log.InsertRange(0, source);
         }
 
-        public List<(string label, double time)> Copy()
+        public void ForEach(Action<(string label, double time)> action)
         {
-            return new List<(string, double)>(Log);
+            Log.ForEach(action);
         }
 
         public double GetSpentTime()
         {
-            return Log[Log.Count - 1].time - Log[0].time;
+            return Log[^1].time - Log[0].time;
         }
 
         public double GetFirstTime()
@@ -52,7 +57,7 @@ namespace Momiji.Interop
 
     public class PinnedBuffer<T> : IDisposable
     {
-        private bool disposed = false;
+        private bool disposed;
         private GCHandle handle;
 
         public PinnedBuffer(T buffer)
@@ -113,15 +118,17 @@ namespace Momiji.Interop
         {
             if (disposing)
             {
-                Log.Clear();
+                Log?.Clear();
+                Log = null;
             }
             base.Dispose(disposing);
         }
     }
 
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("Naming", "CA1711:識別子は、不適切なサフィックスを含むことはできません", Justification = "<保留中>")]
     public class PinnedDelegate<T> : IDisposable where T : class
     {
-        private bool disposed = false;
+        private bool disposed;
         private GCHandle handle;
 
         public PinnedDelegate(T buffer)

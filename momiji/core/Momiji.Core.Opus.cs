@@ -36,7 +36,7 @@ namespace Momiji.Core.Opus
         private ILogger Logger { get; }
         private Timer Timer { get; }
 
-        private bool disposed = false;
+        private bool disposed;
         private Encoder encoder;
 
         public OpusEncoder(

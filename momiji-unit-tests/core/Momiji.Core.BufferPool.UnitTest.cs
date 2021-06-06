@@ -17,7 +17,8 @@ namespace Momiji.Core
         [Fact]
         public void Test1()
         {
-            using var test = new BufferPool<DummyItem>(1, ()=> new DummyItem(), new LoggerFactory());
+            using var loggerFactory = new LoggerFactory();
+            using var test = new BufferPool<DummyItem>(1, ()=> new DummyItem(), loggerFactory);
         }
     }
 }

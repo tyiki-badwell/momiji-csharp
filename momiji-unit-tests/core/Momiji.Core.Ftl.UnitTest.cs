@@ -1,5 +1,4 @@
 using Microsoft.Extensions.Configuration;
-using static Microsoft.Extensions.Configuration.ConfigurationExtensions;
 using Microsoft.Extensions.Logging;
 using Momiji.Core.Ftl;
 using Xunit;
@@ -27,6 +26,7 @@ namespace Momiji.Core
                 .AddUserSecrets<FtlUnitTest>()
                 .Build();
             var streamKey = configuration["MIXER_STREAM_KEY"];
+            var ingestHostname = configuration["MIXER_INGEST_HOSTNAME"];
             var mixerApiClientId = configuration["MIXER_USER_NAME"];
 
             using var loggerFactory = LoggerFactory.Create(builder => {
@@ -37,10 +37,9 @@ namespace Momiji.Core
                 builder.AddDebug();
             });
             using var timer = new Timer();
+            using var dllManager = new DllManager(configuration, loggerFactory);
 
-            Dll.Setup(configuration, loggerFactory);
-
-            using var ftl = new FtlIngest(streamKey, loggerFactory, timer, true, mixerApiClientId);
+            using var ftl = new FtlIngest(streamKey, ingestHostname, loggerFactory, timer, 1000, 1000, true, mixerApiClientId);
             ftl.Connect();
 
         }
