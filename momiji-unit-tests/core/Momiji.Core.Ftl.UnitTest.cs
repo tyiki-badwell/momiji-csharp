@@ -40,7 +40,7 @@ namespace Momiji.Core
             using var dllManager = new DllManager(configuration, loggerFactory);
 
             using var ftl = new FtlIngest(streamKey, ingestHostname, loggerFactory, timer, 1000, 1000, true, mixerApiClientId);
-            ftl.Connect();
+            //ftl.Connect();
 
         }
     }
