@@ -71,14 +71,14 @@ namespace mixerTest
         {
             if (Param.Local)
             {
-                await Loop5().ConfigureAwait(false);
+                await RunLocal().ConfigureAwait(false);
             }
             else
             {
-                await Loop4().ConfigureAwait(false);
+                await RunConnect().ConfigureAwait(false);
             }
         }
-        private async Task Loop5()
+        private async Task RunLocal()
         {
             var ct = ProcessCancel.Token;
             var taskSet = new HashSet<Task>();
@@ -209,11 +209,9 @@ namespace mixerTest
 
             while (taskSet.Count > 0)
             {
-                var any = Task.WhenAny(taskSet);
-                await any.ConfigureAwait(false);
-                any.Wait();
-                var task = any.Result;
+                var task = await Task.WhenAny(taskSet).ConfigureAwait(false);
                 taskSet.Remove(task);
+                await task.ConfigureAwait(false);
                 if (task.IsFaulted)
                 {
                     ProcessCancel.Cancel();
@@ -222,7 +220,7 @@ namespace mixerTest
             }
         }
 
-        private async Task Loop4()
+        private async Task RunConnect()
         {
             var ct = ProcessCancel.Token;
             var taskSet = new HashSet<Task>();
@@ -351,11 +349,9 @@ namespace mixerTest
 
             while (taskSet.Count > 0)
             {
-                var any = Task.WhenAny(taskSet);
-                await any.ConfigureAwait(false);
-                any.Wait();
-                var task = any.Result;
+                var task = await Task.WhenAny(taskSet).ConfigureAwait(false);
                 taskSet.Remove(task);
+                await task.ConfigureAwait(false);
                 if (task.IsFaulted)
                 {
                     ProcessCancel.Cancel();

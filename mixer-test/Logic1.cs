@@ -22,7 +22,7 @@ using System.Threading.Tasks.Dataflow;
 
 namespace mixerTest
 {
-    public class Logic2
+    public class Logic1
     {
         private IConfiguration Configuration { get; }
         private ILoggerFactory LoggerFactory { get; }
@@ -38,7 +38,7 @@ namespace mixerTest
         private BufferBlock<MIDIMessageEvent2> MidiEventInput { get; }
         private BufferBlock<MIDIMessageEvent2> MidiEventOutput { get; }
 
-        public Logic2(
+        public Logic1(
             IConfiguration configuration,
             ILoggerFactory loggerFactory,
             IDllManager dllManager,
@@ -76,7 +76,7 @@ namespace mixerTest
             }
             else
             {
-                await RunConnect().ConfigureAwait(false);
+                //await RunConnect().ConfigureAwait(false);
             }
         }
 

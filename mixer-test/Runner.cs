@@ -189,7 +189,8 @@ namespace mixerTest
 
             try
             {
-                var task = new Logic2(Configuration, LoggerFactory, DllManager, Param, midiEventInput, midiEventOutput, processCancel).Run();
+                var task = new Logic1(Configuration, LoggerFactory, DllManager, Param, midiEventInput, midiEventOutput, processCancel).Run();
+                //var task = new Logic2(Configuration, LoggerFactory, DllManager, Param, midiEventInput, midiEventOutput, processCancel).Run();
                 //var task = new Logic4(Configuration, LoggerFactory, DllManager, Param, midiEventInput, midiEventOutput, processCancel).Run();
 
                 wsBroadcaster.Post("run");
