@@ -15,8 +15,8 @@ namespace mixerTest
 {
     public interface IRunner
     {
-        bool Start();
-        bool Cancel();
+        Task<bool> Start();
+        Task<bool> Cancel();
 
         //void Note(MIDIMessageEvent[] midiMessage);
         Task AcceptWebSocket(WebSocket webSocket);
@@ -124,7 +124,7 @@ namespace mixerTest
             disposed = true;
         }
 
-        public bool Start()
+        public async Task<bool> Start()
         {
             //TODO make thread safe
 
@@ -141,7 +141,7 @@ namespace mixerTest
         }
 
 
-        public bool Cancel()
+        public async Task<bool> Cancel()
         {
             //TODO make thread safe
 
@@ -162,14 +162,7 @@ namespace mixerTest
                     Logger.LogInformation(e, "[home] Process Cancel Exception");
                 }
 
-                try
-                {
-                    processTask.Wait();
-                }
-                catch (AggregateException e)
-                {
-                    Logger.LogInformation(e, "[home] Process Task Exception");
-                }
+                await processTask.ConfigureAwait(false);
             }
             finally
             {
@@ -196,6 +189,10 @@ namespace mixerTest
                 wsBroadcaster.Post("run");
 
                 await task.ConfigureAwait(false);
+            }
+            catch (TaskCanceledException e)
+            {
+                Logger.LogInformation("TaskCanceled");
             }
             catch (Exception e)
             {

@@ -16,9 +16,13 @@ using System.Collections.Generic;
 using System.IO;
 using System.Net.WebSockets;
 using System.Reflection;
+using System.Runtime.InteropServices;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Threading.Tasks.Dataflow;
+using Windows.Media.Audio;
+using Windows.Media.MediaProperties;
+using WinRT;
 
 namespace mixerTest
 {
@@ -250,10 +254,96 @@ namespace mixerTest
             }
         }
 
+        [ComImport]
+        [Guid("5B0D3235-4DBA-4D44-865E-8F1D0E4FD04D")]
+        [InterfaceType(ComInterfaceType.InterfaceIsIUnknown)]
+        unsafe interface IMemoryBufferByteAccess
+        {
+            void GetBuffer(out byte* buffer, out uint capacity);
+        }
+
+        private double audioWaveTheta = 0;
+
         private async Task RunLocal()
         {
             var ct = ProcessCancel.Token;
             var taskSet = new HashSet<Task>();
+
+            var devices = await Windows.Devices.Enumeration.DeviceInformation.FindAllAsync(Windows.Media.Devices.MediaDevice.GetAudioRenderSelector());
+
+
+            AudioGraph audioGraph = null;
+            {
+                var settings = new AudioGraphSettings(Windows.Media.Render.AudioRenderCategory.Media)
+                {
+                    QuantumSizeSelectionMode = QuantumSizeSelectionMode.LowestLatency,
+                    DesiredSamplesPerQuantum = 1000,
+                    AudioRenderCategory = Windows.Media.Render.AudioRenderCategory.GameMedia,
+                    MaxPlaybackSpeedFactor = 1,
+                    DesiredRenderDeviceAudioProcessing = Windows.Media.AudioProcessing.Raw
+                };
+
+                var result = await AudioGraph.CreateAsync(settings);
+                if (result.Status != AudioGraphCreationStatus.Success)
+                {
+                    throw new Exception("create failed.", result.ExtendedError);
+                }
+                audioGraph = result.Graph;
+            }
+            Logger.LogInformation($"[loop3] audioGraph.SamplesPerQuantum {audioGraph.SamplesPerQuantum}");
+            Logger.LogInformation($"[loop3] audioGraph.LatencyInSamples {audioGraph.LatencyInSamples}");
+
+            AudioDeviceOutputNode outNode = null;
+            {
+                var result = await audioGraph.CreateDeviceOutputNodeAsync();
+                if (result.Status != AudioDeviceNodeCreationStatus.Success)
+                {
+                    throw new Exception("create failed.", result.ExtendedError);
+                }
+                outNode = result.DeviceOutputNode;
+            }
+
+            AudioFrameInputNode inNode = null;
+            {
+                var prop = AudioEncodingProperties.CreatePcm((uint)Param.SamplingRate, 2, sizeof(float) * 8);
+                inNode = audioGraph.CreateFrameInputNode(prop);
+                inNode.Stop();
+                inNode.QuantumStarted += (AudioFrameInputNode sender, FrameInputNodeQuantumStartedEventArgs args) =>
+                {
+                    var samples = (uint)args.RequiredSamples;
+
+                    var bufferSize =samples * sizeof(float);
+                    var frame = new Windows.Media.AudioFrame(bufferSize);
+
+                    using (var buffer = frame.LockBuffer(Windows.Media.AudioBufferAccessMode.Write))
+                    using (var reference = buffer.CreateReference())
+                    {
+                        unsafe
+                        {
+                            reference.As<IMemoryBufferByteAccess>().GetBuffer(out byte* dataInBytes, out uint capacityInBytes);
+                            var dataInFloat = (float*)dataInBytes;
+                            float freq = 0.480f; // choosing to generate frequency of 1kHz
+                            float amplitude = 0.3f;
+                            int sampleRate = (int)audioGraph.EncodingProperties.SampleRate;
+                            double sampleIncrement = (freq * (Math.PI * 2)) / sampleRate;
+
+                            // Generate a 1kHz sine wave and populate the values in the memory buffer
+                            for (int i = 0; i < samples; i++)
+                            {
+                                double sinValue = amplitude * Math.Sin(audioWaveTheta);
+                                dataInFloat[i] = (float)sinValue;
+                                audioWaveTheta += sampleIncrement;
+                            }
+                        }
+                    }
+                    sender.AddFrame(frame);
+                };
+
+                inNode.AddOutgoingConnection(outNode);
+                inNode.Start();
+            }
+
+            audioGraph.Start();
 
             var blockSize = (int)(Param.SamplingRate * Param.SampleLength);
             var audioInterval = 1_000_000.0 * Param.SampleLength;
