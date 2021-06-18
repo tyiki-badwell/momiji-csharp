@@ -1,6 +1,8 @@
 ﻿using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
-using Momiji.Core;
+using Momiji.Core.Configuration;
+using Momiji.Core.Dll;
+using Momiji.Core.Timer;
 using Momiji.Core.WebMidi;
 using System;
 using System.Collections.Generic;
@@ -15,50 +17,20 @@ namespace mixerTest
 {
     public interface IRunner
     {
-        Task<bool> Start();
-        Task<bool> Cancel();
+        void Start();
+        void Cancel();
+        void OpenEditor();
+        void CloseEditor();
 
         //void Note(MIDIMessageEvent[] midiMessage);
         Task AcceptWebSocket(WebSocket webSocket);
     }
 
-    public class Param
+    public interface ILogic
     {
-        public int BufferCount { get; set; }
-        public bool Local { get; set; }
-        public bool Connect { get; set; }
-
-        public int Width { get; set; }
-        public int Height { get; set; }
-        public int TargetBitrate { get; set; }
-        public float MaxFrameRate { get; set; }
-        public int IntraFrameIntervalUs { get; set; }
-
-        public string EffectName { get; set; }
-        public int SamplingRate { get; set; }
-        public float SampleLength { get; set; }
-        /*
-         この式を満たさないとダメ
-         new_size = blockSize
-         Fs = samplingRate
-
-          if (frame_size<Fs/400)
-            return -1;
-          if (400*new_size!=Fs   && 200*new_size!=Fs   && 100*new_size!=Fs   &&
-              50*new_size!=Fs   &&  25*new_size!=Fs   &&  50*new_size!=3*Fs &&
-              50*new_size!=4*Fs &&  50*new_size!=5*Fs &&  50*new_size!=6*Fs)
-            return -1;
-
-        0.0025
-        0.005
-        0.01
-        0.02
-        0.04
-        0.06
-        0.08
-        0.1
-        0.12
-         */
+        Task RunAsync();
+        void OpenEditor();
+        void CloseEditor();
     }
 
     public class Runner : IRunner, IDisposable
@@ -67,17 +39,23 @@ namespace mixerTest
         private ILoggerFactory LoggerFactory { get; }
         private ILogger Logger { get; }
         private IDllManager DllManager { get; }
-        private Param Param { get; }
+        private Param Param { get; set; }
 
         private bool disposed;
+
+        private delegate void OnDispatch();
+        private readonly ActionBlock<OnDispatch> dispatcher = new((task) => { task(); });
+
         private CancellationTokenSource processCancel;
         private Task processTask;
         private readonly BufferBlock<MIDIMessageEvent2> midiEventInput = new();
         private readonly BufferBlock<MIDIMessageEvent2> midiEventOutput = new();
 
+        private ILogic logic;
+
         //private readonly IDictionary<WebSocket, int> webSocketPool = new ConcurrentDictionary<WebSocket, int>();
 
-        private BroadcastBlock<string> wsBroadcaster = new(null);
+        private readonly BroadcastBlock<string> wsBroadcaster = new(null);
         private CancellationTokenSource wsProcessCancel = new();
 
         //private BufferBlock<OpusOutputBuffer> audioOutput = new BufferBlock<OpusOutputBuffer>();
@@ -91,10 +69,10 @@ namespace mixerTest
             DllManager = dllManager;
 
             var param = new Param();
-            Configuration.GetSection("Param").Bind(param);
+            Configuration.GetSection(typeof(Param).FullName).Bind(param);
             Param = param;
 
-            //webSocketTask = WebSocketLoop();
+            BroadcastStatus("stop");
         }
         public void Dispose()
         {
@@ -120,77 +98,106 @@ namespace mixerTest
                 wsProcessCancel = null;
 
                 Cancel();
+
+                dispatcher.Complete();
+                dispatcher.Completion.Wait();
             }
             disposed = true;
         }
 
-        public async Task<bool> Start()
+        public void Start()
         {
-            //TODO make thread safe
-
-            if (processCancel != null)
+            dispatcher.Post(() =>
             {
-                Logger.LogInformation("[home] already started.");
-                return false;
-            }
-            processCancel = new CancellationTokenSource();
-            processTask = Loop();
+                if (processCancel != null)
+                {
+                    Logger.LogInformation("[home] already started.");
+                    return;
+                }
+                processCancel = new CancellationTokenSource();
+                processTask = Loop().ContinueWith((task)=> { Cancel(); }, TaskScheduler.Default);
 
-            Logger.LogInformation("[home] started.");
-            return true;
+                Logger.LogInformation("[home] started.");
+            });
         }
 
 
-        public async Task<bool> Cancel()
+        public void Cancel()
         {
-            //TODO make thread safe
-
-            if (processCancel == null)
+            dispatcher.Post(() =>
             {
-                Logger.LogInformation("[home] already stopped.");
-                return false;
-            }
+                if (processCancel == null)
+                {
+                    Logger.LogInformation("[home] already stopped.");
+                    return;
+                }
 
-            try
-            {
                 try
                 {
                     processCancel.Cancel();
+                    processTask.Wait();
                 }
                 catch (AggregateException e)
                 {
                     Logger.LogInformation(e, "[home] Process Cancel Exception");
                 }
-
-                await processTask.ConfigureAwait(false);
-            }
-            finally
-            {
-                processTask.Dispose();
-                processTask = null;
-                processCancel.Dispose();
-                processCancel = null;
-            }
-            Logger.LogInformation("[home] stopped.");
-            return true;
+                finally
+                {
+                    processTask?.Dispose();
+                    processTask = null;
+                    processCancel?.Dispose();
+                    processCancel = null;
+                }
+                Logger.LogInformation("[home] stopped.");
+            });
         }
+
+        public void OpenEditor()
+        {
+            dispatcher.Post(() =>
+            {
+                if (processCancel == null)
+                {
+                    Logger.LogInformation("[home] already stopped.");
+                    return;
+                }
+
+                logic.OpenEditor();
+            });
+        }
+
+        public void CloseEditor()
+        {
+            dispatcher.Post(() =>
+            {
+                if (processCancel == null)
+                {
+                    Logger.LogInformation("[home] already stopped.");
+                    return;
+                }
+
+                logic.CloseEditor();
+            });
+        }
+
         private async Task Loop()
         {
-
-            wsBroadcaster.Post("start");
+            BroadcastStatus("start");
             Logger.LogInformation("main loop start");
 
             try
             {
-                var task = new Logic1(Configuration, LoggerFactory, DllManager, Param, midiEventInput, midiEventOutput, processCancel).Run();
-                //var task = new Logic2(Configuration, LoggerFactory, DllManager, Param, midiEventInput, midiEventOutput, processCancel).Run();
-                //var task = new Logic4(Configuration, LoggerFactory, DllManager, Param, midiEventInput, midiEventOutput, processCancel).Run();
+                //logic = new Logic1(Configuration, LoggerFactory, DllManager, Param, midiEventInput, midiEventOutput, processCancel);
+                logic = new Logic2(Configuration, LoggerFactory, DllManager, Param, midiEventInput, midiEventOutput, processCancel);
+                //logic = new Logic4(Configuration, LoggerFactory, DllManager, Param, midiEventInput, midiEventOutput, processCancel);
 
-                wsBroadcaster.Post("run");
+                var task = logic.RunAsync();
+
+                BroadcastStatus("run");
 
                 await task.ConfigureAwait(false);
             }
-            catch (TaskCanceledException e)
+            catch (TaskCanceledException)
             {
                 Logger.LogInformation("TaskCanceled");
             }
@@ -201,7 +208,7 @@ namespace mixerTest
             }
             finally
             {
-                wsBroadcaster.Post("end");
+                BroadcastStatus("stop");
                 Logger.LogInformation("main loop end");
             }
         }
@@ -221,10 +228,31 @@ namespace mixerTest
                     $"{midiEvent.data2:X2}" +
                     $"{midiEvent.data3:X2}"
                 );
-                midiEventInput.SendAsync(midiEvent);
+                midiEventInput.Post(midiEvent);
             }
         }
         */
+
+        private void BroadcastStatus(string status)
+        {
+            var param = new Dictionary<string, object>
+            {
+                ["type"] = "status",
+                ["value"] = status
+            };
+
+            wsBroadcaster.Post(JsonSerializer.Serialize(param, new JsonSerializerOptions()));
+        }
+
+        private static async Task SendWebsocketAsync(WebSocket webSocket, IDictionary<string, object> param, CancellationToken ct)
+        {
+            await SendWebsocketAsync(webSocket, JsonSerializer.Serialize(param, new JsonSerializerOptions()), ct).ConfigureAwait(false);
+        }
+        private static async Task SendWebsocketAsync(WebSocket webSocket, string param, CancellationToken ct)
+        {
+            var bytes = Encoding.UTF8.GetBytes(param);
+            await webSocket.SendAsync(bytes, WebSocketMessageType.Text, true, ct).ConfigureAwait(false);
+        }
 
         public async Task AcceptWebSocket(WebSocket webSocket)
         {
@@ -237,16 +265,22 @@ namespace mixerTest
 
             var ct = wsProcessCancel.Token;
 
-            var actionBlock = new ActionBlock<string>(message => {
-                var bytes = Encoding.UTF8.GetBytes(message);
-                webSocket.SendAsync(bytes, WebSocketMessageType.Text, true, ct);
-            });
-            wsBroadcaster.LinkTo(actionBlock);
-
             try
             {
-                using var timer = new Momiji.Core.Timer();
+                using var unlink = wsBroadcaster.LinkTo(new ActionBlock<string>(async message =>
+                {
+                    await SendWebsocketAsync(webSocket, message, ct).ConfigureAwait(false);
+                }));
+
+                using var lapTimer = new LapTimer();
                 var buf = WebSocket.CreateServerBuffer(1024);
+
+                await SendWebsocketAsync(webSocket, new Dictionary<string, object>
+                {
+                    ["type"] = "param",
+                    ["param"] = Param
+                }, ct).ConfigureAwait(false);
+
                 while (webSocket.State == WebSocketState.Open)
                 {
                     if (ct.IsCancellationRequested)
@@ -274,47 +308,67 @@ namespace mixerTest
                         );*/
                         MIDIMessageEvent2 midiEvent2;
                         midiEvent2.midiMessageEvent = midiEvent;
-                        midiEvent2.receivedTimeUSec = timer.USecDouble;
-                        await midiEventInput.SendAsync(midiEvent2).ConfigureAwait(false);
-                        await midiEventOutput.SendAsync(midiEvent2).ConfigureAwait(false);
+                        midiEvent2.receivedTimeUSec = lapTimer.USecDouble;
+                        midiEventInput.Post(midiEvent2);
+                        midiEventOutput.Post(midiEvent2);
                     }
                     else if (result.MessageType == WebSocketMessageType.Text)
                     {
                         var text = Encoding.UTF8.GetString(buf.Array, 0, result.Count).Trim();
                         Logger.LogInformation($"[web socket] text [{text}]");
 
-                        var param = JsonSerializer.Deserialize<Dictionary<string, string>>(text);
-                        var type = param["type"];
+                        var json = JsonSerializer.Deserialize<IDictionary<string, JsonElement>>(text);
+                        var type = json["type"].GetString();
+                        Logger.LogInformation($"[web socket] type = {type}.");
 
                         if (type == "start")
                         {
-                            Logger.LogInformation($"[web socket] type = {type}.");
                             Start();
                         }
                         else if (type == "cancel")
                         {
-                            Logger.LogInformation($"[web socket] type = {type}.");
                             Cancel();
+                        }
+                        else if (type == "openeditor")
+                        {
+                            OpenEditor();
+                        }
+                        else if (type == "closeeditor")
+                        {
+                            CloseEditor();
                         }
                         else if (type == "close")
                         {
-                            Logger.LogInformation($"[web socket] type = {type}.");
-
                             await webSocket.CloseAsync(WebSocketCloseStatus.NormalClosure, "close request", ct).ConfigureAwait(false);
                             break;
                         }
+                        else if (type == "read")
+                        {
+                            await SendWebsocketAsync(webSocket, new Dictionary<string, object>
+                            {
+                                ["type"] = "param",
+                                ["param"] = Param
+                            }, ct).ConfigureAwait(false);
+                        }
+                        else if (type == "write")
+                        {
+                            var paramJson = json["param"].GetRawText();
+                            var options = new JsonSerializerOptions()
+                            {
+                                NumberHandling = System.Text.Json.Serialization.JsonNumberHandling.AllowReadingFromString
+                            };
+
+                            var param = JsonSerializer.Deserialize<Param>(paramJson, options);
+                            Param = param;
+                        }
                         else if (type == "offer")
                         {
-                            Logger.LogInformation($"[web socket] type = {type}.");
-
-                            var sdp = param["sdp"];
+                            var sdp = json["sdp"];
                             Logger.LogInformation($"[web socket] sdp = {sdp}");
                         }
                         else if (type == "answer")
                         {
-                            Logger.LogInformation($"[web socket] type = {type}.");
-
-                            var sdp = param["sdp"];
+                            var sdp = json["sdp"];
                             Logger.LogInformation($"[web socket] sdp = {sdp}");
                         }
                     }
@@ -331,8 +385,6 @@ namespace mixerTest
             }
             finally
             {
-                //Linkをはがす
-                actionBlock.Complete();
                 Logger.LogInformation("[web socket] end");
             }
         }

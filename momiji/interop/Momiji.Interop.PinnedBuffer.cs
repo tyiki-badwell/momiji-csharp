@@ -1,9 +1,8 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Collections.ObjectModel;
 using System.Runtime.InteropServices;
 
-namespace Momiji.Interop
+namespace Momiji.Interop.Buffer
 {
     public class BufferLog
     {
@@ -44,12 +43,12 @@ namespace Momiji.Interop
             Log.ForEach(action);
         }
 
-        public double GetSpentTime()
+        public double SpentTime()
         {
             return Log[^1].time - Log[0].time;
         }
 
-        public double GetFirstTime()
+        public double FirstTime()
         {
             return Log[0].time;
         }
@@ -102,26 +101,6 @@ namespace Momiji.Interop
             {
                 return handle.AddrOfPinnedObject();
             }
-        }
-    }
-
-    public class PinnedBufferWithLog<T> : PinnedBuffer<T> where T : class
-    {
-        public BufferLog Log { get; private set; }
-
-        public PinnedBufferWithLog(T buffer) : base(buffer)
-        {
-            Log = new BufferLog();
-        }
-
-        protected override void Dispose(bool disposing)
-        {
-            if (disposing)
-            {
-                Log?.Clear();
-                Log = null;
-            }
-            base.Dispose(disposing);
         }
     }
 

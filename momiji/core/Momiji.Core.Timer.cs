@@ -1,30 +1,33 @@
 ﻿using System;
 using System.Diagnostics;
 using System.Threading;
+using System.Threading.Tasks;
 
-namespace Momiji.Core
+namespace Momiji.Core.Timer
 {
-    public class Timer : IDisposable
+    public class LapTimer : IDisposable
     {
         private bool disposed;
-        
+
         private double StartUsec { get; }
 
         private Stopwatch stopwatch;
 
-        public Timer()
+        public LapTimer()
         {
             StartUsec = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds() * 1000.0;
             stopwatch = Stopwatch.StartNew();
         }
 
-        ~Timer()
+        ~LapTimer()
         {
             Dispose(false);
         }
 
-        public long USec {
-            get {
+        public long USec
+        {
+            get
+            {
                 return (long)USecDouble;
             }
         }
@@ -62,19 +65,15 @@ namespace Momiji.Core
     {
         private bool disposed;
 
-        private Timer Timer { get; }
+        private LapTimer LapTimer { get; }
         private double Interval { get; }
-        private CancellationToken Ct { get; }
         private double Before;
-        private SemaphoreSlim S { get; set; }
 
-        public Waiter(Timer timer, double interval, CancellationToken ct)
+        public Waiter(LapTimer lapTimer, double interval)
         {
-            Timer = timer ?? throw new ArgumentNullException(nameof(timer));
+            LapTimer = lapTimer ?? throw new ArgumentNullException(nameof(lapTimer));
             Interval = interval;
-            Ct = ct;
-            Before = Timer.USecDouble;
-            S = new SemaphoreSlim(1);
+            Before = LapTimer.USecDouble;
         }
 
         ~Waiter()
@@ -96,25 +95,22 @@ namespace Momiji.Core
             {
             }
 
-            S?.Dispose();
-            S = null;
-
             disposed = true;
         }
 
-        public void Wait()
+        public async Task Wait(CancellationToken ct)
         {
-            var left = Interval - (Timer.USecDouble - Before);
+            var left = Interval - (LapTimer.USecDouble - Before);
             if (left > 0)
             {
-                //セマフォで時間調整を行う
-                S.Wait(new TimeSpan((long)(left * 10)), Ct);
+                //時間調整を行う
+                await Task.Delay(new TimeSpan((long)(left * 10)), ct).ConfigureAwait(false);
             }
             else
             {
                 //TODO マイナスだった場合はそのままスルー
             }
-            Before = Timer.USecDouble;
+            Before = LapTimer.USecDouble;
         }
     }
 

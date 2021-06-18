@@ -159,12 +159,12 @@ namespace Momiji.Interop.Ftl
     }
 
     [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Ansi)]
-    public class FtlHandle
+    internal class FtlHandle
     {
         public IntPtr priv;
     }
 
-    public static class SafeNativeMethods
+    internal static class SafeNativeMethods
     {
         //FTL_API ftl_status_t ftl_init();
         [DllImport(Libraries.Ftl, CallingConvention = CallingConvention.Cdecl)]

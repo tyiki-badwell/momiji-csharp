@@ -1,5 +1,6 @@
 ﻿using Microsoft.Extensions.Logging;
 using Momiji.Core.H264;
+using Momiji.Core.Timer;
 using Momiji.Core.Wave;
 using Momiji.Core.WebMidi;
 using System;
@@ -14,7 +15,7 @@ namespace Momiji.Core.FFT
     {
         private ILoggerFactory LoggerFactory { get; }
         private ILogger Logger { get; }
-        private Timer Timer { get; }
+        private LapTimer LapTimer { get; }
 
         private int PicWidth { get; }
         private int PicHeight { get; }
@@ -34,12 +35,12 @@ namespace Momiji.Core.FFT
             int picHeight,
             float maxFrameRate,
             ILoggerFactory loggerFactory,
-            Timer timer
+            LapTimer lapTimer
         )
         {
             LoggerFactory = loggerFactory;
             Logger = LoggerFactory.CreateLogger<FFTEncoder>();
-            Timer = timer;
+            LapTimer = lapTimer;
 
             PicWidth = picWidth;
             PicHeight = picHeight;
@@ -100,7 +101,7 @@ namespace Momiji.Core.FFT
             list.Insert(0,
                 $"{DateTimeOffset.FromUnixTimeMilliseconds((long)midiEvent.midiMessageEvent.receivedTime).ToUniversalTime():HH:mm:ss.fff} => " +
                 $"{DateTimeOffset.FromUnixTimeMilliseconds((long)(midiEvent.receivedTimeUSec / 1000)).ToUniversalTime():HH:mm:ss.fff} => " +
-                $"{DateTimeOffset.FromUnixTimeMilliseconds((long)(Timer.USecDouble / 1000)).ToUniversalTime():HH:mm:ss.fff} " +
+                $"{DateTimeOffset.FromUnixTimeMilliseconds((long)(LapTimer.USecDouble / 1000)).ToUniversalTime():HH:mm:ss.fff} " +
                 $"{midiEvent.midiMessageEvent.data0:X2}" +
                 $"{midiEvent.midiMessageEvent.data1:X2}" +
                 $"{midiEvent.midiMessageEvent.data2:X2}" +
@@ -133,9 +134,9 @@ namespace Momiji.Core.FFT
             {
                 throw new ArgumentNullException(nameof(source));
             }
-            source.Log.Add("[fft] start", Timer.USecDouble);
+            source.Log.Add("[fft] start", LapTimer.USecDouble);
 
-            lock(syncInput)
+            lock (syncInput)
             {
                 using var g = Graphics.FromImage(bitmapInput);
                 using var fontFamily = new FontFamily(GenericFontFamilies.Monospace);
@@ -146,7 +147,7 @@ namespace Momiji.Core.FFT
                 g.FillRectangle(black, 0, 0, PicWidth, PicHeight);
 
                 //TODO FFT
-                var data = source.Target.AsSpan();
+                var data = source.Buffer.Target.AsSpan();
                 var max = 0.0;
                 var min = 0.0;
                 var center = PicHeight / 2;
@@ -187,9 +188,9 @@ namespace Momiji.Core.FFT
                 }
 
                 g.DrawString($"{data.Length} {max} {min}", font, white, 0, PicHeight - 50);
-                g.DrawString($"{DateTimeOffset.FromUnixTimeMilliseconds(Timer.USec / 1000).ToUniversalTime():HH:mm:ss.fff}", font, white, PicWidth - 200, PicHeight - 20);
+                g.DrawString($"{DateTimeOffset.FromUnixTimeMilliseconds(LapTimer.USec / 1000).ToUniversalTime():HH:mm:ss.fff}", font, white, PicWidth - 200, PicHeight - 20);
             }
-            source.Log.Add("[fft] drawn", Timer.USecDouble);
+            source.Log.Add("[fft] drawn", LapTimer.USecDouble);
         }
 
         public void Execute(
@@ -209,7 +210,7 @@ namespace Momiji.Core.FFT
                     //dest.Log.Marge(source.Log);
                     unsafe
                     {
-                        var target = dest.Target;
+                        var target = dest.SSourcePictureBuffer.Target;
                         var length = target.iPicWidth * target.iPicHeight;
 
                         var s = new Span<byte>((byte*)bitmapData.Scan0, length * 3);
@@ -247,7 +248,7 @@ namespace Momiji.Core.FFT
                             hOdd = !hOdd;
                         }
                     }
-                    dest.Log.Add("[fft] end", Timer.USecDouble);
+                    dest.Log.Add("[fft] end", LapTimer.USecDouble);
                 }
                 finally
                 {

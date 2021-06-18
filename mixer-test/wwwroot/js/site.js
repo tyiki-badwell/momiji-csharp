@@ -28,7 +28,23 @@
             console.log("disconnected.");
             return;
         }
-        await ws.send(JSON.stringify({ 'type': command }));
+
+        var json = { 'type': command };
+
+        if (command === 'write') {
+            json.param = {};
+            document.querySelectorAll('input.param').forEach((i) => {
+                if (i.type === 'number') {
+                    json.param[i.dataset.name] = new Number(i.value);
+                } else if (i.type === 'checkbox') {
+                    json.param[i.dataset.name] = i.checked;
+                } else {
+                    json.param[i.dataset.name] = i.value;
+                }
+            });
+        }
+
+        await ws.send(JSON.stringify(json));
     }
 
     async function setupPeer(offerSdp) {
@@ -96,6 +112,9 @@
 
         ws = new WebSocket(((document.location.protocol === 'https:') ? 'wss://' : 'ws://') + document.location.host + '/ws');
         ws.addEventListener('open', async (e) => {
+            var input = document.getElementById('wsstatus');
+            input.value = 'open';
+
             console.log(e);
 
             //こちらからは繋ぎに行かない
@@ -112,6 +131,9 @@
             */
         });
         ws.addEventListener('close', async (e) => {
+            var input = document.getElementById('wsstatus');
+            input.value = 'close';
+
             console.log(e);
             ws = null;
 
@@ -131,6 +153,39 @@
 
             } else if (param.type === 'ice') {
                 //
+            } else if (param.type === 'param') {
+                Object.entries(param.param).forEach(([key, value]) => {
+                    var input = document.querySelectorAll('input.param[data-name="' + key + '"]')[0];
+                    
+                    if (input.type === 'checkbox') {
+                        input.checked = value;
+                    } else {
+                        input.value = value;
+                    }
+                });
+
+                /*
+                document.getElementById('buffercount').value = json.BufferCount;
+                document.getElementById('local').value = json.Local;
+                document.getElementById('connect').value = json.Connect;
+                document.getElementById('width').value = json.Width;
+                document.getElementById('height').value = json.Height;
+                document.getElementById('targeetbitrate').value = json.TargetBitrate;
+                document.getElementById('maxframerate').value = json.MaxFrameRate;
+                document.getElementById('intragrameintervalus').value = json.IntraFrameIntervalUs;
+                document.getElementById('effectname').value = json.EffectName;
+                document.getElementById('samplingrate').value = json.SamplingRate;
+                document.getElementById('samplelength').value = json.SampleLength;
+                */
+            } else if (param.type === 'status') {
+                var input = document.getElementById('hoststatus');
+                input.value = param.value;
+
+                if (param.value === 'run') {
+
+                } else if (param.value === 'stop') {
+
+                }
             }
         });
 

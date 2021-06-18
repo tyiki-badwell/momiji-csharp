@@ -2,7 +2,7 @@ using Microsoft.Extensions.Logging;
 using System;
 using Xunit;
 
-namespace Momiji.Core
+namespace Momiji.Core.Buffer
 {
     public class BufferPoolUnitTest
     {
@@ -18,7 +18,7 @@ namespace Momiji.Core
         public void Test1()
         {
             using var loggerFactory = new LoggerFactory();
-            using var test = new BufferPool<DummyItem>(1, ()=> new DummyItem(), loggerFactory);
+            using var test = new BufferPool<DummyItem>(1, () => new DummyItem(), loggerFactory);
         }
     }
 }

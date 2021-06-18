@@ -1,5 +1,4 @@
 ﻿using System;
-using System.Diagnostics;
 using System.Runtime.InteropServices;
 
 #pragma warning disable CA1707 // 識別子はアンダースコアを含むことはできません
@@ -62,7 +61,7 @@ namespace Momiji.Interop.H264
     * @brief Encoder usage type
     */
     public enum EUsageType : int
-    { 
+    {
         CAMERA_VIDEO_REAL_TIME,      ///< camera video for real-time communication
         SCREEN_CONTENT_REAL_TIME,    ///< screen content signal
         CAMERA_VIDEO_NON_REAL_TIME,
@@ -79,8 +78,8 @@ namespace Momiji.Interop.H264
         HIGH_COMPLEXITY             ///< high complexity, lowest speed, high quality
     }
     /**
-        * @brief Enumulate for the stategy of SPS/PPS strategy
-        */
+    * @brief Enumulate for the stategy of SPS/PPS strategy
+    */
     public enum EParameterSetStrategy : int
     {
         CONSTANT_ID = 0,           ///< constant id in SPS/PPS
@@ -197,7 +196,7 @@ namespace Momiji.Interop.H264
     /**
     * @brief Enumerate the type of video format
     */
-    public enum EVideoFormatType : uint
+    internal enum EVideoFormatType : uint
     {
         videoFormatRGB = 1,             ///< rgb color formats
         videoFormatRGBA = 2,
@@ -249,7 +248,7 @@ namespace Momiji.Interop.H264
     * @brief Structure for slice argument
     */
     [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Ansi)]
-    public struct SSliceArgument
+    internal struct SSliceArgument
     {
         public SliceModeEnum uiSliceMode;    ///< by default, uiSliceMode will be SM_SINGLE_SLICE
         public uint uiSliceNum;     ///< only used when uiSliceMode=1, when uiSliceNum=0 means auto design it with cpu core number
@@ -261,7 +260,7 @@ namespace Momiji.Interop.H264
     * @brief  Structure for spatial layer configuration
     */
     [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Ansi)]
-    public struct SSpatialLayerConfig
+    internal struct SSpatialLayerConfig
     {
         public int iVideoWidth;           ///< width of picture in luminance samples of a layer
         public int iVideoHeight;          ///< height of picture in luminance samples of a layer
@@ -280,11 +279,11 @@ namespace Momiji.Interop.H264
         public bool bFullRange;         // false => analog video data range [16, 235]; true => full data range [0,255]
         public bool bColorDescriptionPresent; // false => do not write any of the following three items to the header
         public byte uiColorPrimaries;     // EColorPrimaries; 8 bits in header; 0 - 9 => ???, bt709, undef, ???, bt470m, bt470bg,
-                                            //    smpte170m, smpte240m, film, bt2020
+                                          //    smpte170m, smpte240m, film, bt2020
         public byte uiTransferCharacteristics;  // ETransferCharacteristics; 8 bits in header; 0 - 15 => ???, bt709, undef, ???, bt470m, bt470bg, smpte170m,
                                                 //   smpte240m, linear, log100, log316, iec61966-2-4, bt1361e, iec61966-2-1, bt2020-10, bt2020-12
         public byte uiColorMatrix;        // EColorMatrix; 8 bits in header (corresponds to FFmpeg "colorspace"); 0 - 10 => GBR, bt709,
-                                            //   undef, ???, fcc, bt470bg, smpte170m, smpte240m, YCgCo, bt2020nc, bt2020c
+                                          //   undef, ???, fcc, bt470bg, smpte170m, smpte240m, YCgCo, bt2020nc, bt2020c
 
         public bool bAspectRatioPresent; ///< aspect ratio present in VUI
         public ESampleAspectRatio eAspectRatio; ///< aspect ratio idc
@@ -295,7 +294,7 @@ namespace Momiji.Interop.H264
     * @brief SVC Encoding Parameters extention
     */
     [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Ansi)]
-    public struct SEncParamExt
+    internal struct SEncParamExt
     {
         public EUsageType iUsageType;         ///< same as in TagEncParamBase
         public int iPicWidth;                 ///< same as in TagEncParamBase
@@ -508,12 +507,12 @@ namespace Momiji.Interop.H264
         public int iFrameSizeInBytes;
         public long uiTimeStamp;
     }
-        
+
     /**
     *  @brief Structure for source picture
     */
     [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Ansi)]
-    public class SSourcePicture
+    internal class SSourcePicture
     {
         public EVideoFormatType iColorFormat;          ///< color space type
         public int iStride0;            ///< stride for each plane pData
@@ -535,7 +534,7 @@ namespace Momiji.Interop.H264
     ///
     /// E.g. SDK version is 1.2.0.0, major version number is 1, minor version number is 2, and revision number is 0.
     [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Ansi)]
-    public struct OpenH264Version
+    internal struct OpenH264Version
     {
         public readonly uint uMajor;                  ///< The major version number
         public readonly uint uMinor;                  ///< The minor version number
@@ -563,8 +562,8 @@ namespace Momiji.Interop.H264
         */
         [UnmanagedFunctionPointer(CallingConvention.Cdecl, CharSet = CharSet.Ansi, SetLastError = false)]
         internal delegate int InitializeProc(
-            [In]SVCEncoder/*ISVCEncoder^*/	encoder,
-            [In]IntPtr/* SEncParamBase^*/ pParam
+            [In] SVCEncoder/*ISVCEncoder^*/	encoder,
+            [In] IntPtr/* SEncParamBase^*/ pParam
         );
         /**
         * @brief  Initilaize encoder by using extension parameters.
@@ -573,8 +572,8 @@ namespace Momiji.Interop.H264
         */
         [UnmanagedFunctionPointer(CallingConvention.Cdecl, CharSet = CharSet.Ansi, SetLastError = false)]
         internal delegate int InitializeExtProc(
-            [In]SVCEncoder/*ISVCEncoder^*/	encoder,
-            [In]IntPtr/* SEncParamExt^*/ pParam
+            [In] SVCEncoder/*ISVCEncoder^*/	encoder,
+            [In] IntPtr/* SEncParamExt^*/ pParam
         );
         /**
         * @brief   Get the default extension parameters.
@@ -585,14 +584,14 @@ namespace Momiji.Interop.H264
         * */
         [UnmanagedFunctionPointer(CallingConvention.Cdecl, CharSet = CharSet.Ansi, SetLastError = false)]
         internal delegate int GetDefaultParamsProc(
-            [In]SVCEncoder/*ISVCEncoder^*/	encoder,
-            [In]IntPtr/* SEncParamExt^*/ pParam
+            [In] SVCEncoder/*ISVCEncoder^*/	encoder,
+            [In] IntPtr/* SEncParamExt^*/ pParam
         );
 
         /// uninitialize the encoder
         [UnmanagedFunctionPointer(CallingConvention.Cdecl, CharSet = CharSet.Ansi, SetLastError = false)]
         internal delegate int UninitializeProc(
-            [In]SVCEncoder/*ISVCEncoder^*/	encoder
+            [In] SVCEncoder/*ISVCEncoder^*/	encoder
         );
         /**
         * @brief Encode one frame
@@ -606,9 +605,9 @@ namespace Momiji.Interop.H264
         */
         [UnmanagedFunctionPointer(CallingConvention.Cdecl, CharSet = CharSet.Ansi, SetLastError = false)]
         internal delegate int EncodeFrameProc(
-            [In]SVCEncoder/*ISVCEncoder^*/	encoder,
-            [In]IntPtr/* SSourcePicture^*/ kpSrcPic,
-            [In]IntPtr/* SFrameBSInfo^*/ pBsInfo
+            [In] SVCEncoder/*ISVCEncoder^*/	encoder,
+            [In] IntPtr/* SSourcePicture^*/ kpSrcPic,
+            [In] IntPtr/* SFrameBSInfo^*/ pBsInfo
         );
         /**
         * @brief  Encode the parameters from output bit stream
@@ -617,8 +616,8 @@ namespace Momiji.Interop.H264
         */
         [UnmanagedFunctionPointer(CallingConvention.Cdecl, CharSet = CharSet.Ansi, SetLastError = false)]
         internal delegate int EncodeParameterSetsProc(
-            [In]SVCEncoder/*ISVCEncoder^*/	encoder,
-            [In]IntPtr/* SFrameBSInfo^*/ pBsInfo
+            [In] SVCEncoder/*ISVCEncoder^*/	encoder,
+            [In] IntPtr/* SFrameBSInfo^*/ pBsInfo
         );
         /**
         * @brief  Force encoder to encoder frame as IDR if bIDR set as true
@@ -627,8 +626,8 @@ namespace Momiji.Interop.H264
         */
         [UnmanagedFunctionPointer(CallingConvention.Cdecl, CharSet = CharSet.Ansi, SetLastError = false)]
         internal delegate int ForceIntraFrameProc(
-            [In]SVCEncoder/*ISVCEncoder^*/	encoder,
-            [In]bool bIDR
+            [In] SVCEncoder/*ISVCEncoder^*/	encoder,
+            [In] bool bIDR
         );
         /**
         * @brief   Set option for encoder, detail option type, please refer to enumurate ENCODER_OPTION.
@@ -637,9 +636,9 @@ namespace Momiji.Interop.H264
         */
         [UnmanagedFunctionPointer(CallingConvention.Cdecl, CharSet = CharSet.Ansi, SetLastError = false)]
         internal delegate int SetOptionProc(
-            [In]SVCEncoder/*ISVCEncoder^*/	encoder,
-            [In]ENCODER_OPTION eOptionId,
-            [In]IntPtr	pOption
+            [In] SVCEncoder/*ISVCEncoder^*/	encoder,
+            [In] ENCODER_OPTION eOptionId,
+            [In] IntPtr pOption
         );
         /**
         * @brief   Set option for encoder, detail option type, please refer to enumurate ENCODER_OPTION.
@@ -648,18 +647,18 @@ namespace Momiji.Interop.H264
         */
         [UnmanagedFunctionPointer(CallingConvention.Cdecl, CharSet = CharSet.Ansi, SetLastError = false)]
         internal delegate int GetOptionProc(
-            [In]SVCEncoder/*ISVCEncoder^*/	encoder,
-            [In]ENCODER_OPTION eOptionId,
-            [In]IntPtr pOption
+            [In] SVCEncoder/*ISVCEncoder^*/	encoder,
+            [In] ENCODER_OPTION eOptionId,
+            [In] IntPtr pOption
         );
     }
 
     //typedef void (*WelsTraceCallback) (void* ctx, int level, const char* string);
     [UnmanagedFunctionPointer(CallingConvention.Cdecl, CharSet = CharSet.Ansi, SetLastError = false)]
     internal delegate void WelsTraceCallback(
-        [In]IntPtr	ctx,
-        [In]int level,
-        [In]IntPtr string_
+        [In] IntPtr ctx,
+        [In] int level,
+        [In] IntPtr string_
     );
 
     internal static class Libraries
@@ -667,7 +666,7 @@ namespace Momiji.Interop.H264
         public const string OpenH264 = "openH264.dll";
     }
 
-    public sealed class SVCEncoder : Microsoft.Win32.SafeHandles.SafeHandleZeroOrMinusOneIsInvalid
+    internal sealed class SVCEncoder : Microsoft.Win32.SafeHandles.SafeHandleZeroOrMinusOneIsInvalid
     {
         private SVCEncoder() : base(true)
         {
@@ -681,7 +680,7 @@ namespace Momiji.Interop.H264
         }
     }
 
-    public static class SafeNativeMethods
+    internal static class SafeNativeMethods
     {
         /** @brief   Create encoder
           *  @param   ppEncoder encoder

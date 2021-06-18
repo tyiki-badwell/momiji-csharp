@@ -1,14 +1,17 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <TargetFramework>net5.0-windows10.0.19041.0</TargetFramework>
+    <TargetFramework>net5.0-windows</TargetFramework>
     <RootNamespace>momiji_csharp_xunit</RootNamespace>
 
     <IsPackable>false</IsPackable>
 
-    <Platforms>AnyCPU;x86</Platforms>
+    <Platforms>AnyCPU;x86;x64</Platforms>
 
     <UserSecretsId>46c62e36-8eba-475b-a444-57a9515a94c6</UserSecretsId>
+
+    <AnalysisMode>AllEnabledByDefault</AnalysisMode>
+    <AutoGenerateBindingRedirects>false</AutoGenerateBindingRedirects>
   </PropertyGroup>
 
   <ItemGroup>

@@ -7,7 +7,7 @@
 @{
     ViewData["Title"] = "Home Page";
 
-    var param = new mixerTest.Param();
+    var param = new Momiji.Core.Configuration.Param();
     configuration.GetSection("Param").Bind(param);
 
     var mixerUserName = configuration["MIXER_USER_NAME"];
@@ -32,17 +32,61 @@ else
 }
 <br />
 
+signal:
+<input type="button" class="ws" value="ws" />
+<input type="button" class="control" value="ws close" data-control="close" />
+<input type="text" id="wsstatus" readonly />
+<br />
+
+BufferCount:
+<input type="number" class="param" data-name="BufferCount" />
+<br />
+Local:
+<input type="checkbox" class="param" data-name="Local" />
+<br />
+Connect:
+<input type="checkbox" class="param" data-name="Connect" />
+<br />
+Width:
+<input type="number" class="param" data-name="Width" />
+<br />
+Height:
+<input type="number" class="param" data-name="Height" />
+<br />
+TargetBitrate:
+<input type="number" class="param" data-name="TargetBitrate" />
+<br />
+MaxFrameRate:
+<input type="number" class="param" data-name="MaxFrameRate" />
+<br />
+IntraFrameIntervalUs:
+<input type="number" class="param" data-name="IntraFrameIntervalUs" />
+<br />
+EffectName:
+<input type="text" class="param" data-name="EffectName" />
+<br />
+SamplingRate:
+<input type="number" class="param" data-name="SamplingRate" />
+<br />
+SampleLength:
+<input type="number" class="param" data-name="SampleLength" />
+<br />
+
+host:
+<input type="button" class="control" value="write" data-control="write" />
 <input type="button" class="control" value="start" data-control="start" />
 <input type="button" class="control" value="cancel" data-control="cancel" />
-
-<input type="button" class="ws" value="ws" />
-<input type="button" class="control" value="ws close" data-control="close"/>
+<input type="button" class="control" value="openeditor" data-control="openeditor" />
+<input type="button" class="control" value="closeeditor" data-control="closeeditor" />
+<input type="text" id="hoststatus" readonly />
+<br />
 
 <input type="button" class="rtc" value="rtc" />
-
+<br />
 
 <select id="midiout"></select>
 <br />
+
 <table>
     <tr>
         <td>

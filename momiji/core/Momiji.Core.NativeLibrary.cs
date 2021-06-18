@@ -8,7 +8,7 @@ using System.IO;
 using System.Reflection;
 using System.Runtime.InteropServices;
 
-namespace Momiji.Core
+namespace Momiji.Core.Dll
 {
     public interface IDllManager : IDisposable
     {
@@ -17,8 +17,8 @@ namespace Momiji.Core
 
     public class DllManager : IDllManager
     {
-        private IConfiguration Configuration { get; }
-        private ILoggerFactory LoggerFactory { get; }
+        private IConfigurationSection ConfigurationSection { get; }
+
         private ILogger Logger { get; }
 
         private bool disposed;
@@ -26,22 +26,27 @@ namespace Momiji.Core
 
         public DllManager(IConfiguration configuration, ILoggerFactory loggerFactory)
         {
-            Configuration = configuration ?? throw new ArgumentNullException(nameof(configuration));
-            LoggerFactory = loggerFactory;
-            Logger = LoggerFactory.CreateLogger<DllManager>();
+            Logger = loggerFactory.CreateLogger<DllManager>();
+
+            {
+                var c = configuration ?? throw new ArgumentNullException(nameof(configuration));
+                ConfigurationSection = c.GetSection($"{typeof(DllManager).FullName}:{(Environment.Is64BitProcess ? "x64" : "x86")}");
+            }
+
+            var assembly = Assembly.GetExecutingAssembly();
 
             var dllPathBase =
                 Path.Combine(
-                    Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location),
+                    Path.GetDirectoryName(assembly.Location),
                     "lib",
-                    Environment.Is64BitProcess ? "64" : "32"
+                    Environment.Is64BitProcess ? "x64" : "x86"
                 );
             Logger.LogInformation($"call SetDllDirectory({dllPathBase})");
-            SafeNativeMethods.SetDllDirectory(dllPathBase);
+            NativeMethods.SetDllDirectory(dllPathBase);
 
             try
             {
-                NativeLibrary.SetDllImportResolver(Assembly.GetExecutingAssembly(), ResolveDllImport);
+                NativeLibrary.SetDllImportResolver(assembly, ResolveDllImport);
             }
             catch (InvalidOperationException e)
             {
@@ -72,10 +77,10 @@ namespace Momiji.Core
             disposed = true;
         }
 
-        internal IntPtr ResolveDllImport(string libraryName, Assembly assembly, DllImportSearchPath? searchPath)
+        private IntPtr ResolveDllImport(string libraryName, Assembly assembly, DllImportSearchPath? searchPath)
         {
             Logger.LogInformation($"call DllImportResolver({libraryName}, {assembly}, {searchPath})");
-            var name = Configuration.GetSection("LibraryNameMapping:" + (Environment.Is64BitProcess ? "64" : "32"))?[libraryName];
+            var name = ConfigurationSection?[libraryName];
             if (name != default)
             {
                 if (NativeLibrary.TryLoad(name, assembly, searchPath, out var handle))
@@ -112,6 +117,15 @@ namespace Momiji.Core
 
         public T GetExport<T>(string libraryName, string name)
         {
+            if (libraryName == default)
+            {
+                throw new ArgumentNullException(nameof(libraryName));
+            }
+            if (name == default)
+            {
+                throw new ArgumentNullException(nameof(name));
+            }
+
             var handle = TryLoad(libraryName);
             if (NativeLibrary.TryGetExport(handle, name, out var address))
             {

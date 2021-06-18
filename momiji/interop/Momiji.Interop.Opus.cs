@@ -1,5 +1,4 @@
 ﻿using System;
-using System.Diagnostics;
 using System.Runtime.InteropServices;
 
 #pragma warning disable CA1008 // 列挙型は 0 値を含んでいなければなりません
@@ -199,7 +198,7 @@ namespace Momiji.Interop.Opus
         public const string Opus = "opus.dll";
     }
 
-    public sealed class Encoder : Microsoft.Win32.SafeHandles.SafeHandleZeroOrMinusOneIsInvalid
+    internal sealed class Encoder : Microsoft.Win32.SafeHandles.SafeHandleZeroOrMinusOneIsInvalid
     {
         private Encoder() : base(true)
         {
@@ -213,7 +212,7 @@ namespace Momiji.Interop.Opus
         }
     }
 
-    public static class SafeNativeMethods
+    internal static class SafeNativeMethods
     {
         [DllImport(Libraries.Opus, CallingConvention = CallingConvention.StdCall)]
         [DefaultDllImportSearchPaths(DllImportSearchPath.UserDirectories | DllImportSearchPath.UseDllDirectoryForDependencies)]

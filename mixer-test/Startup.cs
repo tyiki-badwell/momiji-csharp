@@ -1,12 +1,10 @@
 ﻿using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Http;
-using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
-using Momiji.Core;
-using System;
+using Momiji.Core.Dll;
 
 namespace mixerTest
 {
@@ -59,16 +57,19 @@ namespace mixerTest
                 endpoints.MapRazorPages();
             });
 
-            app.Map("/ws", subApp => {
+            app.Map("/ws", subApp =>
+            {
                 subApp.UseWebSockets();
                 subApp.UseMiddleware<WebSocketMiddleware>();
             });
 
-            appLifetime?.ApplicationStarted.Register(() => {
+            appLifetime?.ApplicationStarted.Register(() =>
+            {
                 //app.ApplicationServices.GetService<IRunner>().Start();
                 logger.LogInformation("ApplicationStarted");
             });
-            appLifetime?.ApplicationStopped.Register(() => {
+            appLifetime?.ApplicationStopped.Register(() =>
+            {
                 app.ApplicationServices.GetService<IRunner>().Cancel();
                 logger.LogInformation("ApplicationStopped");
             });
