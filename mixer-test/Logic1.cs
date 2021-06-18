@@ -343,7 +343,7 @@ namespace mixerTest
                 inNode.Start();
             }
 
-            audioGraph.Start();
+            //audioGraph.Start();
 
             var blockSize = (int)(Param.SamplingRate * Param.SampleLength);
             var audioInterval = 1_000_000.0 * Param.SampleLength;

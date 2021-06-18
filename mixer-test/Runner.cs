@@ -15,8 +15,8 @@ namespace mixerTest
 {
     public interface IRunner
     {
-        Task<bool> Start();
-        Task<bool> Cancel();
+        bool Start();
+        bool Cancel();
 
         //void Note(MIDIMessageEvent[] midiMessage);
         Task AcceptWebSocket(WebSocket webSocket);
@@ -124,7 +124,7 @@ namespace mixerTest
             disposed = true;
         }
 
-        public async Task<bool> Start()
+        public bool Start()
         {
             //TODO make thread safe
 
@@ -141,7 +141,7 @@ namespace mixerTest
         }
 
 
-        public async Task<bool> Cancel()
+        public bool Cancel()
         {
             //TODO make thread safe
 
@@ -162,7 +162,7 @@ namespace mixerTest
                     Logger.LogInformation(e, "[home] Process Cancel Exception");
                 }
 
-                await processTask.ConfigureAwait(false);
+                processTask.Wait();
             }
             finally
             {
@@ -190,7 +190,7 @@ namespace mixerTest
 
                 await task.ConfigureAwait(false);
             }
-            catch (TaskCanceledException e)
+            catch (TaskCanceledException)
             {
                 Logger.LogInformation("TaskCanceled");
             }
@@ -247,6 +247,16 @@ namespace mixerTest
             {
                 using var timer = new Momiji.Core.Timer();
                 var buf = WebSocket.CreateServerBuffer(1024);
+
+                {
+                    var param = new Dictionary<string, object>();
+                    param["type"] = "param";
+                    param["param"] = Param;
+
+                    var paramBuf = new ArraySegment<byte>(Encoding.UTF8.GetBytes(JsonSerializer.Serialize(param, new JsonSerializerOptions())));
+                    await webSocket.SendAsync(paramBuf, WebSocketMessageType.Text, true, ct).ConfigureAwait(false);
+                }
+
                 while (webSocket.State == WebSocketState.Open)
                 {
                     if (ct.IsCancellationRequested)
@@ -283,8 +293,8 @@ namespace mixerTest
                         var text = Encoding.UTF8.GetString(buf.Array, 0, result.Count).Trim();
                         Logger.LogInformation($"[web socket] text [{text}]");
 
-                        var param = JsonSerializer.Deserialize<Dictionary<string, string>>(text);
-                        var type = param["type"];
+                        var json = JsonSerializer.Deserialize<IDictionary<string, string>>(text);
+                        var type = json["type"];
 
                         if (type == "start")
                         {
@@ -303,18 +313,29 @@ namespace mixerTest
                             await webSocket.CloseAsync(WebSocketCloseStatus.NormalClosure, "close request", ct).ConfigureAwait(false);
                             break;
                         }
+                        else if (type == "read")
+                        {
+                            Logger.LogInformation($"[web socket] type = {type}.");
+
+                        }
+                        else if (type == "write")
+                        {
+                            Logger.LogInformation($"[web socket] type = {type}.");
+
+
+                        }
                         else if (type == "offer")
                         {
                             Logger.LogInformation($"[web socket] type = {type}.");
 
-                            var sdp = param["sdp"];
+                            var sdp = json["sdp"];
                             Logger.LogInformation($"[web socket] sdp = {sdp}");
                         }
                         else if (type == "answer")
                         {
                             Logger.LogInformation($"[web socket] type = {type}.");
 
-                            var sdp = param["sdp"];
+                            var sdp = json["sdp"];
                             Logger.LogInformation($"[web socket] sdp = {sdp}");
                         }
                     }

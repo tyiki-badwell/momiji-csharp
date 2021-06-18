@@ -1,5 +1,4 @@
 ﻿using Microsoft.Extensions.Logging;
-using Momiji.Core.Wave;
 using Momiji.Core.WebMidi;
 using Momiji.Interop;
 using Momiji.Interop.Vst;
@@ -8,7 +7,6 @@ using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
-using System.Threading.Tasks;
 using System.Threading.Tasks.Dataflow;
 
 namespace Momiji.Core.Vst

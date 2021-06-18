@@ -28,7 +28,24 @@
             console.log("disconnected.");
             return;
         }
-        await ws.send(JSON.stringify({ 'type': command }));
+
+        var json = { 'type': command };
+
+        if (command === 'write') {
+            json.BufferCount = document.getElementById('buffercount').value;
+            json.Local = document.getElementById('local').value;
+            json.Connect = document.getElementById('connect').value;
+            json.Width = document.getElementById('width').value;
+            json.Height = document.getElementById('height').value;
+            json.TargetBitrate = document.getElementById('targeetbitrate').value;
+            json.MaxFrameRate = document.getElementById('maxframerate').value;
+            json.IntraFrameIntervalUs = document.getElementById('intragrameintervalus').value;
+            json.EffectName = document.getElementById('effectname').value;
+            json.SamplingRate = document.getElementById('samplingrate').value;
+            json.SampleLength = document.getElementById('samplelength').value;
+        }
+
+        await ws.send(JSON.stringify(json));
     }
 
     async function setupPeer(offerSdp) {
@@ -131,6 +148,19 @@
 
             } else if (param.type === 'ice') {
                 //
+            } else if (param.type === 'param') {
+                var json = param.param;
+                document.getElementById('buffercount').value = json.BufferCount;
+                document.getElementById('local').value = json.Local;
+                document.getElementById('connect').value = json.Connect;
+                document.getElementById('width').value = json.Width;
+                document.getElementById('height').value = json.Height;
+                document.getElementById('targeetbitrate').value = json.TargetBitrate;
+                document.getElementById('maxframerate').value = json.MaxFrameRate;
+                document.getElementById('intragrameintervalus').value = json.IntraFrameIntervalUs;
+                document.getElementById('effectname').value = json.EffectName;
+                document.getElementById('samplingrate').value = json.SamplingRate;
+                document.getElementById('samplelength').value = json.SampleLength;
             }
         });
 
