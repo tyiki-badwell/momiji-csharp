@@ -94,6 +94,7 @@ namespace mixerTest
             Configuration.GetSection("Param").Bind(param);
             Param = param;
 
+            BroadcastStatus("stop");
             //webSocketTask = WebSocketLoop();
         }
         public void Dispose()
@@ -153,16 +154,12 @@ namespace mixerTest
 
             try
             {
-                try
-                {
-                    processCancel.Cancel();
-                }
-                catch (AggregateException e)
-                {
-                    Logger.LogInformation(e, "[home] Process Cancel Exception");
-                }
-
+                processCancel.Cancel();
                 processTask.Wait();
+            }
+            catch (AggregateException e)
+            {
+                Logger.LogInformation(e, "[home] Process Cancel Exception");
             }
             finally
             {
@@ -176,8 +173,7 @@ namespace mixerTest
         }
         private async Task Loop()
         {
-
-            wsBroadcaster.Post("start");
+            BroadcastStatus("start");
             Logger.LogInformation("main loop start");
 
             try
@@ -186,7 +182,7 @@ namespace mixerTest
                 //var task = new Logic2(Configuration, LoggerFactory, DllManager, Param, midiEventInput, midiEventOutput, processCancel).Run();
                 //var task = new Logic4(Configuration, LoggerFactory, DllManager, Param, midiEventInput, midiEventOutput, processCancel).Run();
 
-                wsBroadcaster.Post("run");
+                BroadcastStatus("run");
 
                 await task.ConfigureAwait(false);
             }
@@ -201,7 +197,7 @@ namespace mixerTest
             }
             finally
             {
-                wsBroadcaster.Post("end");
+                BroadcastStatus("stop");
                 Logger.LogInformation("main loop end");
             }
         }
@@ -226,6 +222,27 @@ namespace mixerTest
         }
         */
 
+        private void BroadcastStatus(string status)
+        {
+            var param = new Dictionary<string, object>
+            {
+                ["type"] = "status",
+                ["value"] = status
+            };
+
+            wsBroadcaster.Post(JsonSerializer.Serialize(param, new JsonSerializerOptions()));
+        }
+
+        private static async Task SendWebsocketAsync(WebSocket webSocket, IDictionary<string, object> param, CancellationToken ct)
+        {
+            await SendWebsocketAsync(webSocket, JsonSerializer.Serialize(param, new JsonSerializerOptions()), ct).ConfigureAwait(false);
+        }
+        private static async Task SendWebsocketAsync(WebSocket webSocket, string param, CancellationToken ct)
+        {
+            var bytes = Encoding.UTF8.GetBytes(param);
+            await webSocket.SendAsync(bytes, WebSocketMessageType.Text, true, ct).ConfigureAwait(false);
+        }
+
         public async Task AcceptWebSocket(WebSocket webSocket)
         {
             if (webSocket == default)
@@ -237,25 +254,20 @@ namespace mixerTest
 
             var ct = wsProcessCancel.Token;
 
-            var actionBlock = new ActionBlock<string>(message => {
-                var bytes = Encoding.UTF8.GetBytes(message);
-                webSocket.SendAsync(bytes, WebSocketMessageType.Text, true, ct);
-            });
-            wsBroadcaster.LinkTo(actionBlock);
-
             try
             {
+                using var unlink = wsBroadcaster.LinkTo(new ActionBlock<string>(async message => {
+                    await SendWebsocketAsync(webSocket, message, ct).ConfigureAwait(false);
+                }));
+
                 using var timer = new Momiji.Core.Timer();
                 var buf = WebSocket.CreateServerBuffer(1024);
 
+                await SendWebsocketAsync(webSocket, new Dictionary<string, object>
                 {
-                    var param = new Dictionary<string, object>();
-                    param["type"] = "param";
-                    param["param"] = Param;
-
-                    var paramBuf = new ArraySegment<byte>(Encoding.UTF8.GetBytes(JsonSerializer.Serialize(param, new JsonSerializerOptions())));
-                    await webSocket.SendAsync(paramBuf, WebSocketMessageType.Text, true, ct).ConfigureAwait(false);
-                }
+                    ["type"] = "param",
+                    ["param"] = Param
+                }, ct).ConfigureAwait(false);
 
                 while (webSocket.State == WebSocketState.Open)
                 {
@@ -352,8 +364,6 @@ namespace mixerTest
             }
             finally
             {
-                //Linkをはがす
-                actionBlock.Complete();
                 Logger.LogInformation("[web socket] end");
             }
         }

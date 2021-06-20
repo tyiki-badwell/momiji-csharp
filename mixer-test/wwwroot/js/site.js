@@ -161,6 +161,12 @@
                 document.getElementById('effectname').value = json.EffectName;
                 document.getElementById('samplingrate').value = json.SamplingRate;
                 document.getElementById('samplelength').value = json.SampleLength;
+            } else if (param.type === 'status') {
+                if (param.value === 'run') {
+
+                } else if (param.value === 'stop') {
+
+                }
             }
         });
 
