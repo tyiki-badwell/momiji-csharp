@@ -7,6 +7,7 @@ using System.Collections.Generic;
 using System.Net.WebSockets;
 using System.Text;
 using System.Text.Json;
+using System.Text.Json.Serialization;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Threading.Tasks.Dataflow;
@@ -67,7 +68,7 @@ namespace mixerTest
         private ILoggerFactory LoggerFactory { get; }
         private ILogger Logger { get; }
         private IDllManager DllManager { get; }
-        private Param Param { get; }
+        private Param Param { get; set; }
 
         private bool disposed;
         private CancellationTokenSource processCancel;
@@ -305,8 +306,8 @@ namespace mixerTest
                         var text = Encoding.UTF8.GetString(buf.Array, 0, result.Count).Trim();
                         Logger.LogInformation($"[web socket] text [{text}]");
 
-                        var json = JsonSerializer.Deserialize<IDictionary<string, string>>(text);
-                        var type = json["type"];
+                        var json = JsonSerializer.Deserialize<IDictionary<string, JsonElement>>(text);
+                        var type = json["type"].GetString();
 
                         if (type == "start")
                         {
@@ -328,13 +329,23 @@ namespace mixerTest
                         else if (type == "read")
                         {
                             Logger.LogInformation($"[web socket] type = {type}.");
-
+                            await SendWebsocketAsync(webSocket, new Dictionary<string, object>
+                            {
+                                ["type"] = "param",
+                                ["param"] = Param
+                            }, ct).ConfigureAwait(false);
                         }
                         else if (type == "write")
                         {
                             Logger.LogInformation($"[web socket] type = {type}.");
-
-
+                            var paramJson = json["param"].GetRawText();
+                            var options = new JsonSerializerOptions()
+                            {
+                                NumberHandling = System.Text.Json.Serialization.JsonNumberHandling.AllowReadingFromString
+                            };
+                            
+                            var param = JsonSerializer.Deserialize<Param>(paramJson, options);
+                            Param = param;
                         }
                         else if (type == "offer")
                         {

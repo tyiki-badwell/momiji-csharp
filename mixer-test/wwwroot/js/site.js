@@ -32,17 +32,16 @@
         var json = { 'type': command };
 
         if (command === 'write') {
-            json.BufferCount = document.getElementById('buffercount').value;
-            json.Local = document.getElementById('local').value;
-            json.Connect = document.getElementById('connect').value;
-            json.Width = document.getElementById('width').value;
-            json.Height = document.getElementById('height').value;
-            json.TargetBitrate = document.getElementById('targeetbitrate').value;
-            json.MaxFrameRate = document.getElementById('maxframerate').value;
-            json.IntraFrameIntervalUs = document.getElementById('intragrameintervalus').value;
-            json.EffectName = document.getElementById('effectname').value;
-            json.SamplingRate = document.getElementById('samplingrate').value;
-            json.SampleLength = document.getElementById('samplelength').value;
+            json.param = {};
+            document.querySelectorAll('input.param').forEach((i) => {
+                if (i.type === 'number') {
+                    json.param[i.dataset.name] = new Number(i.value);
+                } else if (i.type === 'checkbox') {
+                    json.param[i.dataset.name] = i.checked;
+                } else {
+                    json.param[i.dataset.name] = i.value;
+                }
+            });
         }
 
         await ws.send(JSON.stringify(json));
@@ -149,7 +148,17 @@
             } else if (param.type === 'ice') {
                 //
             } else if (param.type === 'param') {
-                var json = param.param;
+                Object.entries(param.param).forEach(([key, value]) => {
+                    var input = document.querySelectorAll('input.param[data-name="' + key + '"]')[0];
+                    
+                    if (input.type === 'checkbox') {
+                        input.checked = value;
+                    } else {
+                        input.value = value;
+                    }
+                });
+
+                /*
                 document.getElementById('buffercount').value = json.BufferCount;
                 document.getElementById('local').value = json.Local;
                 document.getElementById('connect').value = json.Connect;
@@ -161,6 +170,7 @@
                 document.getElementById('effectname').value = json.EffectName;
                 document.getElementById('samplingrate').value = json.SamplingRate;
                 document.getElementById('samplelength').value = json.SampleLength;
+                */
             } else if (param.type === 'status') {
                 if (param.value === 'run') {
 
