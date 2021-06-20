@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Diagnostics;
 using System.Threading;
+using System.Threading.Tasks;
 
 namespace Momiji.Core
 {
@@ -64,17 +65,13 @@ namespace Momiji.Core
 
         private Timer Timer { get; }
         private double Interval { get; }
-        private CancellationToken Ct { get; }
         private double Before;
-        private SemaphoreSlim S { get; set; }
 
-        public Waiter(Timer timer, double interval, CancellationToken ct)
+        public Waiter(Timer timer, double interval)
         {
             Timer = timer ?? throw new ArgumentNullException(nameof(timer));
             Interval = interval;
-            Ct = ct;
             Before = Timer.USecDouble;
-            S = new SemaphoreSlim(1);
         }
 
         ~Waiter()
@@ -96,19 +93,16 @@ namespace Momiji.Core
             {
             }
 
-            S?.Dispose();
-            S = null;
-
             disposed = true;
         }
 
-        public void Wait()
+        public async Task Wait(CancellationToken ct)
         {
             var left = Interval - (Timer.USecDouble - Before);
             if (left > 0)
             {
-                //セマフォで時間調整を行う
-                S.Wait(new TimeSpan((long)(left * 10)), Ct);
+                //時間調整を行う
+                await Task.Delay(new TimeSpan((long)(left * 10)), ct).ConfigureAwait(false);
             }
             else
             {

@@ -92,8 +92,8 @@ namespace mixerTest
             Logger.LogInformation($"[loop5] videoInterval {videoInterval}");
 
             using var timer = new Momiji.Core.Timer();
-            using var audioWaiter = new Waiter(timer, audioInterval, ct);
-            using var videoWaiter = new Waiter(timer, videoInterval, ct);
+            using var audioWaiter = new Waiter(timer, audioInterval);
+            using var videoWaiter = new Waiter(timer, videoInterval);
             using var vstBufferPool = new BufferPool<VstBuffer<float>>(Param.BufferCount, () => new VstBuffer<float>(blockSize, 2), LoggerFactory);
             using var pcmPool = new BufferPool<PcmBuffer<float>>(Param.BufferCount, () => new PcmBuffer<float>(blockSize, 2), LoggerFactory);
             using var audioPool = new BufferPool<OpusOutputBuffer>(Param.BufferCount, () => new OpusOutputBuffer(5000), LoggerFactory);
@@ -116,13 +116,13 @@ namespace mixerTest
 
             {
                 var audioBlock =
-                    new ActionBlock<VstBuffer<float>>(buffer =>
+                    new ActionBlock<VstBuffer<float>>(async buffer =>
                     {
                         var pcmTask = pcmPool.ReceiveAsync(ct);
                         var audioTask = audioPool.ReceiveAsync(ct);
 
                         buffer.Log.Clear();
-                        audioWaiter.Wait();
+                        await audioWaiter.Wait(ct).ConfigureAwait(false);
                         buffer.Log.Add("[audio] start", timer.USecDouble);
 
                         //VST
@@ -134,18 +134,18 @@ namespace mixerTest
                         var pcm = pcmTask.Result;
                         buffer.Log.Add("[audio] opus input get", timer.USecDouble);
                         toPcm.Execute(buffer, pcm);
-                        vstBufferPool.SendAsync(buffer);
+                        await vstBufferPool.SendAsync(buffer).ConfigureAwait(false);
 
                         var audio = audioTask.Result;
                         pcm.Log.Add("[audio] opus output get", timer.USecDouble);
                         opus.Execute(pcm, audio);
 
-                        pcmDrowPool.SendAsync(pcm);
+                        await pcmDrowPool.SendAsync(pcm).ConfigureAwait(false);
 
                         //FTL
                         //   ftl.Execute(audio);
 
-                        audioPool.SendAsync(audio);
+                        await audioPool.SendAsync(audio).ConfigureAwait(false);
                     }, options);
                 taskSet.Add(audioBlock.Completion);
                 vstBufferPool.LinkTo(audioBlock);
@@ -153,7 +153,7 @@ namespace mixerTest
 
             {
                 var midiDataStoreBlock =
-                    new ActionBlock<MIDIMessageEvent2>(buffer =>
+                    new ActionBlock<MIDIMessageEvent2>(async buffer =>
                     {
                         fft.Receive(buffer);
                     }, options);
@@ -161,10 +161,10 @@ namespace mixerTest
                 MidiEventOutput.LinkTo(midiDataStoreBlock);
 
                 var pcmDataStoreBlock =
-                    new ActionBlock<PcmBuffer<float>>(buffer =>
+                    new ActionBlock<PcmBuffer<float>>(async buffer =>
                     {
                         fft.Receive(buffer);
-                        pcmPool.SendAsync(buffer);
+                        await pcmPool.SendAsync(buffer).ConfigureAwait(false);
                     }, options);
                 taskSet.Add(pcmDataStoreBlock.Completion);
                 pcmDrowPool.LinkTo(pcmDataStoreBlock);
@@ -172,13 +172,13 @@ namespace mixerTest
                 var intraFrameCount = 0.0;
 
                 var videoBlock =
-                    new ActionBlock<H264InputBuffer>(buffer =>
+                    new ActionBlock<H264InputBuffer>(async buffer =>
                     {
                         var videoTask = videoPool.ReceiveAsync(ct);
 
                         buffer.Log.Clear();
 
-                        videoWaiter.Wait();
+                        await videoWaiter.Wait(ct).ConfigureAwait(false);
                         buffer.Log.Add("[video] start", timer.USecDouble);
 
                         //FFT
@@ -191,7 +191,7 @@ namespace mixerTest
                         var insertIntraFrame = (intraFrameCount <= 0);
                         h264.Execute(buffer, video, insertIntraFrame);
 
-                        bmpPool.SendAsync(buffer);
+                        await bmpPool.SendAsync(buffer).ConfigureAwait(false);
                         if (insertIntraFrame)
                         {
                             intraFrameCount = Param.IntraFrameIntervalUs;
@@ -201,7 +201,7 @@ namespace mixerTest
                         //FTL
                         //ftl.Execute(video);
 
-                        videoPool.SendAsync(video);
+                        await videoPool.SendAsync(video).ConfigureAwait(false);
                     }, options);
                 taskSet.Add(videoBlock.Completion);
                 bmpPool.LinkTo(videoBlock);
@@ -234,8 +234,8 @@ namespace mixerTest
             Logger.LogInformation($"[loop4] videoInterval {videoInterval}");
 
             using var timer = new Momiji.Core.Timer();
-            using var audioWaiter = new Waiter(timer, audioInterval, ct);
-            using var videoWaiter = new Waiter(timer, videoInterval, ct);
+            using var audioWaiter = new Waiter(timer, audioInterval);
+            using var videoWaiter = new Waiter(timer, videoInterval);
             using var vstBufferPool = new BufferPool<VstBuffer<float>>(Param.BufferCount, () => new VstBuffer<float>(blockSize, 2), LoggerFactory);
             using var pcmPool = new BufferPool<PcmBuffer<float>>(Param.BufferCount, () => new PcmBuffer<float>(blockSize, 2), LoggerFactory);
             using var audioPool = new BufferPool<OpusOutputBuffer>(Param.BufferCount, () => new OpusOutputBuffer(5000), LoggerFactory);
@@ -261,13 +261,13 @@ namespace mixerTest
 
             {
                 var audioBlock =
-                    new ActionBlock<VstBuffer<float>>(buffer =>
+                    new ActionBlock<VstBuffer<float>>(async buffer =>
                     {
                         var pcmTask = pcmPool.ReceiveAsync(ct);
                         var audioTask = audioPool.ReceiveAsync(ct);
 
                         buffer.Log.Clear();
-                        audioWaiter.Wait();
+                        await audioWaiter.Wait(ct).ConfigureAwait(false);
                         buffer.Log.Add("[audio] start", timer.USecDouble);
 
                         //VST
@@ -278,17 +278,17 @@ namespace mixerTest
                         //trans
                         var pcm = pcmTask.Result;
                         toPcm.Execute(buffer, pcm);
-                        vstBufferPool.SendAsync(buffer);
+                        await vstBufferPool.SendAsync(buffer).ConfigureAwait(false);
 
                         var audio = audioTask.Result;
                         pcm.Log.Add("[audio] opus output get", timer.USecDouble);
                         opus.Execute(pcm, audio);
 
-                        pcmDrowPool.SendAsync(pcm);
+                        await pcmDrowPool.SendAsync(pcm).ConfigureAwait(false);
 
                         //FTL
                         ftl.Execute(audio);
-                        audioPool.SendAsync(audio);
+                        await audioPool.SendAsync(audio).ConfigureAwait(false);
                     }, options);
                 taskSet.Add(audioBlock.Completion);
                 vstBufferPool.LinkTo(audioBlock);
@@ -296,7 +296,7 @@ namespace mixerTest
 
             {
                 var midiDataStoreBlock =
-                    new ActionBlock<MIDIMessageEvent2>(buffer =>
+                    new ActionBlock<MIDIMessageEvent2>(async buffer =>
                     {
                         fft.Receive(buffer);
                     }, options);
@@ -304,10 +304,10 @@ namespace mixerTest
                 MidiEventOutput.LinkTo(midiDataStoreBlock);
 
                 var pcmDataStoreBlock =
-                    new ActionBlock<PcmBuffer<float>>(buffer =>
+                    new ActionBlock<PcmBuffer<float>>(async buffer =>
                     {
                         fft.Receive(buffer);
-                        pcmPool.SendAsync(buffer);
+                        await pcmPool.SendAsync(buffer).ConfigureAwait(false);
                     }, options);
                 taskSet.Add(pcmDataStoreBlock.Completion);
                 pcmDrowPool.LinkTo(pcmDataStoreBlock);
@@ -315,13 +315,13 @@ namespace mixerTest
                 var intraFrameCount = 0.0;
 
                 var videoBlock =
-                    new ActionBlock<H264InputBuffer>(buffer =>
+                    new ActionBlock<H264InputBuffer>(async buffer =>
                     {
                         var videoTask = videoPool.ReceiveAsync(ct);
 
                         buffer.Log.Clear();
 
-                        videoWaiter.Wait();
+                        await videoWaiter.Wait(ct).ConfigureAwait(false);
                         buffer.Log.Add("[video] start", timer.USecDouble);
 
                         //FFT
@@ -332,7 +332,7 @@ namespace mixerTest
                         buffer.Log.Add("[video] h264 output get", timer.USecDouble);
                         var insertIntraFrame = (intraFrameCount <= 0);
                         h264.Execute(buffer, video, insertIntraFrame);
-                        bmpPool.SendAsync(buffer);
+                        await bmpPool.SendAsync(buffer).ConfigureAwait(false);
                         if (insertIntraFrame)
                         {
                             intraFrameCount = Param.IntraFrameIntervalUs;
@@ -341,7 +341,7 @@ namespace mixerTest
 
                         //FTL
                         ftl.Execute(video);
-                        videoPool.SendAsync(video);
+                        await videoPool.SendAsync(video).ConfigureAwait(false);
                     }, options);
                 taskSet.Add(videoBlock.Completion);
                 bmpPool.LinkTo(videoBlock);

@@ -78,7 +78,7 @@ namespace mixerTest
 
         //private readonly IDictionary<WebSocket, int> webSocketPool = new ConcurrentDictionary<WebSocket, int>();
 
-        private BroadcastBlock<string> wsBroadcaster = new(null);
+        private readonly BroadcastBlock<string> wsBroadcaster = new(null);
         private CancellationTokenSource wsProcessCancel = new();
 
         //private BufferBlock<OpusOutputBuffer> audioOutput = new BufferBlock<OpusOutputBuffer>();
@@ -96,7 +96,6 @@ namespace mixerTest
             Param = param;
 
             BroadcastStatus("stop");
-            //webSocketTask = WebSocketLoop();
         }
         public void Dispose()
         {
