@@ -145,7 +145,7 @@ namespace Momiji.Core.Wave
                     );
                 }
 #endif
-                releaseAction.SendAsync(dw1);
+                releaseAction.Post(dw1);
             }
         }
 
@@ -287,7 +287,7 @@ namespace Momiji.Core.Wave
                 );
             if (mmResult != MMRESULT.NOERROR)
             {
-                headerPool.SendAsync(header);
+                headerPool.Post(header);
                 throw new WaveException(mmResult);
             }
             headerBusyPool.Add(header.AddrOfPinnedObject, header);
@@ -343,7 +343,7 @@ namespace Momiji.Core.Wave
 #endif
 
             dataBusyPool.Remove(header.Target.data, out PcmBuffer<T> source);
-            headerPool.SendAsync(header);
+            headerPool.Post(header);
 
             if (Logger.IsEnabled(LogLevel.Debug))
             {
@@ -373,7 +373,7 @@ namespace Momiji.Core.Wave
                 );
             if (mmResult != MMRESULT.NOERROR)
             {
-                releaseAction.SendAsync(headerPtr);
+                releaseAction.Post(headerPtr);
                 throw new WaveException(mmResult);
             }
         }

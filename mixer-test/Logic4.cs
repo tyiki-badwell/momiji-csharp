@@ -134,18 +134,18 @@ namespace mixerTest
                         var pcm = pcmTask.Result;
                         buffer.Log.Add("[audio] opus input get", timer.USecDouble);
                         toPcm.Execute(buffer, pcm);
-                        await vstBufferPool.SendAsync(buffer).ConfigureAwait(false);
+                        vstBufferPool.Post(buffer);
 
                         var audio = audioTask.Result;
                         pcm.Log.Add("[audio] opus output get", timer.USecDouble);
                         opus.Execute(pcm, audio);
 
-                        await pcmDrowPool.SendAsync(pcm).ConfigureAwait(false);
+                        pcmDrowPool.Post(pcm);
 
                         //FTL
                         //   ftl.Execute(audio);
 
-                        await audioPool.SendAsync(audio).ConfigureAwait(false);
+                        audioPool.Post(audio);
                     }, options);
                 taskSet.Add(audioBlock.Completion);
                 vstBufferPool.LinkTo(audioBlock);
@@ -153,7 +153,7 @@ namespace mixerTest
 
             {
                 var midiDataStoreBlock =
-                    new ActionBlock<MIDIMessageEvent2>(async buffer =>
+                    new ActionBlock<MIDIMessageEvent2>(buffer =>
                     {
                         fft.Receive(buffer);
                     }, options);
@@ -161,10 +161,10 @@ namespace mixerTest
                 MidiEventOutput.LinkTo(midiDataStoreBlock);
 
                 var pcmDataStoreBlock =
-                    new ActionBlock<PcmBuffer<float>>(async buffer =>
+                    new ActionBlock<PcmBuffer<float>>(buffer =>
                     {
                         fft.Receive(buffer);
-                        await pcmPool.SendAsync(buffer).ConfigureAwait(false);
+                        pcmPool.Post(buffer);
                     }, options);
                 taskSet.Add(pcmDataStoreBlock.Completion);
                 pcmDrowPool.LinkTo(pcmDataStoreBlock);
@@ -191,7 +191,7 @@ namespace mixerTest
                         var insertIntraFrame = (intraFrameCount <= 0);
                         h264.Execute(buffer, video, insertIntraFrame);
 
-                        await bmpPool.SendAsync(buffer).ConfigureAwait(false);
+                        bmpPool.Post(buffer);
                         if (insertIntraFrame)
                         {
                             intraFrameCount = Param.IntraFrameIntervalUs;
@@ -201,7 +201,7 @@ namespace mixerTest
                         //FTL
                         //ftl.Execute(video);
 
-                        await videoPool.SendAsync(video).ConfigureAwait(false);
+                        videoPool.Post(video);
                     }, options);
                 taskSet.Add(videoBlock.Completion);
                 bmpPool.LinkTo(videoBlock);
@@ -211,7 +211,6 @@ namespace mixerTest
             {
                 var task = await Task.WhenAny(taskSet).ConfigureAwait(false);
                 taskSet.Remove(task);
-                await task.ConfigureAwait(false);
                 if (task.IsFaulted)
                 {
                     ProcessCancel.Cancel();
@@ -278,17 +277,17 @@ namespace mixerTest
                         //trans
                         var pcm = pcmTask.Result;
                         toPcm.Execute(buffer, pcm);
-                        await vstBufferPool.SendAsync(buffer).ConfigureAwait(false);
+                        vstBufferPool.Post(buffer);
 
                         var audio = audioTask.Result;
                         pcm.Log.Add("[audio] opus output get", timer.USecDouble);
                         opus.Execute(pcm, audio);
 
-                        await pcmDrowPool.SendAsync(pcm).ConfigureAwait(false);
+                        pcmDrowPool.Post(pcm);
 
                         //FTL
                         ftl.Execute(audio);
-                        await audioPool.SendAsync(audio).ConfigureAwait(false);
+                        audioPool.Post(audio);
                     }, options);
                 taskSet.Add(audioBlock.Completion);
                 vstBufferPool.LinkTo(audioBlock);
@@ -296,7 +295,7 @@ namespace mixerTest
 
             {
                 var midiDataStoreBlock =
-                    new ActionBlock<MIDIMessageEvent2>(async buffer =>
+                    new ActionBlock<MIDIMessageEvent2>(buffer =>
                     {
                         fft.Receive(buffer);
                     }, options);
@@ -304,10 +303,10 @@ namespace mixerTest
                 MidiEventOutput.LinkTo(midiDataStoreBlock);
 
                 var pcmDataStoreBlock =
-                    new ActionBlock<PcmBuffer<float>>(async buffer =>
+                    new ActionBlock<PcmBuffer<float>>(buffer =>
                     {
                         fft.Receive(buffer);
-                        await pcmPool.SendAsync(buffer).ConfigureAwait(false);
+                        pcmPool.Post(buffer);
                     }, options);
                 taskSet.Add(pcmDataStoreBlock.Completion);
                 pcmDrowPool.LinkTo(pcmDataStoreBlock);
@@ -332,7 +331,7 @@ namespace mixerTest
                         buffer.Log.Add("[video] h264 output get", timer.USecDouble);
                         var insertIntraFrame = (intraFrameCount <= 0);
                         h264.Execute(buffer, video, insertIntraFrame);
-                        await bmpPool.SendAsync(buffer).ConfigureAwait(false);
+                        bmpPool.Post(buffer);
                         if (insertIntraFrame)
                         {
                             intraFrameCount = Param.IntraFrameIntervalUs;
@@ -341,7 +340,7 @@ namespace mixerTest
 
                         //FTL
                         ftl.Execute(video);
-                        await videoPool.SendAsync(video).ConfigureAwait(false);
+                        videoPool.Post(video);
                     }, options);
                 taskSet.Add(videoBlock.Completion);
                 bmpPool.LinkTo(videoBlock);
@@ -351,7 +350,6 @@ namespace mixerTest
             {
                 var task = await Task.WhenAny(taskSet).ConfigureAwait(false);
                 taskSet.Remove(task);
-                await task.ConfigureAwait(false);
                 if (task.IsFaulted)
                 {
                     ProcessCancel.Cancel();

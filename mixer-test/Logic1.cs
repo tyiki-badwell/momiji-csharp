@@ -20,9 +20,6 @@ using System.Runtime.InteropServices;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Threading.Tasks.Dataflow;
-using Windows.Media.Audio;
-using Windows.Media.MediaProperties;
-using WinRT;
 
 namespace mixerTest
 {
@@ -141,7 +138,7 @@ namespace mixerTest
                         //trans
                         var pcm = pcmTask.Result;
                         toPcm.Execute(buffer, pcm);
-                        await vstBufferPool.SendAsync(buffer).ConfigureAwait(false);
+                        vstBufferPool.Post(buffer);
 
                         return pcm;
                     }, options);
@@ -149,14 +146,14 @@ namespace mixerTest
                 vstBufferPool.LinkTo(vstBlock);
 
                 var opusBlock =
-                    new TransformBlock<PcmBuffer<float>, OpusOutputBuffer>(async buffer =>
+                    new TransformBlock<PcmBuffer<float>, OpusOutputBuffer>(buffer =>
                     {
                         buffer.Log.Add("[audio] opus input get", timer.USecDouble);
                         var audio = audioPool.Receive(ct);
                         buffer.Log.Add("[audio] ftl output get", timer.USecDouble);
                         opus.Execute(buffer, audio);
 
-                        await pcmDrowPool.SendAsync(buffer).ConfigureAwait(false);
+                        pcmDrowPool.Post(buffer);
 
                         return audio;
                     }, options);
@@ -164,12 +161,12 @@ namespace mixerTest
                 vstBlock.LinkTo(opusBlock);
 
                 var ftlBlock =
-                    new ActionBlock<OpusOutputBuffer>(async buffer =>
+                    new ActionBlock<OpusOutputBuffer>(buffer =>
                     {
                         //FTL
                         buffer.Log.Add("[audio] ftl input get", timer.USecDouble);
                         ftl.Execute(buffer);
-                        await audioPool .SendAsync(buffer).ConfigureAwait(false);
+                        audioPool.Post(buffer);
                     }, options);
                 taskSet.Add(ftlBlock.Completion);
                 opusBlock.LinkTo(ftlBlock);
@@ -177,7 +174,7 @@ namespace mixerTest
 
             {
                 var midiDataStoreBlock =
-                    new ActionBlock<MIDIMessageEvent2>(async buffer =>
+                    new ActionBlock<MIDIMessageEvent2>(buffer =>
                     {
                         fft.Receive(buffer);
                     }, options);
@@ -185,10 +182,10 @@ namespace mixerTest
                 MidiEventOutput.LinkTo(midiDataStoreBlock);
 
                 var pcmDataStoreBlock =
-                    new ActionBlock<PcmBuffer<float>>(async buffer =>
+                    new ActionBlock<PcmBuffer<float>>(buffer =>
                     {
                         fft.Receive(buffer);
-                        await pcmPool.SendAsync(buffer).ConfigureAwait(false);
+                        pcmPool.Post(buffer);
                     }, options);
                 taskSet.Add(pcmDataStoreBlock.Completion);
                 pcmDrowPool.LinkTo(pcmDataStoreBlock);
@@ -211,7 +208,7 @@ namespace mixerTest
 
                 var intraFrameCount = 0.0;
                 var h264Block =
-                    new TransformBlock<H264InputBuffer, H264OutputBuffer>(async buffer =>
+                    new TransformBlock<H264InputBuffer, H264OutputBuffer>(buffer =>
                     {
                         //H264
                         buffer.Log.Add("[video] h264 input get", timer.USecDouble);
@@ -219,7 +216,7 @@ namespace mixerTest
                         buffer.Log.Add("[video] ftl output get", timer.USecDouble);
                         var insertIntraFrame = (intraFrameCount <= 0);
                         h264.Execute(buffer, video, insertIntraFrame);
-                        await bmpPool.SendAsync(buffer).ConfigureAwait(false);
+                        bmpPool.Post(buffer);
                         if (insertIntraFrame)
                         {
                             intraFrameCount = Param.IntraFrameIntervalUs;
@@ -231,12 +228,12 @@ namespace mixerTest
                 fftBlock.LinkTo(h264Block);
 
                 var ftlBlock =
-                    new ActionBlock<H264OutputBuffer>(async buffer =>
+                    new ActionBlock<H264OutputBuffer>(buffer =>
                     {
                         //FTL
                         buffer.Log.Add("[video] ftl input get", timer.USecDouble);
                         ftl.Execute(buffer);
-                        await videoPool.SendAsync(buffer).ConfigureAwait(false);
+                        videoPool.Post(buffer);
                     }, options);
                 taskSet.Add(ftlBlock.Completion);
                 h264Block.LinkTo(ftlBlock);
@@ -246,7 +243,6 @@ namespace mixerTest
             {
                 var task = await Task.WhenAny(taskSet).ConfigureAwait(false);
                 taskSet.Remove(task);
-                await task.ConfigureAwait(false);
                 if (task.IsFaulted)
                 {
                     ProcessCancel.Cancel();
@@ -263,88 +259,10 @@ namespace mixerTest
             void GetBuffer(out byte* buffer, out uint capacity);
         }
 
-        private double audioWaveTheta = 0;
-
         private async Task RunLocal()
         {
             var ct = ProcessCancel.Token;
             var taskSet = new HashSet<Task>();
-
-            var devices = await Windows.Devices.Enumeration.DeviceInformation.FindAllAsync(Windows.Media.Devices.MediaDevice.GetAudioRenderSelector());
-
-
-            AudioGraph audioGraph = null;
-            {
-                var settings = new AudioGraphSettings(Windows.Media.Render.AudioRenderCategory.Media)
-                {
-                    QuantumSizeSelectionMode = QuantumSizeSelectionMode.LowestLatency,
-                    DesiredSamplesPerQuantum = 1000,
-                    AudioRenderCategory = Windows.Media.Render.AudioRenderCategory.GameMedia,
-                    MaxPlaybackSpeedFactor = 1,
-                    DesiredRenderDeviceAudioProcessing = Windows.Media.AudioProcessing.Raw
-                };
-
-                var result = await AudioGraph.CreateAsync(settings);
-                if (result.Status != AudioGraphCreationStatus.Success)
-                {
-                    throw new Exception("create failed.", result.ExtendedError);
-                }
-                audioGraph = result.Graph;
-            }
-            Logger.LogInformation($"[loop3] audioGraph.SamplesPerQuantum {audioGraph.SamplesPerQuantum}");
-            Logger.LogInformation($"[loop3] audioGraph.LatencyInSamples {audioGraph.LatencyInSamples}");
-
-            AudioDeviceOutputNode outNode = null;
-            {
-                var result = await audioGraph.CreateDeviceOutputNodeAsync();
-                if (result.Status != AudioDeviceNodeCreationStatus.Success)
-                {
-                    throw new Exception("create failed.", result.ExtendedError);
-                }
-                outNode = result.DeviceOutputNode;
-            }
-
-            AudioFrameInputNode inNode = null;
-            {
-                var prop = AudioEncodingProperties.CreatePcm((uint)Param.SamplingRate, 2, sizeof(float) * 8);
-                inNode = audioGraph.CreateFrameInputNode(prop);
-                inNode.Stop();
-                inNode.QuantumStarted += (AudioFrameInputNode sender, FrameInputNodeQuantumStartedEventArgs args) =>
-                {
-                    var samples = (uint)args.RequiredSamples;
-
-                    var bufferSize =samples * sizeof(float);
-                    var frame = new Windows.Media.AudioFrame(bufferSize);
-
-                    using (var buffer = frame.LockBuffer(Windows.Media.AudioBufferAccessMode.Write))
-                    using (var reference = buffer.CreateReference())
-                    {
-                        unsafe
-                        {
-                            reference.As<IMemoryBufferByteAccess>().GetBuffer(out byte* dataInBytes, out uint capacityInBytes);
-                            var dataInFloat = (float*)dataInBytes;
-                            float freq = 0.480f; // choosing to generate frequency of 1kHz
-                            float amplitude = 0.3f;
-                            int sampleRate = (int)audioGraph.EncodingProperties.SampleRate;
-                            double sampleIncrement = (freq * (Math.PI * 2)) / sampleRate;
-
-                            // Generate a 1kHz sine wave and populate the values in the memory buffer
-                            for (int i = 0; i < samples; i++)
-                            {
-                                double sinValue = amplitude * Math.Sin(audioWaveTheta);
-                                dataInFloat[i] = (float)sinValue;
-                                audioWaveTheta += sampleIncrement;
-                            }
-                        }
-                    }
-                    sender.AddFrame(frame);
-                };
-
-                inNode.AddOutgoingConnection(outNode);
-                inNode.Start();
-            }
-
-            //audioGraph.Start();
 
             var blockSize = (int)(Param.SamplingRate * Param.SampleLength);
             var audioInterval = 1_000_000.0 * Param.SampleLength;
@@ -375,8 +293,6 @@ namespace mixerTest
             var vstBlock =
                 new TransformBlock<VstBuffer<float>, PcmBuffer<float>>(async buffer =>
                 {
-                    var pcmTask = pcmPool.ReceiveAsync(ct);
-
                     buffer.Log.Clear();
                     await audioWaiter.Wait(ct).ConfigureAwait(false);
                     //VST
@@ -385,16 +301,17 @@ namespace mixerTest
                     effect.ProcessReplacing(nowTime, buffer);
 
                     //trans
-                    var pcm = pcmTask.Result;
+                    var pcm = pcmPool.Receive();
                     toPcm.Execute(buffer, pcm);
-                    await vstBufferPool.SendAsync(buffer).ConfigureAwait(false);
+                    vstBufferPool.Post(buffer);
+
                     return pcm;
                 }, options);
             taskSet.Add(vstBlock.Completion);
             vstBufferPool.LinkTo(vstBlock);
 
             var waveBlock =
-                new ActionBlock<PcmBuffer<float>>(async buffer =>
+                new ActionBlock<PcmBuffer<float>>(buffer =>
                 {
                     //WAVEOUT
                     wave.Execute(buffer, ct);
@@ -406,7 +323,6 @@ namespace mixerTest
             {
                 var task = await Task.WhenAny(taskSet).ConfigureAwait(false);
                 taskSet.Remove(task);
-                await task.ConfigureAwait(false);
                 if (task.IsFaulted)
                 {
                     ProcessCancel.Cancel();

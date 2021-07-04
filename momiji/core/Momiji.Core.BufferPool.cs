@@ -116,7 +116,7 @@ namespace Momiji.Core
             A = a;
             for (var i = 0; i < size; i++)
             {
-                bufferBlock.SendAsync(AddBuffer());
+                bufferBlock.Post(AddBuffer());
             }
         }
 

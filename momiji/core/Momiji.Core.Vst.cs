@@ -8,6 +8,7 @@ using System.Collections.Generic;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using System.Threading.Tasks.Dataflow;
+using System.Windows.Forms;
 
 namespace Momiji.Core.Vst
 {
@@ -30,9 +31,11 @@ namespace Momiji.Core.Vst
     {
         private bool disposed;
         private readonly List<PinnedBuffer<T[]>> list = new();
+        public int BlockSize { get; }
 
         public VstBuffer(int blockSize, int channels) : base(new IntPtr[channels])
         {
+            BlockSize = blockSize;
             for (var i = 0; i < channels; i++)
             {
                 var buffer = new PinnedBuffer<T[]>(new T[blockSize]);
@@ -199,7 +202,7 @@ namespace Momiji.Core.Vst
         private bool disposed;
 
         internal readonly IntPtr aeffectPtr;
-        //internal ERect EditorRect { get; private set; }
+        internal ERect EditorRect { get; private set; }
 
         private AEffect.DispatcherProc DispatcherProc { get; }
         private AEffect.SetParameterProc SetParameterProc { get; }
@@ -209,7 +212,7 @@ namespace Momiji.Core.Vst
         private readonly AudioMaster<T> audioMaster;
         private PinnedDelegate<AudioMaster.CallBack> audioMasterCallBack;
 
-        //private System.Windows.Input.ICommand window;
+        private readonly NativeWindow window = new();
 
         private PinnedBuffer<byte[]> events;
         private PinnedBuffer<byte[]> eventList;
@@ -326,6 +329,7 @@ namespace Momiji.Core.Vst
                     throw new VstException("processDoubleReplacing が無い");
                 }
             }
+
             beforeTime = Timer.USecDouble;
         }
 
@@ -407,7 +411,7 @@ namespace Momiji.Core.Vst
                 throw new ArgumentNullException(nameof(source));
             }
 
-            var blockSize = audioMaster.BlockSize;
+            var blockSize = source.BlockSize;
 
             source.Log.Add("[vst] start processReplacing", Timer.USecDouble);
             ProcessProc(
@@ -435,7 +439,7 @@ namespace Momiji.Core.Vst
             {
                 //前回の余分なイベントをここで回収
                 list.Add(extraMidiEvent.Value);
-                midiEventOutput?.SendAsync(extraMidiEvent.Value);
+                midiEventOutput?.Post(extraMidiEvent.Value);
                 extraMidiEvent = null;
             }
 
@@ -450,7 +454,7 @@ namespace Momiji.Core.Vst
                         break;
                     }
                     list.Add(item);
-                    midiEventOutput?.SendAsync(item);
+                    midiEventOutput?.Post(item);
                 }
             }
 
@@ -583,18 +587,23 @@ namespace Momiji.Core.Vst
                 default
             );
 
-            /*
-            Dispatcher(
-                aeffectPtr,
-                AEffect.Opcodes.effEditOpen,
-                default,
-                default,
-                default, // TODO hWnd
-                default
-            );
+            {
+                var cp = new CreateParams();
+                window.CreateHandle(cp);
+
+                DispatcherProc(
+                    aeffectPtr,
+                    AEffect.Opcodes.effEditOpen,
+                    default,
+                    default,
+                    window.Handle,
+                    default
+                );
+            }
+
             using (var buffer = new PinnedBuffer<IntPtr[]>(new IntPtr[1]))
-            { 
-                Dispatcher(
+            {
+                DispatcherProc(
                     aeffectPtr,
                     AEffect.Opcodes.effEditGetRect,
                     default,
@@ -604,7 +613,7 @@ namespace Momiji.Core.Vst
                 );
 
                 EditorRect = Marshal.PtrToStructure<ERect>(buffer.AddrOfPinnedObject);
-            }*/
+            }
         }
 
         private void Close()
@@ -613,15 +622,16 @@ namespace Momiji.Core.Vst
             {
                 return;
             }
-            /*
-            Dispatcher(
+
+            DispatcherProc(
                 aeffectPtr,
                 AEffect.Opcodes.effEditClose,
                 default,
                 default,
                 default,
                 default
-            );*/
+            );
+            window.ReleaseHandle();
 
             //stop
             DispatcherProc(
@@ -675,6 +685,8 @@ namespace Momiji.Core.Vst
 
                 eventList?.Dispose();
                 eventList = null;
+
+                window.DestroyHandle();
             }
 
             disposed = true;

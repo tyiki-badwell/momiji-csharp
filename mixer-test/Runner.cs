@@ -217,7 +217,7 @@ namespace mixerTest
                     $"{midiEvent.data2:X2}" +
                     $"{midiEvent.data3:X2}"
                 );
-                midiEventInput.SendAsync(midiEvent);
+                midiEventInput.Post(midiEvent);
             }
         }
         */
@@ -297,8 +297,8 @@ namespace mixerTest
                         MIDIMessageEvent2 midiEvent2;
                         midiEvent2.midiMessageEvent = midiEvent;
                         midiEvent2.receivedTimeUSec = timer.USecDouble;
-                        await midiEventInput.SendAsync(midiEvent2).ConfigureAwait(false);
-                        await midiEventOutput.SendAsync(midiEvent2).ConfigureAwait(false);
+                        midiEventInput.Post(midiEvent2);
+                        midiEventOutput.Post(midiEvent2);
                     }
                     else if (result.MessageType == WebSocketMessageType.Text)
                     {
