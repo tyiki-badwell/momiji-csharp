@@ -1,6 +1,7 @@
 using Microsoft.Extensions.Logging;
 using Momiji.Core.Wave;
 using Momiji.Interop.Wave;
+using System;
 using System.Threading.Tasks.Dataflow;
 using Xunit;
 
@@ -38,8 +39,15 @@ namespace Momiji.Core
 
             using var pcmPool = new BufferPool<PcmBuffer<short>>(1, () => new PcmBuffer<short>(blockSize, 1), loggerFactory);
             {
-                using var test = new WaveOutShort(deviceID, channels, samplingRate, channelMask, loggerFactory, timer, pcmPool);
-                test.Execute(pcmPool.Receive(), default);
+                try
+                {
+                    using var test = new WaveOutShort(deviceID, channels, samplingRate, channelMask, loggerFactory, timer, pcmPool);
+                    test.Execute(pcmPool.Receive(), default);
+                }
+                catch (Exception)
+                {
+
+                }
             }
         }
     }

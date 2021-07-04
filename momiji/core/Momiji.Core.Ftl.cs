@@ -177,7 +177,7 @@ namespace Momiji.Core.Ftl
             else
             {
                 lastAudioUsec += AudioInterval;
-                Logger.LogDebug($"[ftl] AUDIO delay {now - lastAudioUsec} {now - source.Log.GetFirstTime()}");
+                Logger.LogDebug($"[ftl] AUDIO delay {now - lastAudioUsec} {now - source.Log.FirstTime()}");
             }
 
             long time = (long)lastAudioUsec;
@@ -206,7 +206,7 @@ namespace Momiji.Core.Ftl
                     log += $"\n[{ new DateTime((long)(a.time * 10), DateTimeKind.Utc):HH:mm:ss ffffff}][{lap:0000000000.000}]{a.label}";
                     temp = a.time;
                 });
-                Logger.LogDebug($"[ftl] {source.Log.GetSpentTime()} {log}");
+                Logger.LogDebug($"[ftl] {source.Log.SpentTime()} {log}");
             }
 
             source.Log.Clear();
@@ -227,7 +227,7 @@ namespace Momiji.Core.Ftl
             else
             {
                 lastVideoUsec += VideoInterval;
-                Logger.LogDebug($"[ftl] VIDEO delay {now - lastVideoUsec} {now - source.Log.GetFirstTime()}");
+                Logger.LogDebug($"[ftl] VIDEO delay {now - lastVideoUsec} {now - source.Log.FirstTime()}");
             }
 
             long time = (long)lastVideoUsec;
@@ -265,7 +265,7 @@ namespace Momiji.Core.Ftl
                     log += $"\n[{ new DateTime((long)(a.time * 10), DateTimeKind.Utc):HH:mm:ss ffffff}][{lap:0000000000.000}]{a.label}";
                     temp = a.time;
                 });
-                Logger.LogDebug($"[ftl] {source.Log.GetSpentTime()} {log}");
+                Logger.LogDebug($"[ftl] {source.Log.SpentTime()} {log}");
             }
 
             source.Log.Clear();

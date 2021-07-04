@@ -44,12 +44,12 @@ namespace Momiji.Interop
             Log.ForEach(action);
         }
 
-        public double GetSpentTime()
+        public double SpentTime()
         {
             return Log[^1].time - Log[0].time;
         }
 
-        public double GetFirstTime()
+        public double FirstTime()
         {
             return Log[0].time;
         }
@@ -111,7 +111,7 @@ namespace Momiji.Interop
 
         public PinnedBufferWithLog(T buffer) : base(buffer)
         {
-            Log = new BufferLog();
+            Log = new();
         }
 
         protected override void Dispose(bool disposing)

@@ -12,6 +12,79 @@ using System.Windows.Forms;
 
 namespace Momiji.Core.Vst
 {
+        
+    public class HostWindow : NativeWindow
+    {
+        private const int WS_OVERLAPPEDWINDOW = 0x00CF0000,
+                          WS_VISIBLE = 0x10000000
+            ;
+
+        private ILogger Logger { get; }
+        public HostWindow(ILoggerFactory loggerFactory)
+        {
+            Logger = loggerFactory.CreateLogger<HostWindow>();
+            CreateParams cp = new();
+            cp.X = 0;
+            cp.Y = 0;
+            cp.Width = 1000;
+            cp.Height = 1000;
+            cp.Parent = default;
+            cp.Style = WS_OVERLAPPEDWINDOW | WS_VISIBLE;
+            CreateHandle(cp);
+        }
+        protected override void WndProc(ref Message m)
+        {
+            Logger.LogInformation($"host {m.Msg:X} {m.Result:X} {m.WParam:X} {m.LParam:X}");
+
+            switch (m.Msg)
+            {
+             //   case WM_ACTIVATEAPP:
+                    // Do something here in response to messages
+               //     break;
+            }
+            base.WndProc(ref m);
+        }
+    }
+
+    public class EditorWindow : NativeWindow
+    {
+        private const int WS_CHILD = 0x40000000,
+            WS_OVERLAPPEDWINDOW = 0x00CF0000,
+                          WS_VISIBLE = 0x10000000
+            ;
+        private ILogger Logger { get; }
+        public EditorWindow(HostWindow hostWindow, ILoggerFactory loggerFactory)
+        {
+            if (hostWindow == default)
+            {
+                throw new ArgumentNullException(nameof(hostWindow));
+            }
+
+            Logger = loggerFactory.CreateLogger<EditorWindow>();
+            CreateParams cp = new();
+            cp.X = 10;
+            cp.Y = 10;
+            cp.Width = 100;
+            cp.Height = 100;
+            cp.Parent = hostWindow.Handle;
+            cp.Style = WS_CHILD | WS_OVERLAPPEDWINDOW | WS_VISIBLE;
+            CreateHandle(cp);
+        }
+        protected override void WndProc(ref Message m)
+        {
+            Logger.LogInformation($"editor {m.Msg:X} {m.Result:X} {m.WParam:X} {m.LParam:X}");
+
+            switch (m.Msg)
+            {
+             //   case WM_ACTIVATEAPP:
+                    // Do something here in response to messages
+               //     break;
+            }
+            base.WndProc(ref m);
+        }
+    }
+
+
     public class VstException : Exception
     {
         public VstException()
@@ -74,6 +147,8 @@ namespace Momiji.Core.Vst
 
         private readonly PinnedBuffer<VstTimeInfo> vstTimeInfo;
 
+        internal readonly HostWindow hostWindow;
+
         public int SamplingRate { get; }
         public int BlockSize { get; }
 
@@ -89,6 +164,8 @@ namespace Momiji.Core.Vst
             Logger = LoggerFactory.CreateLogger<AudioMaster<T>>();
             Timer = timer;
             DllManager = dllManager;
+
+            hostWindow = new(loggerFactory);
 
             SamplingRate = samplingRate;
             BlockSize = blockSize;
@@ -145,6 +222,11 @@ namespace Momiji.Core.Vst
                 }
                 effectMap.Clear();
                 vstTimeInfo.Dispose();
+
+                Message m = new();
+                m.Msg = 0x0002; //WM_DESTROY
+                hostWindow.DefWndProc(ref m);
+                hostWindow.DestroyHandle();
             }
 
             disposed = true;
@@ -212,7 +294,7 @@ namespace Momiji.Core.Vst
         private readonly AudioMaster<T> audioMaster;
         private PinnedDelegate<AudioMaster.CallBack> audioMasterCallBack;
 
-        private readonly NativeWindow window = new();
+        private readonly EditorWindow editorWindow;
 
         private PinnedBuffer<byte[]> events;
         private PinnedBuffer<byte[]> eventList;
@@ -233,6 +315,7 @@ namespace Momiji.Core.Vst
             Timer = timer;
 
             this.audioMaster = audioMaster;
+            this.editorWindow = new(audioMaster.hostWindow, loggerFactory);
 
             //TODO その場で作っても問題ないか？
             events = new PinnedBuffer<byte[]>(new byte[SIZE_OF_VSTEVENTS + (SIZE_OF_INTPTR * COUNT_OF_EVENTS)]);
@@ -587,32 +670,42 @@ namespace Momiji.Core.Vst
                 default
             );
 
+            if (aeffect.flags.HasFlag(AEffect.VstAEffectFlags.effFlagsHasEditor))
             {
-                var cp = new CreateParams();
-                window.CreateHandle(cp);
+                {
+                    var result =
+                        DispatcherProc(
+                            aeffectPtr,
+                            AEffect.Opcodes.effEditOpen,
+                            default,
+                            default,
+                            editorWindow.Handle,
+                            default
+                        );
+                    if (result == (IntPtr)0)
+                    {
+                        Logger.LogInformation("[vst] effEditOpen failed");
+                    }
+                }
 
-                DispatcherProc(
-                    aeffectPtr,
-                    AEffect.Opcodes.effEditOpen,
-                    default,
-                    default,
-                    window.Handle,
-                    default
-                );
-            }
+                {
+                    using var buffer = new PinnedBuffer<IntPtr[]>(new IntPtr[1]);
+                    var result =
+                        DispatcherProc(
+                            aeffectPtr,
+                            AEffect.Opcodes.effEditGetRect,
+                            default,
+                            default,
+                            buffer.AddrOfPinnedObject,
+                            default
+                        );
+                    if (result == (IntPtr)0)
+                    {
+                        Logger.LogInformation("[vst] effEditGetRect failed");
+                    }
 
-            using (var buffer = new PinnedBuffer<IntPtr[]>(new IntPtr[1]))
-            {
-                DispatcherProc(
-                    aeffectPtr,
-                    AEffect.Opcodes.effEditGetRect,
-                    default,
-                    default,
-                    buffer.AddrOfPinnedObject, // TODO out ERect
-                    default
-                );
-
-                EditorRect = Marshal.PtrToStructure<ERect>(buffer.AddrOfPinnedObject);
+                    EditorRect = Marshal.PtrToStructure<ERect>(buffer.AddrOfPinnedObject);
+                }
             }
         }
 
@@ -631,7 +724,6 @@ namespace Momiji.Core.Vst
                 default,
                 default
             );
-            window.ReleaseHandle();
 
             //stop
             DispatcherProc(
@@ -686,7 +778,7 @@ namespace Momiji.Core.Vst
                 eventList?.Dispose();
                 eventList = null;
 
-                window.DestroyHandle();
+                editorWindow.DestroyHandle();
             }
 
             disposed = true;

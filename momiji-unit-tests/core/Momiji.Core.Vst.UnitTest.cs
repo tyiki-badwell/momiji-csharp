@@ -49,13 +49,13 @@ namespace Momiji.Core
             var effect = vst.AddEffect("Dexed.dll");
             
             var aeffect = effect.GetAEffect();
-            for (int i = 0; i < 1 /*aeffect.numParams*/; i++)
+            for (int i = 0; i < 1/*aeffect.numParams*/; i++)
             {
                 var label = effect.GetParameterLabel(i);
                 var name = effect.GetParameterName(i);
                 var display = effect.GetParameterDisplay(i);
                 var value = effect.GetParameter(i);
-                logger.LogInformation($"{i}:{label}:{name}:{display}:{value}");
+                logger.LogInformation($"VST Parameter {i}:{label}:{name}:{display}:{value}");
             }
 
             {

@@ -357,7 +357,7 @@ namespace Momiji.Core.Wave
                     log += $"\n[{ new DateTime((long)(a.time * 10), DateTimeKind.Utc):yyyy/MM/dd HH:mm:ss ffffff}][{a.time:0000000000.000}][{lap:0000000000.000}]{a.label}";
                     temp = a.time;
                 });
-                Logger.LogDebug($"[wave] {source.Log.GetSpentTime()} {log}");
+                Logger.LogDebug($"[wave] {source.Log.SpentTime()} {log}");
                 Logger.LogDebug($"[wave] release [{source.AddrOfPinnedObject}]");
             }
 
