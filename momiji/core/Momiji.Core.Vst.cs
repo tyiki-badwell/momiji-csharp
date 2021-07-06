@@ -1,73 +1,40 @@
 ﻿using Microsoft.Extensions.Logging;
 using Momiji.Core.WebMidi;
 using Momiji.Interop;
+using Momiji.Interop.Kernel32;
 using Momiji.Interop.Vst;
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
+using System.Threading.Tasks;
 using System.Threading.Tasks.Dataflow;
 using System.Windows.Forms;
 
 namespace Momiji.Core.Vst
 {
-        
-    public class HostWindow : NativeWindow
+    public class EditorWindow : NativeWindow, IDisposable
     {
-        private const int WS_OVERLAPPEDWINDOW = 0x00CF0000,
-                          WS_VISIBLE = 0x10000000
-            ;
-
+        private bool disposed;
         private ILogger Logger { get; }
-        public HostWindow(ILoggerFactory loggerFactory)
+        public EditorWindow(ILoggerFactory loggerFactory)
         {
-            Logger = loggerFactory.CreateLogger<HostWindow>();
-            CreateParams cp = new();
-            cp.X = 0;
-            cp.Y = 0;
-            cp.Width = 1000;
-            cp.Height = 1000;
-            cp.Parent = default;
-            cp.Style = WS_OVERLAPPEDWINDOW | WS_VISIBLE;
-            CreateHandle(cp);
-        }
-        protected override void WndProc(ref Message m)
-        {
-            Logger.LogInformation($"host {m.Msg:X} {m.Result:X} {m.WParam:X} {m.LParam:X}");
-
-            switch (m.Msg)
-            {
-             //   case WM_ACTIVATEAPP:
-                    // Do something here in response to messages
-               //     break;
-            }
-            base.WndProc(ref m);
-        }
-    }
-
-    public class EditorWindow : NativeWindow
-    {
-        private const int WS_CHILD = 0x40000000,
-            WS_OVERLAPPEDWINDOW = 0x00CF0000,
-                          WS_VISIBLE = 0x10000000
-            ;
-        private ILogger Logger { get; }
-        public EditorWindow(HostWindow hostWindow, ILoggerFactory loggerFactory)
-        {
-            if (hostWindow == default)
-            {
-                throw new ArgumentNullException(nameof(hostWindow));
-            }
-
             Logger = loggerFactory.CreateLogger<EditorWindow>();
             CreateParams cp = new();
             cp.X = 10;
             cp.Y = 10;
-            cp.Width = 100;
-            cp.Height = 100;
-            cp.Parent = hostWindow.Handle;
-            cp.Style = WS_CHILD | WS_OVERLAPPEDWINDOW | WS_VISIBLE;
+            cp.Width = 500;
+            cp.Height = 500;
+            cp.Parent = default;
+            cp.Style =
+                0x00000000 //WS_OVERLAPPED
+                | 0x00C00000 //WS_CAPTION
+                | 0x00080000 //WS_SYSMENU
+                | 0x00040000 //WS_THICKFRAME
+                | 0x10000000 //WS_VISIBLE
+                ;
+
             CreateHandle(cp);
         }
         protected override void WndProc(ref Message m)
@@ -76,11 +43,38 @@ namespace Momiji.Core.Vst
 
             switch (m.Msg)
             {
-             //   case WM_ACTIVATEAPP:
-                    // Do something here in response to messages
-               //     break;
+                case 0x0001://WM_CREATE
+                    {
+                        m.Result = (IntPtr)0;
+                        return;
+                    }
+
             }
             base.WndProc(ref m);
+        }
+
+        ~EditorWindow()
+        {
+            Dispose(false);
+        }
+
+        public void Dispose()
+        {
+            Dispose(true);
+            GC.SuppressFinalize(this);
+        }
+
+        protected virtual void Dispose(bool disposing)
+        {
+            if (disposed) return;
+
+            if (disposing)
+            {
+                Logger.LogInformation($"[vst editor] dispose");
+                DestroyHandle();
+            }
+
+            disposed = true;
         }
     }
 
@@ -147,8 +141,6 @@ namespace Momiji.Core.Vst
 
         private readonly PinnedBuffer<VstTimeInfo> vstTimeInfo;
 
-        internal readonly HostWindow hostWindow;
-
         public int SamplingRate { get; }
         public int BlockSize { get; }
 
@@ -164,8 +156,6 @@ namespace Momiji.Core.Vst
             Logger = LoggerFactory.CreateLogger<AudioMaster<T>>();
             Timer = timer;
             DllManager = dllManager;
-
-            hostWindow = new(loggerFactory);
 
             SamplingRate = samplingRate;
             BlockSize = blockSize;
@@ -222,11 +212,6 @@ namespace Momiji.Core.Vst
                 }
                 effectMap.Clear();
                 vstTimeInfo.Dispose();
-
-                Message m = new();
-                m.Msg = 0x0002; //WM_DESTROY
-                hostWindow.DefWndProc(ref m);
-                hostWindow.DestroyHandle();
             }
 
             disposed = true;
@@ -284,6 +269,8 @@ namespace Momiji.Core.Vst
         private bool disposed;
 
         internal readonly IntPtr aeffectPtr;
+
+        internal Task editorTask;
         internal ERect EditorRect { get; private set; }
 
         private AEffect.DispatcherProc DispatcherProc { get; }
@@ -293,8 +280,6 @@ namespace Momiji.Core.Vst
 
         private readonly AudioMaster<T> audioMaster;
         private PinnedDelegate<AudioMaster.CallBack> audioMasterCallBack;
-
-        private readonly EditorWindow editorWindow;
 
         private PinnedBuffer<byte[]> events;
         private PinnedBuffer<byte[]> eventList;
@@ -315,7 +300,6 @@ namespace Momiji.Core.Vst
             Timer = timer;
 
             this.audioMaster = audioMaster;
-            this.editorWindow = new(audioMaster.hostWindow, loggerFactory);
 
             //TODO その場で作っても問題ないか？
             events = new PinnedBuffer<byte[]>(new byte[SIZE_OF_VSTEVENTS + (SIZE_OF_INTPTR * COUNT_OF_EVENTS)]);
@@ -605,10 +589,6 @@ namespace Momiji.Core.Vst
             {
                 throw new VstException("effFlagsIsSynth ではない");
             }
-            /*if (!flags.HasFlag(AEffect.VstAEffectFlags.effFlagsHasEditor))
-            {
-                throw new VstException("effFlagsHasEditor ではない");
-            }*/
 
             // open
             DispatcherProc(
@@ -670,8 +650,26 @@ namespace Momiji.Core.Vst
                 default
             );
 
-            if (aeffect.flags.HasFlag(AEffect.VstAEffectFlags.effFlagsHasEditor))
+            OpenEditor();
+        }
+
+        public void OpenEditor()
+        {
+            var aeffect = GetAEffect();
+            if (!aeffect.flags.HasFlag(AEffect.VstAEffectFlags.effFlagsHasEditor))
             {
+                Logger.LogInformation("[vst] effFlagsHasEditorではない");
+                return;
+            }
+
+            if (editorTask != default)
+            {
+                Logger.LogInformation("[vst] Editorが起動済");
+                return;
+            }
+
+            editorTask = Task.Run(() => {
+                using var editorWindow = new EditorWindow(LoggerFactory);
                 {
                     var result =
                         DispatcherProc(
@@ -706,13 +704,40 @@ namespace Momiji.Core.Vst
 
                     EditorRect = Marshal.PtrToStructure<ERect>(buffer.AddrOfPinnedObject);
                 }
-            }
+
+                SafeNativeMethods.MSG msg = new();
+                while (true)
+                {
+                    var ret = SafeNativeMethods.GetMessage(ref msg, editorWindow.Handle, 0, 0);
+                    if (ret == -1)
+                    {
+                        Logger.LogInformation("[vst] GetMessage failed");
+                        break;
+                    }
+                    else if (ret == 0)
+                    {
+                        Logger.LogInformation($"[vst] GetMessage Quit {msg.message:X}");
+                        break;
+                    }
+
+                    SafeNativeMethods.TranslateMessage(ref msg);
+                    SafeNativeMethods.DispatchMessage(ref msg);
+                }
+            });
         }
 
-        private void Close()
+        public void CloseEditor()
         {
-            if (DispatcherProc == default)
+            var aeffect = GetAEffect();
+            if (!aeffect.flags.HasFlag(AEffect.VstAEffectFlags.effFlagsHasEditor))
             {
+                Logger.LogInformation("[vst] effFlagsHasEditorではない");
+                return;
+            }
+
+            if (editorTask == default)
+            {
+                Logger.LogInformation("[vst] Editorが起動していない");
                 return;
             }
 
@@ -725,6 +750,19 @@ namespace Momiji.Core.Vst
                 default
             );
 
+
+            editorTask = default;
+        }
+
+        private void Close()
+        {
+            if (DispatcherProc == default)
+            {
+                return;
+            }
+
+            CloseEditor();
+            
             //stop
             DispatcherProc(
                 aeffectPtr,
@@ -777,8 +815,6 @@ namespace Momiji.Core.Vst
 
                 eventList?.Dispose();
                 eventList = null;
-
-                editorWindow.DestroyHandle();
             }
 
             disposed = true;
