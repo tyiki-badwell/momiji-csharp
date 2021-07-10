@@ -1,6 +1,5 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Collections.ObjectModel;
 using System.Runtime.InteropServices;
 
 namespace Momiji.Interop
@@ -102,26 +101,6 @@ namespace Momiji.Interop
             {
                 return handle.AddrOfPinnedObject();
             }
-        }
-    }
-
-    public class PinnedBufferWithLog<T> : PinnedBuffer<T> where T : class
-    {
-        public BufferLog Log { get; private set; }
-
-        public PinnedBufferWithLog(T buffer) : base(buffer)
-        {
-            Log = new();
-        }
-
-        protected override void Dispose(bool disposing)
-        {
-            if (disposing)
-            {
-                Log?.Clear();
-                Log = null;
-            }
-            base.Dispose(disposing);
         }
     }
 

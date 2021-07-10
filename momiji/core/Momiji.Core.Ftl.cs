@@ -45,7 +45,7 @@ namespace Momiji.Core.Ftl
         public FtlIngest(
             string streamKey,
             string ingestHostname,
-            ILoggerFactory loggerFactory, 
+            ILoggerFactory loggerFactory,
             Timer timer,
             double audioInterval,
             double videoInterval,
@@ -190,7 +190,7 @@ namespace Momiji.Core.Ftl
                     handle.AddrOfPinnedObject,
                     MediaType.FTL_AUDIO_DATA,
                     time,
-                    source.AddrOfPinnedObject,
+                    source.Buffer.AddrOfPinnedObject,
                     source.Wrote,
                     0
                 );
@@ -201,7 +201,8 @@ namespace Momiji.Core.Ftl
             {
                 var log = "AUDIO ";
                 double? temp = null;
-                source.Log.ForEach((a) => {
+                source.Log.ForEach((a) =>
+                {
                     var lap = temp.HasValue ? (a.time - temp) : 0;
                     log += $"\n[{ new DateTime((long)(a.time * 10), DateTimeKind.Utc):HH:mm:ss ffffff}][{lap:0000000000.000}]{a.label}";
                     temp = a.time;
@@ -246,7 +247,7 @@ namespace Momiji.Core.Ftl
                             handle.AddrOfPinnedObject,
                             MediaType.FTL_VIDEO_DATA,
                             time,
-                            source.AddrOfPinnedObject + offset,
+                            source.Buffer.AddrOfPinnedObject + offset,
                             length,
                             endOfFrame
                         );
@@ -260,7 +261,8 @@ namespace Momiji.Core.Ftl
             {
                 var log = "VIDEO ";
                 double? temp = null;
-                source.Log.ForEach((a) => {
+                source.Log.ForEach((a) =>
+                {
                     var lap = temp.HasValue ? (a.time - temp) : 0;
                     log += $"\n[{ new DateTime((long)(a.time * 10), DateTimeKind.Utc):HH:mm:ss ffffff}][{lap:0000000000.000}]{a.label}";
                     temp = a.time;
@@ -310,8 +312,8 @@ namespace Momiji.Core.Ftl
                                 }
                             case StatusTypes.FTL_STATUS_LOG:
                                 {
-                                //stringがあるのでUnsafe.Asできない。残念。
-                                FtlStatusLogMsg log = Marshal.PtrToStructure<FtlStatusLogMsg>(msg);
+                                    //stringがあるのでUnsafe.Asできない。残念。
+                                    FtlStatusLogMsg log = Marshal.PtrToStructure<FtlStatusLogMsg>(msg);
                                     Logger.LogInformation($"[ftl] LOG {log.log_level}:{log.msg}");
                                     break;
                                 }

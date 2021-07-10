@@ -13,7 +13,6 @@ using Momiji.Interop.Opus;
 using System;
 using System.Collections.Generic;
 using System.IO;
-using System.Net.WebSockets;
 using System.Reflection;
 using System.Threading;
 using System.Threading.Tasks;
@@ -38,10 +37,10 @@ namespace mixerTest
         private BufferBlock<MIDIMessageEvent2> MidiEventOutput { get; }
 
         public Logic4(
-            IConfiguration configuration, 
-            ILoggerFactory loggerFactory, 
-            IDllManager dllManager, 
-            Param param, 
+            IConfiguration configuration,
+            ILoggerFactory loggerFactory,
+            IDllManager dllManager,
+            Param param,
             BufferBlock<MIDIMessageEvent2> midiEventInput,
             BufferBlock<MIDIMessageEvent2> midiEventOutput,
             CancellationTokenSource processCancel

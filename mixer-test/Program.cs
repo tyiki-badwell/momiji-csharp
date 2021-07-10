@@ -1,8 +1,6 @@
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.Extensions.Hosting;
-using System;
 
-[assembly: CLSCompliant(false)]
 namespace mixerTest
 {
     public static class Program

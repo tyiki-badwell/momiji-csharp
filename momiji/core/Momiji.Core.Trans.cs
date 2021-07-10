@@ -2,9 +2,6 @@
 using Momiji.Core.Vst;
 using Momiji.Core.Wave;
 using System;
-using System.Threading;
-using System.Threading.Tasks;
-using System.Threading.Tasks.Dataflow;
 
 namespace Momiji.Core.Trans
 {
@@ -43,7 +40,7 @@ namespace Momiji.Core.Trans
 
             if (disposing)
             {
-                
+
             }
 
             disposed = true;
@@ -66,7 +63,7 @@ namespace Momiji.Core.Trans
             dest.Log.Marge(source.Log);
 
             var targetIdx = 0;
-            var target = new Span<T>(dest.Target);
+            var target = new Span<T>(dest.Buffer.Target);
             var left = new ReadOnlySpan<T>(source.GetChannelBuffer(0));
             var right = new ReadOnlySpan<T>(source.GetChannelBuffer(1));
 

@@ -14,7 +14,6 @@ using Momiji.Interop.Wave;
 using System;
 using System.Collections.Generic;
 using System.IO;
-using System.Net.WebSockets;
 using System.Reflection;
 using System.Threading;
 using System.Threading.Tasks;
@@ -268,8 +267,8 @@ namespace mixerTest
             using var wave = new WaveOutFloat(
                 0,
                 2,
-                (uint)Param.SamplingRate,
-                WaveFormatExtensiblePart.SPEAKER.FRONT_LEFT | WaveFormatExtensiblePart.SPEAKER.FRONT_RIGHT,
+                Param.SamplingRate,
+                SPEAKER.FrontLeft | SPEAKER.FrontRight,
                 LoggerFactory,
                 timer,
                 pcmPool);

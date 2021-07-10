@@ -12,7 +12,7 @@ namespace Momiji.Core
         [Fact]
         public void Test1()
         {
-            var test = new WaveException(MMRESULT.NOERROR);
+            var test = new WaveException();
             Assert.NotNull(test.Message);
         }
     }
@@ -22,13 +22,14 @@ namespace Momiji.Core
         [Fact]
         public void Test1()
         {
-            uint deviceID = 0;
-            ushort channels = 1;
-            uint samplingRate = 4800;
-            uint sampleLength = 10;
-            var blockSize = (int)(samplingRate * sampleLength);
-            WaveFormatExtensiblePart.SPEAKER channelMask = WaveFormatExtensiblePart.SPEAKER.ALL;
-            using var loggerFactory = LoggerFactory.Create(builder => {
+            int deviceID = 0;
+            short channels = 1;
+            int samplingRate = 4800;
+            int sampleLength = 10;
+            var blockSize = (samplingRate * sampleLength);
+            SPEAKER channelMask = SPEAKER.FrontLeft | SPEAKER.FrontRight;
+            using var loggerFactory = LoggerFactory.Create(builder =>
+            {
                 builder.AddFilter("Momiji", LogLevel.Debug);
                 builder.AddFilter("Microsoft", LogLevel.Warning);
                 builder.AddFilter("System", LogLevel.Warning);

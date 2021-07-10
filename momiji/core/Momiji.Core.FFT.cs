@@ -135,7 +135,7 @@ namespace Momiji.Core.FFT
             }
             source.Log.Add("[fft] start", Timer.USecDouble);
 
-            lock(syncInput)
+            lock (syncInput)
             {
                 using var g = Graphics.FromImage(bitmapInput);
                 using var fontFamily = new FontFamily(GenericFontFamilies.Monospace);
@@ -146,7 +146,7 @@ namespace Momiji.Core.FFT
                 g.FillRectangle(black, 0, 0, PicWidth, PicHeight);
 
                 //TODO FFT
-                var data = source.Target.AsSpan();
+                var data = source.Buffer.Target.AsSpan();
                 var max = 0.0;
                 var min = 0.0;
                 var center = PicHeight / 2;
@@ -209,7 +209,7 @@ namespace Momiji.Core.FFT
                     //dest.Log.Marge(source.Log);
                     unsafe
                     {
-                        var target = dest.Target;
+                        var target = dest.SSourcePictureBuffer.Target;
                         var length = target.iPicWidth * target.iPicHeight;
 
                         var s = new Span<byte>((byte*)bitmapData.Scan0, length * 3);

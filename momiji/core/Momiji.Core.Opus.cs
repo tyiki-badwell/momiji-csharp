@@ -21,12 +21,39 @@ namespace Momiji.Core.Opus
         }
     }
 
-    public class OpusOutputBuffer : PinnedBufferWithLog<byte[]>
+    public class OpusOutputBuffer : IDisposable
     {
+        private bool disposed;
+        internal PinnedBuffer<byte[]> Buffer { get; }
+        public BufferLog Log { get; }
         public int Wrote { get; set; }
 
-        public OpusOutputBuffer(int size) : base(new byte[size])
+        public OpusOutputBuffer(int size)
         {
+            Buffer = new(new byte[size]);
+            Log = new();
+        }
+        ~OpusOutputBuffer()
+        {
+            Dispose(false);
+        }
+
+        public void Dispose()
+        {
+            Dispose(true);
+            GC.SuppressFinalize(this);
+        }
+
+        protected virtual void Dispose(bool disposing)
+        {
+            if (disposed) return;
+
+            if (disposing)
+            {
+            }
+
+            Buffer?.Dispose();
+            disposed = true;
         }
     }
 
@@ -114,10 +141,10 @@ namespace Momiji.Core.Opus
 
             dest.Log.Add("[opus] start opus_encode_float", Timer.USecDouble);
             dest.Wrote = encoder.opus_encode_float(
-                source.AddrOfPinnedObject,
-                source.Target.Length / 2,
-                dest.AddrOfPinnedObject,
-                dest.Target.Length
+                source.Buffer.AddrOfPinnedObject,
+                source.Buffer.Target.Length / 2,
+                dest.Buffer.AddrOfPinnedObject,
+                dest.Buffer.Target.Length
                 );
             /*
              この式を満たさないとダメ

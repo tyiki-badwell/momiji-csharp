@@ -21,12 +21,13 @@ namespace Momiji.Core
         [Fact]
         public void Test1()
         {
-            var configuration = 
+            var configuration =
                 new ConfigurationBuilder()
                 .AddJsonFile("appsettings.json")
                 .Build();
 
-            using var loggerFactory = LoggerFactory.Create(builder => {
+            using var loggerFactory = LoggerFactory.Create(builder =>
+            {
                 builder.AddFilter("Momiji", LogLevel.Debug);
                 builder.AddFilter("Microsoft", LogLevel.Warning);
                 builder.AddFilter("System", LogLevel.Warning);

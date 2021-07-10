@@ -137,18 +137,18 @@ namespace Momiji.Interop.Vst
 
         [UnmanagedFunctionPointer(CallingConvention.Cdecl, CharSet = CharSet.Ansi, SetLastError = false)]
         internal delegate IntPtr CallBack(
-            [In]IntPtr/*AEffect^*/		effect,
-            [In]Opcodes opcode,
-            [In]int index,
-            [In]IntPtr value,
-            [In]IntPtr ptr,
-            [In]float opt
+            [In] IntPtr/*AEffect^*/		effect,
+            [In] Opcodes opcode,
+            [In] int index,
+            [In] IntPtr value,
+            [In] IntPtr ptr,
+            [In] float opt
         );
 
     }
 
     [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Ansi)]
-    unsafe public struct AEffect
+    unsafe internal struct AEffect
     {
         //-------------------------------------------------------------------------------------------------------
         /** Basic dispatcher Opcodes (Host to Plug-in) */
@@ -337,43 +337,43 @@ namespace Momiji.Interop.Vst
 
         [MarshalAs(UnmanagedType.ByValArray, SizeConst = 56)]
         public fixed char future[56];  //< reserved for future use (please zero)
-                        //-------------------------------------------------------------------------------------------------------
+                                       //-------------------------------------------------------------------------------------------------------
 
         [UnmanagedFunctionPointer(CallingConvention.Cdecl, CharSet = CharSet.Ansi, SetLastError = false)]
         internal delegate IntPtr VSTPluginMain(
             //[In][MarshalAs(UnmanagedType.FunctionPtr)]AudioMaster.CallBack audioMaster
-            [In]IntPtr/*AudioMaster.CallBack*/ audioMaster
+            [In] IntPtr/*AudioMaster.CallBack*/ audioMaster
         );
 
         [UnmanagedFunctionPointer(CallingConvention.Cdecl, CharSet = CharSet.Ansi, SetLastError = false)]
         internal delegate IntPtr DispatcherProc(
-            [In]IntPtr/*AEffect^*/		effect,
-            [In]Opcodes opcode,
-            [In]int index,
-            [In]IntPtr value,
-            [In]IntPtr ptr,
-            [In]float opt
+            [In] IntPtr/*AEffect^*/		effect,
+            [In] Opcodes opcode,
+            [In] int index,
+            [In] IntPtr value,
+            [In] IntPtr ptr,
+            [In] float opt
         );
 
         [UnmanagedFunctionPointer(CallingConvention.Cdecl, CharSet = CharSet.Ansi, SetLastError = false)]
         internal delegate void ProcessProc(
-            [In]IntPtr/*AEffect^*/		effect,
-            [In]IntPtr inputs,
-            [In]IntPtr outputs,
-            [In]int sampleFrames
+            [In] IntPtr/*AEffect^*/		effect,
+            [In] IntPtr inputs,
+            [In] IntPtr outputs,
+            [In] int sampleFrames
         );
 
         [UnmanagedFunctionPointer(CallingConvention.Cdecl, CharSet = CharSet.Ansi, SetLastError = false)]
         internal delegate void SetParameterProc(
-            [In]IntPtr/*AEffect^*/		effect,
-            [In]int index,
-            [In]float parameter
+            [In] IntPtr/*AEffect^*/		effect,
+            [In] int index,
+            [In] float parameter
         );
 
         [UnmanagedFunctionPointer(CallingConvention.Cdecl, CharSet = CharSet.Ansi, SetLastError = false)]
         internal delegate float GetParameterProc(
-            [In]IntPtr/*AEffect^*/		effect,
-            [In]int index
+            [In] IntPtr/*AEffect^*/		effect,
+            [In] int index
         );
     };
 
@@ -443,7 +443,7 @@ namespace Momiji.Interop.Vst
 
         [MarshalAs(UnmanagedType.ByValArray, SizeConst = 16)]
         readonly char[] future;  //< reserved for future use
-                        //-------------------------------------------------------------------------------------------------------
+                                 //-------------------------------------------------------------------------------------------------------
     };
 
 
@@ -514,7 +514,7 @@ namespace Momiji.Interop.Vst
 
         [MarshalAs(UnmanagedType.ByValArray, SizeConst = 48)]
         readonly char[] future;              //< reserved for future use
-                                    //-------------------------------------------------------------------------------------------------------
+                                             //-------------------------------------------------------------------------------------------------------
     };
 
     //-------------------------------------------------------------------------------------------------------

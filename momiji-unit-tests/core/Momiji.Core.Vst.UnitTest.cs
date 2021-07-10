@@ -1,7 +1,6 @@
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using Momiji.Core.Vst;
-using Momiji.Core.Wave;
 using Momiji.Core.WebMidi;
 using System.Threading.Tasks.Dataflow;
 using Xunit;
@@ -23,12 +22,13 @@ namespace Momiji.Core
         [Fact]
         public void Test1()
         {
-            var configuration = 
+            var configuration =
                 new ConfigurationBuilder()
                 .AddJsonFile("appsettings.json")
                 .Build();
 
-            using var loggerFactory = LoggerFactory.Create(builder => {
+            using var loggerFactory = LoggerFactory.Create(builder =>
+            {
                 builder.AddFilter("Momiji", LogLevel.Debug);
                 builder.AddFilter("Microsoft", LogLevel.Warning);
                 builder.AddFilter("System", LogLevel.Warning);
@@ -47,20 +47,22 @@ namespace Momiji.Core
 
             using var vst = new AudioMaster<double>(48000, blockSize, loggerFactory, timer, dllManager);
             var effect = vst.AddEffect("Dexed.dll");
-            
-            var aeffect = effect.GetAEffect();
-            for (int i = 0; i < 1/*aeffect.numParams*/; i++)
-            {
-                var label = effect.GetParameterLabel(i);
-                var name = effect.GetParameterName(i);
-                var display = effect.GetParameterDisplay(i);
-                var value = effect.GetParameter(i);
-                logger.LogInformation($"VST Parameter {i}:{label}:{name}:{display}:{value}");
-            }
+
+
+            //var aeffect = effect.GetAEffect();
+            //for (int i = 0; i < 1/*aeffect.numParams*/; i++)
+            //{
+            //    var label = effect.GetParameterLabel(i);
+            //    var name = effect.GetParameterName(i);
+            //    var display = effect.GetParameterDisplay(i);
+            //    var value = effect.GetParameter(i);
+            //    logger.LogInformation($"VST Parameter {i}:{label}:{name}:{display}:{value}");
+            //}
 
             {
                 var nowTime = timer.USecDouble;
-                midiEventInput.Post(new MIDIMessageEvent2() {
+                midiEventInput.Post(new MIDIMessageEvent2()
+                {
                     midiMessageEvent = {
                     receivedTime = nowTime,
                     data0 = 0x90,

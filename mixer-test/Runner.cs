@@ -7,7 +7,6 @@ using System.Collections.Generic;
 using System.Net.WebSockets;
 using System.Text;
 using System.Text.Json;
-using System.Text.Json.Serialization;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Threading.Tasks.Dataflow;
@@ -256,7 +255,8 @@ namespace mixerTest
 
             try
             {
-                using var unlink = wsBroadcaster.LinkTo(new ActionBlock<string>(async message => {
+                using var unlink = wsBroadcaster.LinkTo(new ActionBlock<string>(async message =>
+                {
                     await SendWebsocketAsync(webSocket, message, ct).ConfigureAwait(false);
                 }));
 
@@ -342,7 +342,7 @@ namespace mixerTest
                             {
                                 NumberHandling = System.Text.Json.Serialization.JsonNumberHandling.AllowReadingFromString
                             };
-                            
+
                             var param = JsonSerializer.Deserialize<Param>(paramJson, options);
                             Param = param;
                         }

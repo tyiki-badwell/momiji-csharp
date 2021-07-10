@@ -3,17 +3,17 @@ using System.Runtime.InteropServices;
 
 namespace Momiji.Interop.Kernel32
 {
-    public static class SafeNativeMethods
+    internal static class SafeNativeMethods
     {
         [DllImport("kernel32.dll", CallingConvention = CallingConvention.Cdecl, CharSet = CharSet.Unicode, SetLastError = true)]
         [DefaultDllImportSearchPaths(DllImportSearchPath.System32)]
         internal static extern bool SetDllDirectory(
-            [In]   string lpPathName
+            [In] string lpPathName
         );
 
 
         [StructLayout(LayoutKind.Sequential)]
-        public struct MSG
+        internal struct MSG
         {
             public IntPtr hwnd;
             public int message;
@@ -27,22 +27,22 @@ namespace Momiji.Interop.Kernel32
         [DllImport("user32.dll", CallingConvention = CallingConvention.Cdecl, CharSet = CharSet.Unicode, SetLastError = true)]
         [DefaultDllImportSearchPaths(DllImportSearchPath.System32)]
         internal static extern int GetMessage(
-            ref MSG msg, IntPtr hwnd, int nMsgFilterMin, int nMsgFilterMax);
+            IntPtr/*ref MSG*/ msg, IntPtr hwnd, int nMsgFilterMin, int nMsgFilterMax);
 
         [DllImport("user32.dll", CallingConvention = CallingConvention.Cdecl, CharSet = CharSet.Unicode, SetLastError = true)]
         [DefaultDllImportSearchPaths(DllImportSearchPath.System32)]
         internal static extern bool PeekMessage(
-            ref MSG msg, IntPtr hwnd, int nMsgFilterMin, int nMsgFilterMax, int wRemoveMsg);
+            IntPtr/*ref MSG*/ msg, IntPtr hwnd, int nMsgFilterMin, int nMsgFilterMax, int wRemoveMsg);
 
         [DllImport("user32.dll", CallingConvention = CallingConvention.Cdecl, CharSet = CharSet.Unicode, SetLastError = true)]
         [DefaultDllImportSearchPaths(DllImportSearchPath.System32)]
         internal static extern bool TranslateMessage(
-            ref MSG msg);
+            IntPtr/*ref MSG*/ msg);
 
         [DllImport("user32.dll", CallingConvention = CallingConvention.Cdecl, CharSet = CharSet.Unicode, SetLastError = true)]
         [DefaultDllImportSearchPaths(DllImportSearchPath.System32)]
-        public static extern IntPtr DispatchMessage(
-            ref MSG msg);
+        internal static extern IntPtr DispatchMessage(
+            IntPtr/*ref MSG*/ msg);
 
         [DllImport("user32.dll", CallingConvention = CallingConvention.Cdecl, CharSet = CharSet.Unicode, SetLastError = true)]
         [DefaultDllImportSearchPaths(DllImportSearchPath.System32)]

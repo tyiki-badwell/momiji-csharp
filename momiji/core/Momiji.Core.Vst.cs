@@ -94,24 +94,40 @@ namespace Momiji.Core.Vst
         }
     }
 
-    public class VstBuffer<T> : PinnedBufferWithLog<IntPtr[]> where T : struct
+    public class VstBuffer<T> : IDisposable where T : struct
     {
         private bool disposed;
+        internal PinnedBuffer<IntPtr[]> Buffer { get; }
         private readonly List<PinnedBuffer<T[]>> list = new();
         public int BlockSize { get; }
 
-        public VstBuffer(int blockSize, int channels) : base(new IntPtr[channels])
+        public BufferLog Log { get; }
+
+        public VstBuffer(int blockSize, int channels)
         {
+            Buffer = new(new IntPtr[channels]);
+            Log = new();
             BlockSize = blockSize;
             for (var i = 0; i < channels; i++)
             {
                 var buffer = new PinnedBuffer<T[]>(new T[blockSize]);
                 list.Add(buffer);
-                Target[i] = buffer.AddrOfPinnedObject;
+                Buffer.Target[i] = buffer.AddrOfPinnedObject;
             }
         }
 
-        protected override void Dispose(bool disposing)
+        ~VstBuffer()
+        {
+            Dispose(false);
+        }
+
+        public void Dispose()
+        {
+            Dispose(true);
+            GC.SuppressFinalize(this);
+        }
+
+        protected virtual void Dispose(bool disposing)
         {
             if (disposed) return;
 
@@ -121,9 +137,8 @@ namespace Momiji.Core.Vst
                 list.Clear();
             }
 
+            Buffer?.Dispose();
             disposed = true;
-
-            base.Dispose(disposing);
         }
 
         public T[] GetChannelBuffer(int channel) => list[channel].Target;
@@ -405,7 +420,7 @@ namespace Momiji.Core.Vst
             Dispose(false);
         }
 
-        public ref AEffect GetAEffect()
+        internal ref AEffect GetAEffect()
         {
             unsafe
             {
@@ -413,7 +428,7 @@ namespace Momiji.Core.Vst
             }
         }
 
-        public float GetParameter(int index) 
+        public float GetParameter(int index)
         {
             if (GetParameterProc == default)
             {
@@ -422,7 +437,7 @@ namespace Momiji.Core.Vst
             return GetParameterProc(aeffectPtr, index);
         }
 
-        public void SetParameter(int index, float value) 
+        public void SetParameter(int index, float value)
         {
             if (SetParameterProc == default)
             {
@@ -438,7 +453,7 @@ namespace Momiji.Core.Vst
                 return default;
             }
 
-            using var buffer = new PinnedBuffer<byte[]>(new byte[length+1]);
+            using var buffer = new PinnedBuffer<byte[]>(new byte[length + 1]);
 
             DispatcherProc(
                 aeffectPtr,
@@ -484,7 +499,7 @@ namespace Momiji.Core.Vst
             ProcessProc(
                 aeffectPtr,
                 default,
-                source.AddrOfPinnedObject,
+                source.Buffer.AddrOfPinnedObject,
                 blockSize
             );
             source.Log.Add("[vst] end processReplacing", Timer.USecDouble);
@@ -668,7 +683,8 @@ namespace Momiji.Core.Vst
                 return;
             }
 
-            editorTask = Task.Run(() => {
+            editorTask = Task.Run(() =>
+            {
                 using var editorWindow = new EditorWindow(LoggerFactory);
                 {
                     var result =
@@ -687,7 +703,7 @@ namespace Momiji.Core.Vst
                 }
 
                 {
-                    using var buffer = new PinnedBuffer<IntPtr[]>(new IntPtr[1]);
+                    using var buffer = new PinnedBuffer<IntPtr>(new IntPtr());
                     var result =
                         DispatcherProc(
                             aeffectPtr,
@@ -705,10 +721,12 @@ namespace Momiji.Core.Vst
                     EditorRect = Marshal.PtrToStructure<ERect>(buffer.AddrOfPinnedObject);
                 }
 
-                SafeNativeMethods.MSG msg = new();
+                using var msg = new PinnedBuffer<SafeNativeMethods.MSG>(new SafeNativeMethods.MSG());
                 while (true)
                 {
-                    var ret = SafeNativeMethods.GetMessage(ref msg, editorWindow.Handle, 0, 0);
+                    Logger.LogInformation("[vst] try GetMessage");
+                    var ret = SafeNativeMethods.GetMessage(msg.AddrOfPinnedObject, editorWindow.Handle, 0, 0);
+                    Logger.LogInformation($"[vst] GetMessage {msg.Target.message:X}");
                     if (ret == -1)
                     {
                         Logger.LogInformation("[vst] GetMessage failed");
@@ -716,12 +734,12 @@ namespace Momiji.Core.Vst
                     }
                     else if (ret == 0)
                     {
-                        Logger.LogInformation($"[vst] GetMessage Quit {msg.message:X}");
+                        Logger.LogInformation($"[vst] GetMessage Quit {msg.Target.message:X}");
                         break;
                     }
 
-                    SafeNativeMethods.TranslateMessage(ref msg);
-                    SafeNativeMethods.DispatchMessage(ref msg);
+                    SafeNativeMethods.TranslateMessage(msg.AddrOfPinnedObject);
+                    SafeNativeMethods.DispatchMessage(msg.AddrOfPinnedObject);
                 }
             });
         }
@@ -762,7 +780,7 @@ namespace Momiji.Core.Vst
             }
 
             CloseEditor();
-            
+
             //stop
             DispatcherProc(
                 aeffectPtr,

@@ -14,7 +14,6 @@ using Momiji.Interop.Wave;
 using System;
 using System.Collections.Generic;
 using System.IO;
-using System.Net.WebSockets;
 using System.Reflection;
 using System.Runtime.InteropServices;
 using System.Threading;
@@ -312,7 +311,7 @@ namespace mixerTest
                 {
                     var samples = (uint)args.RequiredSamples;
 
-                    var bufferSize =samples * sizeof(float);
+                    var bufferSize = samples * sizeof(float);
                     var frame = new Windows.Media.AudioFrame(bufferSize);
 
                     using (var buffer = frame.LockBuffer(Windows.Media.AudioBufferAccessMode.Write))
@@ -359,8 +358,8 @@ namespace mixerTest
             using var wave = new WaveOutFloat(
                 0,
                 2,
-                (uint)Param.SamplingRate,
-                WaveFormatExtensiblePart.SPEAKER.FRONT_LEFT | WaveFormatExtensiblePart.SPEAKER.FRONT_RIGHT,
+                Param.SamplingRate,
+                SPEAKER.FrontLeft | SPEAKER.FrontRight,
                 LoggerFactory,
                 timer,
                 pcmPool);

@@ -14,9 +14,7 @@ using Momiji.Interop.Wave;
 using System;
 using System.Collections.Generic;
 using System.IO;
-using System.Net.WebSockets;
 using System.Reflection;
-using System.Runtime.InteropServices;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Threading.Tasks.Dataflow;
@@ -251,14 +249,6 @@ namespace mixerTest
             }
         }
 
-        [ComImport]
-        [Guid("5B0D3235-4DBA-4D44-865E-8F1D0E4FD04D")]
-        [InterfaceType(ComInterfaceType.InterfaceIsIUnknown)]
-        unsafe interface IMemoryBufferByteAccess
-        {
-            void GetBuffer(out byte* buffer, out uint capacity);
-        }
-
         private async Task RunLocal()
         {
             var ct = ProcessCancel.Token;
@@ -278,8 +268,8 @@ namespace mixerTest
             using var wave = new WaveOutFloat(
                 0,
                 2,
-                (uint)Param.SamplingRate,
-                WaveFormatExtensiblePart.SPEAKER.FRONT_LEFT | WaveFormatExtensiblePart.SPEAKER.FRONT_RIGHT,
+                Param.SamplingRate,
+                SPEAKER.FrontLeft | SPEAKER.FrontRight,
                 LoggerFactory,
                 timer,
                 pcmPool);

@@ -8,7 +8,7 @@ namespace Momiji.Core
     public class Timer : IDisposable
     {
         private bool disposed;
-        
+
         private double StartUsec { get; }
 
         private Stopwatch stopwatch;
@@ -24,8 +24,10 @@ namespace Momiji.Core
             Dispose(false);
         }
 
-        public long USec {
-            get {
+        public long USec
+        {
+            get
+            {
                 return (long)USecDouble;
             }
         }

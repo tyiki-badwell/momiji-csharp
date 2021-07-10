@@ -20,7 +20,7 @@ namespace Momiji.Core
         [Fact]
         public void Test1()
         {
-            var configuration = 
+            var configuration =
                 new ConfigurationBuilder()
                 .AddJsonFile("appsettings.json")
                 .AddUserSecrets<FtlUnitTest>()
@@ -29,7 +29,8 @@ namespace Momiji.Core
             var ingestHostname = configuration["MIXER_INGEST_HOSTNAME"];
             var mixerApiClientId = configuration["MIXER_USER_NAME"];
 
-            using var loggerFactory = LoggerFactory.Create(builder => {
+            using var loggerFactory = LoggerFactory.Create(builder =>
+            {
                 builder.AddFilter("Momiji", LogLevel.Debug);
                 builder.AddFilter("Microsoft", LogLevel.Warning);
                 builder.AddFilter("System", LogLevel.Warning);
