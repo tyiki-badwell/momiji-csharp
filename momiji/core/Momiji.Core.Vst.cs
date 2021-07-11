@@ -1,83 +1,18 @@
 ﻿using Microsoft.Extensions.Logging;
 using Momiji.Core.WebMidi;
 using Momiji.Interop;
-using Momiji.Interop.Kernel32;
 using Momiji.Interop.Vst;
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
+using System.Threading;
 using System.Threading.Tasks;
 using System.Threading.Tasks.Dataflow;
-using System.Windows.Forms;
 
 namespace Momiji.Core.Vst
 {
-    public class EditorWindow : NativeWindow, IDisposable
-    {
-        private bool disposed;
-        private ILogger Logger { get; }
-        public EditorWindow(ILoggerFactory loggerFactory)
-        {
-            Logger = loggerFactory.CreateLogger<EditorWindow>();
-            CreateParams cp = new();
-            cp.X = 10;
-            cp.Y = 10;
-            cp.Width = 500;
-            cp.Height = 500;
-            cp.Parent = default;
-            cp.Style =
-                0x00000000 //WS_OVERLAPPED
-                | 0x00C00000 //WS_CAPTION
-                | 0x00080000 //WS_SYSMENU
-                | 0x00040000 //WS_THICKFRAME
-                | 0x10000000 //WS_VISIBLE
-                ;
-
-            CreateHandle(cp);
-        }
-        protected override void WndProc(ref Message m)
-        {
-            Logger.LogInformation($"editor {m.Msg:X} {m.Result:X} {m.WParam:X} {m.LParam:X}");
-
-            switch (m.Msg)
-            {
-                case 0x0001://WM_CREATE
-                    {
-                        m.Result = (IntPtr)0;
-                        return;
-                    }
-
-            }
-            base.WndProc(ref m);
-        }
-
-        ~EditorWindow()
-        {
-            Dispose(false);
-        }
-
-        public void Dispose()
-        {
-            Dispose(true);
-            GC.SuppressFinalize(this);
-        }
-
-        protected virtual void Dispose(bool disposing)
-        {
-            if (disposed) return;
-
-            if (disposing)
-            {
-                Logger.LogInformation($"[vst editor] dispose");
-                DestroyHandle();
-            }
-
-            disposed = true;
-        }
-    }
-
 
     public class VstException : Exception
     {
@@ -685,63 +620,96 @@ namespace Momiji.Core.Vst
 
             editorTask = Task.Run(() =>
             {
-                using var editorWindow = new EditorWindow(LoggerFactory);
+                using var v = new VstWindow(LoggerFactory);
+                Thread.Sleep(1000);
+                WindowThread(v);
+                while(true)
                 {
-                    var result =
-                        DispatcherProc(
-                            aeffectPtr,
-                            AEffect.Opcodes.effEditOpen,
-                            default,
-                            default,
-                            editorWindow.Handle,
-                            default
-                        );
-                    if (result == (IntPtr)0)
-                    {
-                        Logger.LogInformation("[vst] effEditOpen failed");
-                    }
+                    Thread.Sleep(1000);
                 }
 
-                {
-                    using var buffer = new PinnedBuffer<IntPtr>(new IntPtr());
-                    var result =
-                        DispatcherProc(
-                            aeffectPtr,
-                            AEffect.Opcodes.effEditGetRect,
-                            default,
-                            default,
-                            buffer.AddrOfPinnedObject,
-                            default
-                        );
-                    if (result == (IntPtr)0)
-                    {
-                        Logger.LogInformation("[vst] effEditGetRect failed");
-                    }
-
-                    EditorRect = Marshal.PtrToStructure<ERect>(buffer.AddrOfPinnedObject);
-                }
-
-                using var msg = new PinnedBuffer<SafeNativeMethods.MSG>(new SafeNativeMethods.MSG());
-                while (true)
-                {
-                    Logger.LogInformation("[vst] try GetMessage");
-                    var ret = SafeNativeMethods.GetMessage(msg.AddrOfPinnedObject, editorWindow.Handle, 0, 0);
-                    Logger.LogInformation($"[vst] GetMessage {msg.Target.message:X}");
-                    if (ret == -1)
-                    {
-                        Logger.LogInformation("[vst] GetMessage failed");
-                        break;
-                    }
-                    else if (ret == 0)
-                    {
-                        Logger.LogInformation($"[vst] GetMessage Quit {msg.Target.message:X}");
-                        break;
-                    }
-
-                    SafeNativeMethods.TranslateMessage(msg.AddrOfPinnedObject);
-                    SafeNativeMethods.DispatchMessage(msg.AddrOfPinnedObject);
-                }
+                /*
+                var thread = new Thread(new ThreadStart(WindowThread));
+                thread.SetApartmentState(ApartmentState.STA);
+                thread.Start();
+                thread.Join();
+                */
             });
+        }
+
+        private void WindowThread(VstWindow v)
+        {
+            /*
+            using var editorWindow = new EditorWindow2(LoggerFactory);
+
+            editorWindow.MessageHook += (IntPtr hwnd, int msg, IntPtr wParam, IntPtr lParam, ref bool handled) =>
+            {
+                Logger.LogInformation($"editor {msg:X} {wParam:X} {lParam:X}");
+                handled = false;
+
+                return IntPtr.Zero;
+            };
+            */
+
+            {
+                var result =
+                    DispatcherProc(
+                        aeffectPtr,
+                        AEffect.Opcodes.effEditOpen,
+                        default,
+                        default,
+                        v.Handle,
+                        default
+                    );
+                if (result == IntPtr.Zero)
+                {
+                    Logger.LogInformation("[vst] effEditOpen failed");
+                }
+            }
+
+            {
+                using var buffer = new PinnedBuffer<IntPtr>(new IntPtr());
+                var result =
+                    DispatcherProc(
+                        aeffectPtr,
+                        AEffect.Opcodes.effEditGetRect,
+                        default,
+                        default,
+                        buffer.AddrOfPinnedObject,
+                        default
+                    );
+                if (result == IntPtr.Zero)
+                {
+                    Logger.LogInformation("[vst] effEditGetRect failed");
+                }
+
+                EditorRect = Marshal.PtrToStructure<ERect>(buffer.AddrOfPinnedObject);
+            }
+
+            /*
+            using var msg = new PinnedBuffer<SafeNativeMethods.MSG>(new SafeNativeMethods.MSG());
+            while (true)
+            {
+                Logger.LogInformation("[vst] try GetMessage");
+                var ret = SafeNativeMethods.GetMessage(msg.AddrOfPinnedObject, editorWindow.Handle, 0, 0);
+                Logger.LogInformation($"[vst] GetMessage {msg.Target.message:X}");
+                if (ret == -1)
+                {
+                    Logger.LogInformation("[vst] GetMessage failed");
+                    break;
+                }
+                else if (ret == 0)
+                {
+                    Logger.LogInformation($"[vst] GetMessage Quit {msg.Target.message:X}");
+                    break;
+                }
+
+                Logger.LogInformation($"[vst] TranslateMessage {msg.Target.message:X}");
+                SafeNativeMethods.TranslateMessage(msg.AddrOfPinnedObject);
+                Logger.LogInformation($"[vst] DispatchMessage {msg.Target.message:X}");
+                SafeNativeMethods.DispatchMessage(msg.AddrOfPinnedObject);
+            }
+            */
         }
 
         public void CloseEditor()

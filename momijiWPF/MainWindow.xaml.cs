@@ -10,9 +10,49 @@ using System.Threading;
 using System.Threading.Tasks;
 using System.Threading.Tasks.Dataflow;
 using System.Windows;
+using System.Windows.Interop;
 
 namespace momijiWPF
 {
+    public class Param
+    {
+        public int BufferCount { get; set; }
+        public bool Local { get; set; }
+        public bool Connect { get; set; }
+
+        public int Width { get; set; }
+        public int Height { get; set; }
+        public int TargetBitrate { get; set; }
+        public float MaxFrameRate { get; set; }
+        public int IntraFrameIntervalUs { get; set; }
+
+        public string EffectName { get; set; }
+        public int SamplingRate { get; set; }
+        public float SampleLength { get; set; }
+        /*
+         この式を満たさないとダメ
+         new_size = blockSize
+         Fs = samplingRate
+
+          if (frame_size<Fs/400)
+            return -1;
+          if (400*new_size!=Fs   && 200*new_size!=Fs   && 100*new_size!=Fs   &&
+              50*new_size!=Fs   &&  25*new_size!=Fs   &&  50*new_size!=3*Fs &&
+              50*new_size!=4*Fs &&  50*new_size!=5*Fs &&  50*new_size!=6*Fs)
+            return -1;
+
+        0.0025
+        0.005
+        0.01
+        0.02
+        0.04
+        0.06
+        0.08
+        0.1
+        0.12
+         */
+    }
+
     /// <summary>
     /// Interaction logic for MainWindow.xaml
     /// </summary>
@@ -30,11 +70,12 @@ namespace momijiWPF
                 .AddJsonFile("appsettings.json")
                 .Build();
 
+            var param = new Param();
+            configuration.GetSection("Param").Bind(param);
+
             using var loggerFactory = LoggerFactory.Create(builder =>
             {
-                builder.AddFilter("Momiji", LogLevel.Information);
-                builder.AddFilter("Microsoft", LogLevel.Warning);
-                builder.AddFilter("System", LogLevel.Warning);
+                builder.AddConfiguration(configuration);
                 builder.AddConsole();
                 builder.AddDebug();
             });
@@ -42,32 +83,26 @@ namespace momijiWPF
 
             using var processCancel = new CancellationTokenSource();
 
-            int bufferCount = 2;
-
-            string effectName = "Dexed.dll";
-            int samplingRate = 48000;
-            float sampleLength = 0.06f;
-
             var ct = processCancel.Token;
             var taskSet = new HashSet<Task>();
 
             using var dllManager = new DllManager(configuration, loggerFactory);
 
-            var blockSize = (int)(samplingRate * sampleLength);
-            var audioInterval = 1_000_000.0 * sampleLength;
+            var blockSize = (int)(param.SamplingRate * param.SampleLength);
+            var audioInterval = 1_000_000.0 * param.SampleLength;
 
-            using var vstBufferPool = new BufferPool<VstBuffer<float>>(bufferCount, () => new VstBuffer<float>(blockSize, 2), loggerFactory);
-            using var pcmPool = new BufferPool<PcmBuffer<float>>(bufferCount, () => new PcmBuffer<float>(blockSize, 2), loggerFactory);
+            using var vstBufferPool = new BufferPool<VstBuffer<float>>(param.BufferCount, () => new VstBuffer<float>(blockSize, 2), loggerFactory);
+            using var pcmPool = new BufferPool<PcmBuffer<float>>(param.BufferCount, () => new PcmBuffer<float>(blockSize, 2), loggerFactory);
             using var timer = new Momiji.Core.Timer();
             using var audioWaiter = new Waiter(timer, audioInterval);
-            using var vst = new AudioMaster<float>(samplingRate, blockSize, loggerFactory, timer, dllManager);
+            using var vst = new AudioMaster<float>(param.SamplingRate, blockSize, loggerFactory, timer, dllManager);
             using var toPcm = new ToPcm<float>(loggerFactory, timer);
-            var effect = vst.AddEffect(effectName);
+            var effect = vst.AddEffect(param.EffectName);
 
             using var wave = new WaveOutFloat(
                 0,
                 2,
-                samplingRate,
+                param.SamplingRate,
                 SPEAKER.FrontLeft | SPEAKER.FrontRight,
                 loggerFactory,
                 timer,
