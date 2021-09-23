@@ -1,17 +1,18 @@
 using Microsoft.Extensions.Logging;
-using Momiji.Core.Wave;
-using Momiji.Interop.Wave;
+using Momiji.Core.Buffer;
+using Momiji.Core.Timer;
+using System;
 using System.Threading.Tasks.Dataflow;
 using Xunit;
 
-namespace Momiji.Core
+namespace Momiji.Core.Wave
 {
     public class WaveExceptionUnitTest
     {
         [Fact]
         public void Test1()
         {
-            var test = new WaveException(MMRESULT.NOERROR);
+            var test = new WaveException();
             Assert.NotNull(test.Message);
         }
     }
@@ -21,25 +22,33 @@ namespace Momiji.Core
         [Fact]
         public void Test1()
         {
-            uint deviceID = 0;
-            ushort channels = 1;
-            uint samplingRate = 4800;
-            uint sampleLength = 10;
-            var blockSize = (int)(samplingRate * sampleLength);
-            WaveFormatExtensiblePart.SPEAKER channelMask = WaveFormatExtensiblePart.SPEAKER.ALL;
-            using var loggerFactory = LoggerFactory.Create(builder => {
+            int deviceID = 0;
+            short channels = 1;
+            int samplingRate = 4800;
+            int sampleLength = 10;
+            var blockSize = (samplingRate * sampleLength);
+            SPEAKER channelMask = SPEAKER.FrontLeft | SPEAKER.FrontRight;
+            using var loggerFactory = LoggerFactory.Create(builder =>
+            {
                 builder.AddFilter("Momiji", LogLevel.Debug);
                 builder.AddFilter("Microsoft", LogLevel.Warning);
                 builder.AddFilter("System", LogLevel.Warning);
                 builder.AddConsole();
                 builder.AddDebug();
             });
-            using var timer = new Timer();
+            using var lapTimer = new LapTimer();
 
             using var pcmPool = new BufferPool<PcmBuffer<short>>(1, () => new PcmBuffer<short>(blockSize, 1), loggerFactory);
             {
-                using var test = new WaveOutShort(deviceID, channels, samplingRate, channelMask, loggerFactory, timer, pcmPool);
-                test.Execute(pcmPool.Receive(), default);
+                try
+                {
+                    using var test = new WaveOutShort(deviceID, channels, samplingRate, channelMask, loggerFactory, lapTimer, pcmPool);
+                    test.Execute(pcmPool.Receive(), default);
+                }
+                catch (Exception)
+                {
+
+                }
             }
         }
     }

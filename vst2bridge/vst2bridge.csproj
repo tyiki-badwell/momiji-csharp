@@ -1,0 +1,18 @@
+﻿<Project Sdk="Microsoft.NET.Sdk.Worker">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net5.0-windows</TargetFramework>
+    <Platforms>x86;x64</Platforms>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    <AnalysisMode>AllEnabledByDefault</AnalysisMode>
+
+    <AssemblyName Condition=" '$(Platform)' == 'x86' ">$(AssemblyName)32</AssemblyName>
+    <AssemblyName Condition=" '$(Platform)' == 'x64' ">$(AssemblyName)64</AssemblyName>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\momiji\momiji.csproj" />
+  </ItemGroup>
+
+</Project>

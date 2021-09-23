@@ -1,10 +1,6 @@
 ﻿using System;
 using System.Runtime.InteropServices;
 
-#pragma warning disable CA1008 // 列挙型は 0 値を含んでいなければなりません
-#pragma warning disable CA1815 // equals および operator equals を値型でオーバーライドします
-#pragma warning disable CA1051 // 参照可能なインスタンス フィールドを宣言しません
-#pragma warning disable CA1711 // 識別子は、不適切なサフィックスを含むことはできません
 #pragma warning disable CA1069 // 列挙値を重複させることはできない
 
 namespace Momiji.Interop.Vst
@@ -12,7 +8,7 @@ namespace Momiji.Interop.Vst
     //-------------------------------------------------------------------------------------------------------
     /** String length limits (in characters excl. 0 byte) */
     //-------------------------------------------------------------------------------------------------------
-    public enum VstStringConstants : int
+    internal enum VstStringConstants : int
     {
         //-------------------------------------------------------------------------------------------------------
         kVstMaxProgNameLen = 24,    //< used for #effGetProgramName, #effSetProgramName, #effGetProgramNameIndexed
@@ -28,13 +24,13 @@ namespace Momiji.Interop.Vst
                                     //-------------------------------------------------------------------------------------------------------
     };
 
-    public static class AudioMaster
+    namespace AudioMaster
     {
 
         //-------------------------------------------------------------------------------------------------------
         /** Basic dispatcher Opcodes (Plug-in to Host) */
         //-------------------------------------------------------------------------------------------------------
-        public enum Opcodes : int
+        internal enum Opcodes : int
         {
             //-------------------------------------------------------------------------------------------------------
             audioMasterAutomate = 0,    ///< [index]: parameter index [opt]: parameter value  @see AudioEffect::setParameterAutomated
@@ -112,7 +108,7 @@ namespace Momiji.Interop.Vst
         //-------------------------------------------------------------------------------------------------------
         /** Process Levels returned by #audioMasterGetCurrentProcessLevel. */
         //-------------------------------------------------------------------------------------------------------
-        public enum VstProcessLevels : int
+        internal enum VstProcessLevels : int
         {
             kVstProcessLevelUnknown = 0,    ///< not supported by Host
             kVstProcessLevelUser,           ///< 1: currently in user thread (GUI)
@@ -124,7 +120,7 @@ namespace Momiji.Interop.Vst
         //-------------------------------------------------------------------------------------------------------
         /** Automation States returned by #audioMasterGetAutomationState. */
         //-------------------------------------------------------------------------------------------------------
-        public enum VstAutomationStates : int
+        internal enum VstAutomationStates : int
         {
             //-------------------------------------------------------------------------------------------------------
             kVstAutomationUnsupported = 0,  ///< not supported by Host
@@ -137,23 +133,23 @@ namespace Momiji.Interop.Vst
 
         [UnmanagedFunctionPointer(CallingConvention.Cdecl, CharSet = CharSet.Ansi, SetLastError = false)]
         internal delegate IntPtr CallBack(
-            [In]IntPtr/*AEffect^*/		effect,
-            [In]Opcodes opcode,
-            [In]int index,
-            [In]IntPtr value,
-            [In]IntPtr ptr,
-            [In]float opt
+            [In] IntPtr/*AEffect^*/		effect,
+            [In] Opcodes opcode,
+            [In] int index,
+            [In] IntPtr value,
+            [In] IntPtr ptr,
+            [In] float opt
         );
 
     }
 
-    [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Ansi)]
-    unsafe public struct AEffect
+    [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Ansi, Pack = 8)]
+    unsafe internal struct AEffect
     {
         //-------------------------------------------------------------------------------------------------------
         /** Basic dispatcher Opcodes (Host to Plug-in) */
         //-------------------------------------------------------------------------------------------------------
-        public enum Opcodes : int
+        internal enum Opcodes : int
         {
             effOpen = 0,        ///< no arguments  @see AudioEffect::open
             effClose,           ///< no arguments  @see AudioEffect::close
@@ -274,7 +270,7 @@ namespace Momiji.Interop.Vst
         /** AEffect flags */
         //-------------------------------------------------------------------------------------------------------
         [Flags]
-        public enum VstAEffectFlags : int
+        internal enum VstAEffectFlags : int
         {
             //-------------------------------------------------------------------------------------------------------
             effFlagsHasEditor = 1 << 0,         //< set if the plug-in provides a custom editor
@@ -337,43 +333,43 @@ namespace Momiji.Interop.Vst
 
         [MarshalAs(UnmanagedType.ByValArray, SizeConst = 56)]
         public fixed char future[56];  //< reserved for future use (please zero)
-                        //-------------------------------------------------------------------------------------------------------
+                                       //-------------------------------------------------------------------------------------------------------
 
         [UnmanagedFunctionPointer(CallingConvention.Cdecl, CharSet = CharSet.Ansi, SetLastError = false)]
         internal delegate IntPtr VSTPluginMain(
             //[In][MarshalAs(UnmanagedType.FunctionPtr)]AudioMaster.CallBack audioMaster
-            [In]IntPtr/*AudioMaster.CallBack*/ audioMaster
+            [In] IntPtr/*AudioMaster.CallBack*/ audioMaster
         );
 
         [UnmanagedFunctionPointer(CallingConvention.Cdecl, CharSet = CharSet.Ansi, SetLastError = false)]
         internal delegate IntPtr DispatcherProc(
-            [In]IntPtr/*AEffect^*/		effect,
-            [In]Opcodes opcode,
-            [In]int index,
-            [In]IntPtr value,
-            [In]IntPtr ptr,
-            [In]float opt
+            [In] IntPtr/*AEffect^*/		effect,
+            [In] Opcodes opcode,
+            [In] int index,
+            [In] IntPtr value,
+            [In] IntPtr ptr,
+            [In] float opt
         );
 
         [UnmanagedFunctionPointer(CallingConvention.Cdecl, CharSet = CharSet.Ansi, SetLastError = false)]
         internal delegate void ProcessProc(
-            [In]IntPtr/*AEffect^*/		effect,
-            [In]IntPtr inputs,
-            [In]IntPtr outputs,
-            [In]int sampleFrames
+            [In] IntPtr/*AEffect^*/		effect,
+            [In] IntPtr inputs,
+            [In] IntPtr outputs,
+            [In] int sampleFrames
         );
 
         [UnmanagedFunctionPointer(CallingConvention.Cdecl, CharSet = CharSet.Ansi, SetLastError = false)]
         internal delegate void SetParameterProc(
-            [In]IntPtr/*AEffect^*/		effect,
-            [In]int index,
-            [In]float parameter
+            [In] IntPtr/*AEffect^*/		effect,
+            [In] int index,
+            [In] float parameter
         );
 
         [UnmanagedFunctionPointer(CallingConvention.Cdecl, CharSet = CharSet.Ansi, SetLastError = false)]
         internal delegate float GetParameterProc(
-            [In]IntPtr/*AEffect^*/		effect,
-            [In]int index
+            [In] IntPtr/*AEffect^*/		effect,
+            [In] int index
         );
     };
 
@@ -381,7 +377,7 @@ namespace Momiji.Interop.Vst
     //-------------------------------------------------------------------------------------------------------
     /** Symbolic precision constants used for effSetProcessPrecision. */
     //-------------------------------------------------------------------------------------------------------
-    public enum VstProcessPrecision : int
+    internal enum VstProcessPrecision : int
     {
         kVstProcessPrecision32 = 0,     ///< single precision float (32bits)
         kVstProcessPrecision64          ///< double precision (64bits)
@@ -390,11 +386,11 @@ namespace Momiji.Interop.Vst
     //-------------------------------------------------------------------------------------------------------
     /** Parameter Properties used in #effGetParameterProperties. */
     //-------------------------------------------------------------------------------------------------------
-    [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Ansi)]
-    public struct VstParameterProperties
+    [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Ansi, Pack = 8)]
+    internal struct VstParameterProperties
     {
         [Flags]
-        public enum VstParameterFlags : int
+        internal enum VstParameterFlags : int
         {
             //-------------------------------------------------------------------------------------------------------
             kVstParameterIsSwitch = 1 << 0, ///< parameter is a switch (on/off)
@@ -443,14 +439,14 @@ namespace Momiji.Interop.Vst
 
         [MarshalAs(UnmanagedType.ByValArray, SizeConst = 16)]
         readonly char[] future;  //< reserved for future use
-                        //-------------------------------------------------------------------------------------------------------
+                                 //-------------------------------------------------------------------------------------------------------
     };
 
 
     //-------------------------------------------------------------------------------------------------------
     /** Speaker Arrangement Types*/
     //-------------------------------------------------------------------------------------------------------
-    public enum VstSpeakerArrangementType : int
+    internal enum VstSpeakerArrangementType : int
     {
         //-------------------------------------------------------------------------------------------------------
         kSpeakerArrUserDefined = -2,//< user defined
@@ -491,11 +487,11 @@ namespace Momiji.Interop.Vst
     //-------------------------------------------------------------------------------------------------------
     /** Pin Properties used in #effGetInputProperties and #effGetOutputProperties. */
     //-------------------------------------------------------------------------------------------------------
-    [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Ansi)]
-    public struct VstPinProperties
+    [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Ansi, Pack = 8)]
+    internal struct VstPinProperties
     {
         [Flags]
-        public enum VstPinPropertiesFlags : int
+        internal enum VstPinPropertiesFlags : int
         {
             //-------------------------------------------------------------------------------------------------------
             kVstPinIsActive = 1 << 0,       //< pin is active, ignored by Host
@@ -514,7 +510,7 @@ namespace Momiji.Interop.Vst
 
         [MarshalAs(UnmanagedType.ByValArray, SizeConst = 48)]
         readonly char[] future;              //< reserved for future use
-                                    //-------------------------------------------------------------------------------------------------------
+                                             //-------------------------------------------------------------------------------------------------------
     };
 
     //-------------------------------------------------------------------------------------------------------
@@ -523,13 +519,13 @@ namespace Momiji.Interop.Vst
     //-------------------------------------------------------------------------------------------------------
     /** A generic timestamped event. */
     //-------------------------------------------------------------------------------------------------------
-    [StructLayout(LayoutKind.Explicit, CharSet = CharSet.Ansi)]
-    public struct VstEvent
+    [StructLayout(LayoutKind.Explicit, CharSet = CharSet.Ansi, Pack = 8)]
+    internal struct VstEvent
     {
         //-------------------------------------------------------------------------------------------------------
         /** VstEvent Types used by #VstEvent. */
         //-------------------------------------------------------------------------------------------------------
-        public enum VstEventTypes : int
+        internal enum VstEventTypes : int
         {
             //-------------------------------------------------------------------------------------------------------
             kVstMidiType = 1,                   //< MIDI event  @see VstMidiEvent
@@ -545,13 +541,13 @@ namespace Momiji.Interop.Vst
     //-------------------------------------------------------------------------------------------------------
     /** MIDI Event (to be casted from VstEvent). */
     //-------------------------------------------------------------------------------------------------------
-    [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Ansi)]
-    public struct VstMidiEvent
+    [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Ansi, Pack = 8)]
+    internal struct VstMidiEvent
     {
         //-------------------------------------------------------------------------------------------------------
         /** Flags used in #VstMidiEvent. */
         //-------------------------------------------------------------------------------------------------------
-        public enum VstMidiEventFlags : int
+        internal enum VstMidiEventFlags : int
         {
             //-------------------------------------------------------------------------------------------------------
             kVstMidiEventIsRealtime = 1 << 0    //< means that this event is played life (not in playback from a sequencer track).\n This allows the Plug-In to handle these flagged events with higher priority, especially when the Plug-In has a big latency (AEffect::initialDelay)
@@ -583,8 +579,8 @@ namespace Momiji.Interop.Vst
     //-------------------------------------------------------------------------------------------------------
     /** A block of events for the current processed audio block. */
     //-------------------------------------------------------------------------------------------------------
-    [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Ansi)]
-    public struct VstEvents
+    [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Ansi, Pack = 8)]
+    internal struct VstEvents
     {
         //-------------------------------------------------------------------------------------------------------
         public int numEvents;        //< number of Events in array
@@ -606,14 +602,14 @@ namespace Momiji.Interop.Vst
     \note VstTimeInfo::samplesToNextClock : MIDI Clock Resolution (24 per Quarter Note), can be negative the distance to the next midi clock (24 ppq, pulses per quarter) in samples. unless samplePos falls precicely on a midi clock, this will either be negative such that the previous MIDI clock is addressed, or positive when referencing the following (future) MIDI clock.
     */
     //-------------------------------------------------------------------------------------------------------
-    [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Ansi)]
-    public class VstTimeInfo
+    [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Ansi, Pack = 8)]
+    internal struct VstTimeInfo
     {
         //-------------------------------------------------------------------------------------------------------
         /** Flags used in #VstTimeInfo. */
         //-------------------------------------------------------------------------------------------------------
         [Flags]
-        public enum VstTimeInfoFlags : int
+        internal enum VstTimeInfoFlags : int
         {
             //-------------------------------------------------------------------------------------------------------
             kVstTransportChanged = 1,       ///< indicates that play, cycle or record state has changed
@@ -636,7 +632,7 @@ namespace Momiji.Interop.Vst
         //-------------------------------------------------------------------------------------------------------
         /** SMPTE Frame Rates. */
         //-------------------------------------------------------------------------------------------------------
-        public enum VstSmpteFrameRate : int
+        internal enum VstSmpteFrameRate : int
         {
             //-------------------------------------------------------------------------------------------------------
             kVstSmpte24fps = 0,     ///< 24 fps
@@ -677,8 +673,8 @@ namespace Momiji.Interop.Vst
     //-------------------------------------------------------------------------------------------------------
     /** Variable IO for Offline Processing. */
     //-------------------------------------------------------------------------------------------------------
-    [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Ansi)]
-    public struct VstVariableIo
+    [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Ansi, Pack = 8)]
+    internal struct VstVariableIo
     {
         //-------------------------------------------------------------------------------------------------------
         public IntPtr inputs;                      //< float** input audio buffers
@@ -693,8 +689,8 @@ namespace Momiji.Interop.Vst
     //-------------------------------------------------------------------------------------------------------
     /** Structure used for #effEditGetRect. */
     //-------------------------------------------------------------------------------------------------------
-    [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Ansi)]
-    public struct ERect
+    [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Ansi, Pack = 8)]
+    internal struct ERect
     {
         //-------------------------------------------------------------------------------------------------------
         public short top;       ///< top coordinate
@@ -706,7 +702,3 @@ namespace Momiji.Interop.Vst
 }
 
 #pragma warning restore CA1069 // 列挙値を重複させることはできない
-#pragma warning restore CA1711 // 識別子は、不適切なサフィックスを含むことはできません
-#pragma warning restore CA1051 // 参照可能なインスタンス フィールドを宣言しません
-#pragma warning restore CA1815 // equals および operator equals を値型でオーバーライドします
-#pragma warning restore CA1008 // 列挙型は 0 値を含んでいなければなりません

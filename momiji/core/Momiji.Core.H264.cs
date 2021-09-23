@@ -1,8 +1,10 @@
 ﻿using Microsoft.Extensions.Logging;
-using Momiji.Interop;
+using Momiji.Core.Timer;
+using Momiji.Interop.Buffer;
 using Momiji.Interop.H264;
 using System;
 using System.Collections.Generic;
+using System.Collections.ObjectModel;
 using System.Reflection;
 using System.Runtime.InteropServices;
 
@@ -23,23 +25,29 @@ namespace Momiji.Core.H264
         }
     }
 
-    public class H264InputBuffer : PinnedBufferWithLog<SSourcePicture>
+    public class H264InputBuffer : IDisposable
     {
         private bool disposed;
-        private PinnedBuffer<byte[]> buffer;
+        internal PinnedBuffer<SSourcePicture> SSourcePictureBuffer { get; }
+        private PinnedBuffer<byte[]> dataBuffer;
 
-        public H264InputBuffer(int picWidth, int picHeight) : base(new SSourcePicture())
+        public BufferLog Log { get; }
+
+        public H264InputBuffer(int picWidth, int picHeight)
         {
-            var frameSize = picWidth * picHeight * 3 / 2;
-            buffer = new PinnedBuffer<byte[]>(new byte[frameSize]);
+            SSourcePictureBuffer = new(new SSourcePicture());
+            Log = new();
 
-            var target = Target;
+            var frameSize = picWidth * picHeight * 3 / 2;
+            dataBuffer = new(new byte[frameSize]);
+
+            var target = SSourcePictureBuffer.Target;
             target.iColorFormat = EVideoFormatType.videoFormatI420;
             target.iStride0 = picWidth;
             target.iStride1 = picWidth >> 1;
             target.iStride2 = picWidth >> 1;
             target.iStride3 = 0;
-            target.pData0 = buffer.AddrOfPinnedObject;
+            target.pData0 = dataBuffer.AddrOfPinnedObject;
             target.pData1 = target.pData0 + (picWidth * picHeight);
             target.pData2 = target.pData1 + (picWidth * picHeight >> 2);
             target.pData3 = IntPtr.Zero;
@@ -47,30 +55,77 @@ namespace Momiji.Core.H264
             target.iPicHeight = picHeight;
         }
 
-        protected override void Dispose(bool disposing)
+        ~H264InputBuffer()
         {
-            if (disposed) return;
+            Dispose(false);
+        }
+
+        public void Dispose()
+        {
+            Dispose(true);
+            GC.SuppressFinalize(this);
+        }
+
+        protected virtual void Dispose(bool disposing)
+        {
+            if (disposed)
+            {
+                return;
+            }
 
             if (disposing)
             {
             }
 
-            buffer?.Dispose();
-            buffer = null;
+            dataBuffer?.Dispose();
+            dataBuffer = null;
+
+            SSourcePictureBuffer?.Dispose();
 
             disposed = true;
-
-            base.Dispose(disposing);
         }
     }
 
-    public class H264OutputBuffer : PinnedBufferWithLog<byte[]>
+    public class H264OutputBuffer : IDisposable
     {
-        public List<List<(int offset, int length)>> LayerNuls { get; }
+        private bool disposed;
+        internal PinnedBuffer<byte[]> Buffer { get; }
 
-        public H264OutputBuffer(int size) : base(new byte[size])
+        public BufferLog Log { get; }
+
+        public IList<IList<(int offset, int length)>> LayerNuls { get; }
+
+        public H264OutputBuffer(int size)
         {
-            LayerNuls = new List<List<(int, int)>>();
+            Buffer = new(new byte[size]);
+            Log = new();
+            LayerNuls = new Collection<IList<(int, int)>>();
+        }
+        ~H264OutputBuffer()
+        {
+            Dispose(false);
+        }
+
+        public void Dispose()
+        {
+            Dispose(true);
+            GC.SuppressFinalize(this);
+        }
+
+        protected virtual void Dispose(bool disposing)
+        {
+            if (disposed)
+            {
+                return;
+            }
+
+            if (disposing)
+            {
+            }
+
+            Buffer?.Dispose();
+            
+            disposed = true;
         }
     }
 
@@ -81,11 +136,12 @@ namespace Momiji.Core.H264
         }
     }
 
-    static class SFrameBSInfoBufferExtensions
+    static public class SFrameBSInfoBufferExtensions
     {
         private static readonly List<FieldInfo> layerInfoList = InitializeLayerInfoList();
 
-        static List<FieldInfo> InitializeLayerInfoList() {
+        static List<FieldInfo> InitializeLayerInfoList()
+        {
             var temp = new List<FieldInfo>();
             for (var idx = 0; idx < 128; idx++)
             {
@@ -96,6 +152,10 @@ namespace Momiji.Core.H264
 
         public static SLayerBSInfo SLayerInfo(this SFrameBSInfoBuffer self, int index)
         {
+            if (self == default)
+            {
+                throw new ArgumentNullException(nameof(self));
+            }
             return (SLayerBSInfo)layerInfoList[index].GetValue(self.Target);
         }
     }
@@ -104,7 +164,7 @@ namespace Momiji.Core.H264
     {
         private ILoggerFactory LoggerFactory { get; }
         private ILogger Logger { get; }
-        private Timer Timer { get; }
+        private LapTimer LapTimer { get; }
 
         private bool disposed;
         private SVCEncoder Encoder;
@@ -123,19 +183,19 @@ namespace Momiji.Core.H264
         private readonly ISVCEncoderVtbl.ForceIntraFrameProc ForceIntraFrame;
         private readonly ISVCEncoderVtbl.SetOptionProc SetOption;
         private readonly ISVCEncoderVtbl.GetOptionProc GetOption;
-        
+
         public H264Encoder(
             int picWidth,
             int picHeight,
             int targetBitrate,
             float maxFrameRate,
-            ILoggerFactory loggerFactory, 
-            Timer timer
+            ILoggerFactory loggerFactory,
+            LapTimer lapTimer
         )
         {
             LoggerFactory = loggerFactory;
             Logger = LoggerFactory.CreateLogger<H264Encoder>();
-            Timer = timer;
+            LapTimer = lapTimer;
 
             PicWidth = picWidth;
             PicHeight = picHeight;
@@ -220,7 +280,7 @@ namespace Momiji.Core.H264
             {
                 SetOption(Encoder, ENCODER_OPTION.ENCODER_OPTION_TRACE_LEVEL, param.AddrOfPinnedObject);
             }
-                
+
             /*
             welsTraceCallback = new PinnedDelegate<WelsTraceCallback>(TraceCallBack);
             SetOption(Encoder, ENCODER_OPTION.ENCODER_OPTION_TRACE_CALLBACK, welsTraceCallback.FunctionPointer);
@@ -286,7 +346,7 @@ namespace Momiji.Core.H264
 
             if (insertIntraFrame)
             {
-                source.Log.Add("[h264] ForceIntraFrame", Timer.USecDouble);
+                source.Log.Add("[h264] ForceIntraFrame", LapTimer.USecDouble);
                 var result = ForceIntraFrame(Encoder, true);
                 if (result != 0)
                 {
@@ -295,23 +355,23 @@ namespace Momiji.Core.H264
             }
 
             {
-                source.Log.Add("[h264] start EncodeFrame", Timer.USecDouble);
-                source.Target.uiTimeStamp = (long)(Timer.USecDouble / 1000);
-                var result = EncodeFrame(Encoder, source.AddrOfPinnedObject, sFrameBSInfoBuffer.AddrOfPinnedObject);
+                source.Log.Add("[h264] start EncodeFrame", LapTimer.USecDouble);
+                source.SSourcePictureBuffer.Target.uiTimeStamp = (long)(LapTimer.USecDouble / 1000);
+                var result = EncodeFrame(Encoder, source.SSourcePictureBuffer.AddrOfPinnedObject, sFrameBSInfoBuffer.AddrOfPinnedObject);
                 if (result != 0)
                 {
                     throw new H264Exception($"WelsCreateSVCEncoder EncodeFrame failed {result}");
                 }
-                source.Log.Add("[h264] end EncodeFrame", Timer.USecDouble);
+                source.Log.Add("[h264] end EncodeFrame", LapTimer.USecDouble);
             }
 
             dest.Log.Marge(source.Log);
             dest.LayerNuls.Clear();
-            dest.Log.Add("[h264] start copy frame", Timer.USecDouble);
+            dest.Log.Add("[h264] start copy frame", LapTimer.USecDouble);
             CopyMemory(
-                dest.AddrOfPinnedObject, 
-                dest.Target.Length, 
-                sFrameBSInfoBuffer.Target.sLayerInfo000.pBsBuf, 
+                dest.Buffer.AddrOfPinnedObject,
+                dest.Buffer.Target.Length,
+                sFrameBSInfoBuffer.Target.sLayerInfo000.pBsBuf,
                 sFrameBSInfoBuffer.Target.iFrameSizeInBytes
             );
 
@@ -321,9 +381,9 @@ namespace Momiji.Core.H264
             {
                 var layer = sFrameBSInfoBuffer.SLayerInfo(idx);
 
-                var nuls = new List<(int offset, int length)>();
+                var nuls = new Collection<(int offset, int length)>();
                 dest.LayerNuls.Add(nuls);
-                
+
                 for (var nalIdx = 0; nalIdx < layer.iNalCount; nalIdx++)
                 {
                     //TODO spanにしてみる
@@ -332,7 +392,7 @@ namespace Momiji.Core.H264
                     offset += length;
                 }
             }
-            dest.Log.Add("[h264] end copy frame", Timer.USecDouble);
+            dest.Log.Add("[h264] end copy frame", LapTimer.USecDouble);
         }
 
         private unsafe static void CopyMemory(

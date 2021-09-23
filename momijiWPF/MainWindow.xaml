@@ -1,0 +1,16 @@
+﻿<Window x:Class="momijiWPF.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:local="clr-namespace:momijiWPF"
+        mc:Ignorable="d"
+        Title="MainWindow" Height="450" Width="800" Closing="Window_Closing">
+    <Grid Margin="0,0,470,279">
+        <Button Content="Run" HorizontalAlignment="Left" Margin="10,10,0,0" VerticalAlignment="Top" Height="55" Width="135" Click="Button_Click_Run"/>
+        <Button Content="Open" HorizontalAlignment="Left" Margin="10,84,0,0" VerticalAlignment="Top" Height="55" Width="135" Click="Button_Click_Open"/>
+        <Button Content="Close" HorizontalAlignment="Left" Margin="175,84,0,0" VerticalAlignment="Top" Height="55" Width="135" Click="Button_Click_Close"/>
+        <Button Content="Stop" HorizontalAlignment="Left" Margin="175,10,0,0" VerticalAlignment="Top" Height="55" Width="135" Click="Button_Click_Stop"/>
+
+    </Grid>
+</Window>

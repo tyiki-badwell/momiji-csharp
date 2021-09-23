@@ -1,13 +1,11 @@
 ﻿using System;
 using System.Runtime.InteropServices;
 
-#pragma warning disable CA1707 // 識別子はアンダースコアを含むことはできません
-#pragma warning disable CA1815 // equals および operator equals を値型でオーバーライドします
-#pragma warning disable CA1051 // 参照可能なインスタンス フィールドを宣言しません
+#pragma warning disable CA1069 // 列挙値を重複させることはできない
 
 namespace Momiji.Interop.Wave
 {
-    public enum MMRESULT : uint
+    internal enum MMRESULT : uint
     {
         NOERROR = 0,
 
@@ -19,9 +17,9 @@ namespace Momiji.Interop.Wave
         TIMERR_NOCANDO = (TIMERR_BASE + 1),      // request not completed
     }
 
-    public static class DriverCallBack
+    internal static class DriverCallBack
     {
-        public enum TYPE : ulong
+        internal enum TYPE : ulong
         {
             TYPEMASK = 0x00070000L, // callback type mask
             NULL = 0x00000000L, // no callback 
@@ -74,7 +72,7 @@ namespace Momiji.Interop.Wave
 
     // wave data block header
     [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Ansi, Pack = 1)]
-    public class WaveHeader
+    internal class WaveHeader
     {
         // flags for dwFlags field of WAVEHDR
         [Flags]
@@ -104,7 +102,7 @@ namespace Momiji.Interop.Wave
 
     //defines for dwFormat field of WAVEINCAPS and WAVEOUTCAPS
     [Flags]
-    public enum WAVE_FORMAT : uint
+    internal enum WAVE_FORMAT : uint
     {
         FORMAT_INVALID = 0x00000000,    // invalid format
         FORMAT_1M08 = 0x00000001,   // 11.025 kHz, Mono,   8-bit 
@@ -134,7 +132,7 @@ namespace Momiji.Interop.Wave
     };
 
     [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Ansi, Pack = 1)]
-    public struct WaveOutCapabilities
+    internal struct WaveOutCapabilities
     {
         //flags for dwSupport field of WAVEOUTCAPS
         [Flags]
@@ -183,7 +181,7 @@ namespace Momiji.Interop.Wave
     // Use this for all NON PCM formats
     // (information common to all formats)
     [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Ansi, Pack = 1)]
-    public struct WaveFormatEx
+    internal struct WaveFormatEx
     {
         // flags for wFormatTag field of WAVEFORMAT
         public enum FORMAT : ushort
@@ -210,7 +208,7 @@ namespace Momiji.Interop.Wave
     }
 
     [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Ansi, Pack = 1)]
-    public struct WaveFormat
+    internal struct WaveFormat
     {
         public WaveFormatEx.FORMAT formatType;                // format type
         public ushort channels;                // number of channels (i.e. mono, stereo...)
@@ -226,10 +224,10 @@ namespace Momiji.Interop.Wave
     }
 
     [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Ansi, Pack = 1)]
-    public struct PcmWaveFormat
+    internal struct PcmWaveFormat
     {
         public WaveFormat wf;
-        public ushort bitsPerSample;               // Number of bits per sample of mono data
+        public short bitsPerSample;               // Number of bits per sample of mono data
 
         public override string ToString()
         {
@@ -247,7 +245,7 @@ namespace Momiji.Interop.Wave
     //  WAVEFORMATEXTENSIBLE.Format.wFormatTag field.
     //
     [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Ansi, Pack = 1)]
-    public struct WaveFormatExtensiblePart
+    internal struct WaveFormatExtensiblePart
     {
         [Flags]
         public enum SPEAKER : uint
@@ -270,7 +268,7 @@ namespace Momiji.Interop.Wave
             TOP_BACK_LEFT = 0x00008000,
             TOP_BACK_CENTER = 0x00010000,
             TOP_BACK_RIGHT = 0x00020000,
-        //    RESERVED = 0x7FFC0000,  // Bit mask locations reserved for future use
+            //    RESERVED = 0x7FFC0000,  // Bit mask locations reserved for future use
             ALL = 0x80000000,   // Used to specify that any possible permutation of speaker configurations
         }
 
@@ -291,7 +289,7 @@ namespace Momiji.Interop.Wave
     //  structure is common to all non-PCM formats.
     //
     [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Ansi, Pack = 1)]
-    public struct WaveFormatExtensible
+    internal struct WaveFormatExtensible
     {
         public WaveFormatEx wfe;
         public WaveFormatExtensiblePart exp;
@@ -328,19 +326,19 @@ namespace Momiji.Interop.Wave
         [DllImport(Libraries.Winmm, CallingConvention = CallingConvention.Cdecl, CharSet = CharSet.Unicode, SetLastError = true)]
         [DefaultDllImportSearchPaths(DllImportSearchPath.System32)]
         internal static extern MMRESULT waveOutOpen(
-            [Out]  out WaveOut phwo,
-            [In]   uint uDeviceID,
-            [In]   ref WaveFormatExtensible pwfx,
+            [Out] out WaveOut phwo,
+            [In] int uDeviceID,
+            [In] ref WaveFormatExtensible pwfx,
             //[In][MarshalAs(UnmanagedType.FunctionPtr)]DriverCallBack.Delegate dwCallback,
-            [In]   IntPtr/*DriverCallBack.Delegate*/ dwCallback,
-            [In]   IntPtr dwInstance,
-            [In]   DriverCallBack.TYPE fdwOpen
+            [In] IntPtr/*DriverCallBack.Delegate*/ dwCallback,
+            [In] IntPtr dwInstance,
+            [In] DriverCallBack.TYPE fdwOpen
         );
 
         [DllImport(Libraries.Winmm, CallingConvention = CallingConvention.Cdecl, CharSet = CharSet.Unicode, SetLastError = true)]
         [DefaultDllImportSearchPaths(DllImportSearchPath.System32)]
         internal static extern MMRESULT waveOutClose(
-            [In]   IntPtr hwo
+            [In] IntPtr hwo
         );
 
         [DllImport(Libraries.Winmm, CallingConvention = CallingConvention.Cdecl, CharSet = CharSet.Unicode, SetLastError = true)]
@@ -350,79 +348,79 @@ namespace Momiji.Interop.Wave
         [DllImport(Libraries.Winmm, CallingConvention = CallingConvention.Cdecl, CharSet = CharSet.Unicode, SetLastError = true)]
         [DefaultDllImportSearchPaths(DllImportSearchPath.System32)]
         internal static extern MMRESULT waveOutGetDevCaps(
-            [In]   uint uDeviceID,
-            [In, Out]  ref WaveOutCapabilities pwoc,
-            [In]   uint cbwoc
+            [In] uint uDeviceID,
+            [In, Out] ref WaveOutCapabilities pwoc,
+            [In] uint cbwoc
         );
 
         [DllImport(Libraries.Winmm, CallingConvention = CallingConvention.Cdecl, CharSet = CharSet.Unicode, SetLastError = true)]
         [DefaultDllImportSearchPaths(DllImportSearchPath.System32)]
         internal static extern MMRESULT waveOutGetVolume(
-            [In]   this WaveOut hwo,
-            [Out]  out uint pdwVolume
+            [In] this WaveOut hwo,
+            [Out] out uint pdwVolume
         );
 
         [DllImport(Libraries.Winmm, CallingConvention = CallingConvention.Cdecl, CharSet = CharSet.Unicode, SetLastError = true)]
         [DefaultDllImportSearchPaths(DllImportSearchPath.System32)]
         internal static extern MMRESULT waveOutSetVolume(
-            [In]   this WaveOut hwo,
-            [In]   uint pdwVolume
+            [In] this WaveOut hwo,
+            [In] uint pdwVolume
         );
 
         [DllImport(Libraries.Winmm, CallingConvention = CallingConvention.Cdecl, CharSet = CharSet.Unicode, SetLastError = true)]
         [DefaultDllImportSearchPaths(DllImportSearchPath.System32)]
         internal static extern MMRESULT waveOutGetErrorText(
-            [In]   MMRESULT mmrError,
-            [Out]  System.Text.StringBuilder pszText,
-            [In]   uint cchText
+            [In] MMRESULT mmrError,
+            [Out] System.Text.StringBuilder pszText,
+            [In] uint cchText
         );
 
         [DllImport(Libraries.Winmm, CallingConvention = CallingConvention.Cdecl, CharSet = CharSet.Unicode, SetLastError = true)]
         [DefaultDllImportSearchPaths(DllImportSearchPath.System32)]
         internal static extern MMRESULT waveOutPrepareHeader(
-            [In]   this WaveOut hwo,
-            [In]   IntPtr pwh,
-            [In]   uint cbwh
+            [In] this WaveOut hwo,
+            [In] IntPtr pwh,
+            [In] uint cbwh
         );
 
         [DllImport(Libraries.Winmm, CallingConvention = CallingConvention.Cdecl, CharSet = CharSet.Unicode, SetLastError = true)]
         [DefaultDllImportSearchPaths(DllImportSearchPath.System32)]
         internal static extern MMRESULT waveOutUnprepareHeader(
-            [In]   this WaveOut hwo,
-            [In]   IntPtr pwh,
-            [In]   uint cbwh
+            [In] this WaveOut hwo,
+            [In] IntPtr pwh,
+            [In] uint cbwh
         );
 
         [DllImport(Libraries.Winmm, CallingConvention = CallingConvention.Cdecl, CharSet = CharSet.Unicode, SetLastError = true)]
         [DefaultDllImportSearchPaths(DllImportSearchPath.System32)]
         internal static extern MMRESULT waveOutWrite(
-            [In]   this WaveOut hwo,
-            [In]   IntPtr pwh,
-            [In]   uint cbwh
+            [In] this WaveOut hwo,
+            [In] IntPtr pwh,
+            [In] uint cbwh
         );
 
         [DllImport(Libraries.Winmm, CallingConvention = CallingConvention.Cdecl, CharSet = CharSet.Unicode, SetLastError = true)]
         [DefaultDllImportSearchPaths(DllImportSearchPath.System32)]
         internal static extern MMRESULT waveOutPause(
-            [In]   this WaveOut hwo
+            [In] this WaveOut hwo
         );
 
         [DllImport(Libraries.Winmm, CallingConvention = CallingConvention.Cdecl, CharSet = CharSet.Unicode, SetLastError = true)]
         [DefaultDllImportSearchPaths(DllImportSearchPath.System32)]
         internal static extern MMRESULT waveOutRestart(
-            [In]   this WaveOut hwo
+            [In] this WaveOut hwo
         );
 
         [DllImport(Libraries.Winmm, CallingConvention = CallingConvention.Cdecl, CharSet = CharSet.Unicode, SetLastError = true)]
         [DefaultDllImportSearchPaths(DllImportSearchPath.System32)]
         internal static extern MMRESULT waveOutReset(
-            [In]   this WaveOut hwo
+            [In] this WaveOut hwo
         );
 
         [DllImport(Libraries.Winmm, CallingConvention = CallingConvention.Cdecl, CharSet = CharSet.Unicode, SetLastError = true)]
         [DefaultDllImportSearchPaths(DllImportSearchPath.System32)]
         internal static extern MMRESULT waveOutBreakLoop(
-            [In]   this WaveOut hwo
+            [In] this WaveOut hwo
         );
 
         /*
@@ -437,6 +435,4 @@ namespace Momiji.Interop.Wave
     }
 }
 
-#pragma warning restore CA1051 // 参照可能なインスタンス フィールドを宣言しません
-#pragma warning restore CA1815 // equals および operator equals を値型でオーバーライドします
-#pragma warning restore CA1707 // 識別子はアンダースコアを含むことはできません
+#pragma warning restore CA1069 // 列挙値を重複させることはできない

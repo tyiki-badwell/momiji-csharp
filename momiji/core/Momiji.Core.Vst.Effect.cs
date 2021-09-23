@@ -1,18 +1,21 @@
 ﻿using Microsoft.Extensions.Logging;
-using Momiji.Core.Wave;
+using Momiji.Core.SharedMemory;
+using Momiji.Core.Timer;
 using Momiji.Core.WebMidi;
-using Momiji.Interop;
+using Momiji.Interop.Buffer;
 using Momiji.Interop.Vst;
+using Momiji.Interop.Vst.AudioMaster;
 using System;
-using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
+using System.Threading;
 using System.Threading.Tasks;
 using System.Threading.Tasks.Dataflow;
 
 namespace Momiji.Core.Vst
 {
+
     public class VstException : Exception
     {
         public VstException()
@@ -28,100 +31,41 @@ namespace Momiji.Core.Vst
         }
     }
 
-    public class VstBuffer<T> : PinnedBufferWithLog<IntPtr[]> where T : struct
+    public class VstBuffer<T> : IDisposable where T : struct
     {
         private bool disposed;
+        internal PinnedBuffer<IntPtr[]> Buffer { get; }
         private readonly List<PinnedBuffer<T[]>> list = new();
+        public int BlockSize { get; }
 
-        public VstBuffer(int blockSize, int channels) : base(new IntPtr[channels])
+        public BufferLog Log { get; }
+
+        public VstBuffer(int blockSize, int channels)
         {
+            if (blockSize < 1)
+            {
+                throw new ArgumentOutOfRangeException(nameof(blockSize), blockSize, "1以上にしてください");
+            }
+
+            if (channels < 1)
+            {
+                throw new ArgumentOutOfRangeException(nameof(channels), channels, "1以上にしてください");
+            }
+
+            Buffer = new(new IntPtr[channels]);
+            Log = new();
+            BlockSize = blockSize;
             for (var i = 0; i < channels; i++)
             {
                 var buffer = new PinnedBuffer<T[]>(new T[blockSize]);
                 list.Add(buffer);
-                Target[i] = buffer.AddrOfPinnedObject;
+                Buffer.Target[i] = buffer.AddrOfPinnedObject;
             }
         }
 
-        protected override void Dispose(bool disposing)
-        {
-            if (disposed) return;
-
-            if (disposing)
-            {
-                list.ForEach(buffer => buffer.Dispose());
-                list.Clear();
-            }
-
-            disposed = true;
-
-            base.Dispose(disposing);
-        }
-
-        public T[] GetChannelBuffer(int channel) => list[channel].Target;
-    }
-
-    public class AudioMaster<T> : IDisposable where T : struct
-    {
-        private ILoggerFactory LoggerFactory { get; }
-        private ILogger Logger { get; }
-        private Timer Timer { get; }
-        internal IDllManager DllManager { get; }
-
-        private bool disposed;
-        private readonly IDictionary<IntPtr, Effect<T>> effectMap = new ConcurrentDictionary<IntPtr, Effect<T>>();
-
-        private readonly PinnedBuffer<VstTimeInfo> vstTimeInfo;
-
-        public int SamplingRate { get; }
-        public int BlockSize { get; }
-
-        public AudioMaster(
-            int samplingRate,
-            int blockSize,
-            ILoggerFactory loggerFactory,
-            Timer timer,
-            IDllManager dllManager
-        )
-        {
-            LoggerFactory = loggerFactory;
-            Logger = LoggerFactory.CreateLogger<AudioMaster<T>>();
-            Timer = timer;
-            DllManager = dllManager;
-
-            SamplingRate = samplingRate;
-            BlockSize = blockSize;
-
-            var timeInfo = new VstTimeInfo();
-            vstTimeInfo = new PinnedBuffer<VstTimeInfo>(timeInfo);
-
-            timeInfo.samplePos = 0.0;
-            timeInfo.sampleRate = samplingRate;
-            timeInfo.nanoSeconds = 0.0;
-            timeInfo.ppqPos = 0.0;
-            timeInfo.tempo = 240.0;
-            timeInfo.barStartPos = 0.0;
-            timeInfo.cycleStartPos = 0.0;
-            timeInfo.cycleEndPos = 0.0;
-            timeInfo.timeSigNumerator = 4;
-            timeInfo.timeSigDenominator = 4;
-            timeInfo.smpteOffset = 0;
-            timeInfo.smpteFrameRate = VstTimeInfo.VstSmpteFrameRate.kVstSmpte24fps;
-            timeInfo.samplesToNextClock = 0;
-            timeInfo.flags = VstTimeInfo.VstTimeInfoFlags.kVstTempoValid | VstTimeInfo.VstTimeInfoFlags.kVstNanosValid;
-        }
-
-        ~AudioMaster()
+        ~VstBuffer()
         {
             Dispose(false);
-        }
-
-        public Effect<T> AddEffect(string library)
-        {
-            var effect = new Effect<T>(library, this, LoggerFactory, Timer);
-            effectMap.Add(effect.aeffectPtr, effect);
-            effect.Open();
-            return effect;
         }
 
         public void Dispose()
@@ -136,82 +80,117 @@ namespace Momiji.Core.Vst
 
             if (disposing)
             {
-                Logger.LogInformation($"[vst host] stop [{effectMap.Count}]");
-                foreach (var (ptr, effect) in effectMap)
-                {
-                    Logger.LogInformation($"[vst] try stop [{ptr}]");
-                    effect.Dispose();
-                }
-                effectMap.Clear();
-                vstTimeInfo.Dispose();
+                list.ForEach(buffer => buffer.Dispose());
+                list.Clear();
             }
 
+            Buffer?.Dispose();
             disposed = true;
         }
 
-        internal IntPtr AudioMasterCallBackProc(
-            IntPtr/*AEffect^*/		aeffectPtr,
-            AudioMaster.Opcodes opcode,
-            int index,
-            IntPtr value,
-            IntPtr ptr,
-            float opt
-        )
-        {
-            switch (opcode)
-            {
-                case AudioMaster.Opcodes.audioMasterVersion:
-                    {
-                        return new IntPtr(2400);
-                    }
-                case AudioMaster.Opcodes.audioMasterGetTime:
-                    {
-                        vstTimeInfo.Target.nanoSeconds = Timer.USecDouble * 1000;
-
-                        return vstTimeInfo.AddrOfPinnedObject;
-                    }
-                case AudioMaster.Opcodes.audioMasterGetSampleRate:
-                    return new IntPtr(SamplingRate);
-
-                case AudioMaster.Opcodes.audioMasterGetBlockSize:
-                    return new IntPtr(BlockSize);
-
-                default:
-                    Logger.LogInformation(
-                        $"AudioMasterCallBackProc NOP " +
-                        $"{nameof(aeffectPtr)}:{aeffectPtr:X} " +
-                        $"{nameof(opcode)}:{opcode:F} " +
-                        $"{nameof(index)}:{index} " +
-                        $"{nameof(value)}:{value:X} " +
-                        $"{nameof(ptr)}:{ptr:X} " +
-                        $"{nameof(opt)}:{opt}"
-                    );
-                    return default;
-            }
-        }
+        public T[] GetChannelBuffer(int channel) => list[channel].Target;
     }
 
+    public class VstBuffer2<T> : IDisposable where T : struct
+    {
+        private bool disposed;
 
-    public class Effect<T> : IDisposable where T : struct
+        internal PinnedBuffer<IntPtr[]> Buffer { get; }
+        public int BlockSize { get; }
+
+        public BufferLog Log { get; }
+        public VstBuffer2(int blockSize, int channels, IPCBuffer<T> buf)
+        {
+            if (blockSize < 1)
+            {
+                throw new ArgumentOutOfRangeException(nameof(blockSize), blockSize, "1以上にしてください");
+            }
+
+            if (channels < 1)
+            {
+                throw new ArgumentOutOfRangeException(nameof(channels), channels, "1以上にしてください");
+            }
+
+            if (buf == default)
+            {
+                throw new ArgumentNullException(nameof(buf));
+            }
+
+            Buffer = new(new IntPtr[channels]);
+            Log = new();
+            BlockSize = blockSize;
+            for (var i = 0; i < channels; i++)
+            {
+                Buffer.Target[i] = buf.Allocate(blockSize);
+            }
+        }
+
+        ~VstBuffer2()
+        {
+            Dispose(false);
+        }
+
+        public void Dispose()
+        {
+            Dispose(true);
+            GC.SuppressFinalize(this);
+        }
+
+        protected virtual void Dispose(bool disposing)
+        {
+            if (disposed) return;
+
+            if (disposing)
+            {
+            }
+
+            Buffer?.Dispose();
+            disposed = true;
+        }
+        public IntPtr GetChannelBuffer(int channel) => Buffer.Target[channel];
+    }
+
+    public interface IEffect<T> where T : struct
+    {
+        void ProcessReplacing(
+            double nowTime,
+            VstBuffer<T> source
+        );
+
+        void ProcessReplacing(
+            double nowTime,
+            VstBuffer2<T> source
+        );
+        void ProcessEvent(
+            double nowTime,
+            IReceivableSourceBlock<MIDIMessageEvent2> midiEventInput,
+            ITargetBlock<MIDIMessageEvent2> midiEventOutput = null
+        );
+        void OpenEditor(CancellationToken cancellationToken);
+        Task CloseEditor();
+    }
+
+    internal class Effect<T> : IEffect<T>, IDisposable where T : struct
     {
         private ILoggerFactory LoggerFactory { get; }
         private ILogger Logger { get; }
-        private Timer Timer { get; }
+        private LapTimer LapTimer { get; }
 
         private bool disposed;
 
         internal readonly IntPtr aeffectPtr;
-        //internal ERect EditorRect { get; private set; }
 
-        private AEffect.DispatcherProc DispatcherProc { get; }
-        private AEffect.SetParameterProc SetParameterProc { get; }
-        private AEffect.GetParameterProc GetParameterProc { get; }
-        private AEffect.ProcessProc ProcessProc { get; }
+        internal Window vstWindow;
+        internal Task vstWindowTask;
+        internal ERect EditorRect { get; private set; }
+
+        private AEffect.DispatcherProc DispatcherProc { get; set; }
+        private AEffect.SetParameterProc SetParameterProc { get; set; }
+        private AEffect.GetParameterProc GetParameterProc { get; set; }
+        private AEffect.ProcessProc ProcessProc { get; set; }
 
         private readonly AudioMaster<T> audioMaster;
-        private PinnedDelegate<AudioMaster.CallBack> audioMasterCallBack;
-
-        //private System.Windows.Input.ICommand window;
+        private PinnedDelegate<CallBack> audioMasterCallBack;
 
         private PinnedBuffer<byte[]> events;
         private PinnedBuffer<byte[]> eventList;
@@ -225,17 +204,22 @@ namespace Momiji.Core.Vst
         private static readonly int SIZE_OF_T = Marshal.SizeOf<T>();
         private static readonly int COUNT_OF_EVENTS = 500; //サイズが適当
 
-        internal Effect(string library, AudioMaster<T> audioMaster, ILoggerFactory loggerFactory, Timer timer)
+        internal Effect(
+            string library,
+            AudioMaster<T> audioMaster,
+            ILoggerFactory loggerFactory,
+            LapTimer lapTimer
+        )
         {
             LoggerFactory = loggerFactory;
             Logger = LoggerFactory.CreateLogger<Effect<T>>();
-            Timer = timer;
+            LapTimer = lapTimer;
 
             this.audioMaster = audioMaster;
 
             //TODO その場で作っても問題ないか？
-            events = new PinnedBuffer<byte[]>(new byte[SIZE_OF_VSTEVENTS + (SIZE_OF_INTPTR * COUNT_OF_EVENTS)]);
-            eventList = new PinnedBuffer<byte[]>(new byte[SIZE_OF_VSTMIDIEVENT * COUNT_OF_EVENTS]);
+            events = new(new byte[SIZE_OF_VSTEVENTS + (SIZE_OF_INTPTR * COUNT_OF_EVENTS)]);
+            eventList = new(new byte[SIZE_OF_VSTMIDIEVENT * COUNT_OF_EVENTS]);
 
             var vstPluginMain = audioMaster.DllManager.GetExport<AEffect.VSTPluginMain>(library, "VSTPluginMain");
             if (vstPluginMain == default)
@@ -248,7 +232,7 @@ namespace Momiji.Core.Vst
                 throw new VstException("VSTPluginMainが取得できない");
             }
 
-            audioMasterCallBack = new PinnedDelegate<AudioMaster.CallBack>(new AudioMaster.CallBack(audioMaster.AudioMasterCallBackProc));
+            audioMasterCallBack = new(new(audioMaster.AudioMasterCallBackProc));
             aeffectPtr = vstPluginMain(audioMasterCallBack.FunctionPointer);
             if (aeffectPtr == default)
             {
@@ -328,7 +312,8 @@ namespace Momiji.Core.Vst
                     throw new VstException("processDoubleReplacing が無い");
                 }
             }
-            beforeTime = Timer.USecDouble;
+
+            beforeTime = LapTimer.USecDouble;
         }
 
         ~Effect()
@@ -336,7 +321,7 @@ namespace Momiji.Core.Vst
             Dispose(false);
         }
 
-        public ref AEffect GetAEffect()
+        internal ref AEffect GetAEffect()
         {
             unsafe
             {
@@ -344,7 +329,7 @@ namespace Momiji.Core.Vst
             }
         }
 
-        public float GetParameter(int index) 
+        public float GetParameter(int index)
         {
             if (GetParameterProc == default)
             {
@@ -353,7 +338,7 @@ namespace Momiji.Core.Vst
             return GetParameterProc(aeffectPtr, index);
         }
 
-        public void SetParameter(int index, float value) 
+        public void SetParameter(int index, float value)
         {
             if (SetParameterProc == default)
             {
@@ -362,17 +347,45 @@ namespace Momiji.Core.Vst
             SetParameterProc(aeffectPtr, index, value);
         }
 
-        private string GetString(AEffect.Opcodes opcode, int index, int length)
+        private IntPtr Dispatcher(
+            AEffect.Opcodes opcode,
+            int index,
+            IntPtr value,
+            IntPtr ptr,
+            float opt
+        )
         {
             if (DispatcherProc == default)
             {
                 return default;
             }
 
-            using var buffer = new PinnedBuffer<byte[]>(new byte[length+1]);
+            Logger.LogInformation($"[vst] DispatcherProc({opcode},{index},{value},{ptr},{opt})");
+            try
+            {
+                return DispatcherProc(
+                    aeffectPtr,
+                    opcode,
+                    index,
+                    value,
+                    ptr,
+                    opt
+                );
+            }
+#pragma warning disable CA1031 // 一般的な例外の種類はキャッチしません
+            catch (Exception e)
+#pragma warning restore CA1031 // 一般的な例外の種類はキャッチしません
+            {
+                Logger.LogError(e, $"[vst] DispatcherProc Exception({opcode},{index},{value},{ptr},{opt})");
+                return IntPtr.Zero;
+            }
+        }
 
-            DispatcherProc(
-                aeffectPtr,
+        private string GetString(AEffect.Opcodes opcode, int index, int length)
+        {
+            using var buffer = new PinnedBuffer<byte[]>(new byte[length + 1]);
+
+            Dispatcher(
                 opcode,
                 index,
                 default,
@@ -395,33 +408,76 @@ namespace Momiji.Core.Vst
             return GetString(AEffect.Opcodes.effGetParamDisplay, index, 100);
         }
 
-        public VstBuffer<T> ProcessReplacing(
+        public void ProcessReplacing(
             double nowTime,
             VstBuffer<T> source
         )
         {
-            if (DispatcherProc == default)
+            if (ProcessProc == default)
             {
-                return default;
+                return;
             }
             if (source == default)
             {
                 throw new ArgumentNullException(nameof(source));
             }
 
-            var blockSize = audioMaster.BlockSize;
+            var blockSize = source.BlockSize;
 
-            source.Log.Add("[vst] start processReplacing", Timer.USecDouble);
-            ProcessProc(
-                aeffectPtr,
-                default,
-                source.AddrOfPinnedObject,
-                blockSize
-            );
-            source.Log.Add("[vst] end processReplacing", Timer.USecDouble);
+            source.Log.Add("[vst] start processReplacing", LapTimer.USecDouble);
+            try
+            {
+                ProcessProc(
+                    aeffectPtr,
+                    default,
+                    source.Buffer.AddrOfPinnedObject,
+                    blockSize
+                );
+                source.Log.Add("[vst] end processReplacing", LapTimer.USecDouble);
+                beforeTime = nowTime;
+            }
+#pragma warning disable CA1031 // 一般的な例外の種類はキャッチしません
+            catch (Exception e)
+#pragma warning restore CA1031 // 一般的な例外の種類はキャッチしません
+            {
+                Logger.LogError(e, $"[vst] ProcessProc Exception");
+            }
+        }
 
-            beforeTime = nowTime;
-            return source;
+        public void ProcessReplacing(
+            double nowTime,
+            VstBuffer2<T> source
+        )
+        {
+            if (ProcessProc == default)
+            {
+                return;
+            }
+            if (source == default)
+            {
+                throw new ArgumentNullException(nameof(source));
+            }
+
+            var blockSize = source.BlockSize;
+
+            source.Log.Add("[vst] start processReplacing", LapTimer.USecDouble);
+            try
+            {
+                ProcessProc(
+                    aeffectPtr,
+                    default,
+                    source.Buffer.AddrOfPinnedObject,
+                    blockSize
+                );
+                source.Log.Add("[vst] end processReplacing", LapTimer.USecDouble);
+                beforeTime = nowTime;
+            }
+#pragma warning disable CA1031 // 一般的な例外の種類はキャッチしません
+            catch (Exception e)
+#pragma warning restore CA1031 // 一般的な例外の種類はキャッチしません
+            {
+                Logger.LogError(e, $"[vst] ProcessProc Exception");
+            }
         }
 
         public void ProcessEvent(
@@ -437,7 +493,7 @@ namespace Momiji.Core.Vst
             {
                 //前回の余分なイベントをここで回収
                 list.Add(extraMidiEvent.Value);
-                midiEventOutput?.SendAsync(extraMidiEvent.Value);
+                midiEventOutput?.Post(extraMidiEvent.Value);
                 extraMidiEvent = null;
             }
 
@@ -452,7 +508,7 @@ namespace Momiji.Core.Vst
                         break;
                     }
                     list.Add(item);
-                    midiEventOutput?.SendAsync(item);
+                    midiEventOutput?.Post(item);
                 }
             }
 
@@ -498,8 +554,7 @@ namespace Momiji.Core.Vst
                     eventsPtr += SIZE_OF_INTPTR;
                 });
 
-                DispatcherProc(
-                    aeffectPtr,
+                Dispatcher(
                     AEffect.Opcodes.effProcessEvents,
                     default,
                     default,
@@ -510,24 +565,14 @@ namespace Momiji.Core.Vst
         }
         internal void Open()
         {
-            if (DispatcherProc == default)
-            {
-                return;
-            }
-
             var aeffect = GetAEffect();
             if (!aeffect.flags.HasFlag(AEffect.VstAEffectFlags.effFlagsIsSynth))
             {
                 throw new VstException("effFlagsIsSynth ではない");
             }
-            /*if (!flags.HasFlag(AEffect.VstAEffectFlags.effFlagsHasEditor))
-            {
-                throw new VstException("effFlagsHasEditor ではない");
-            }*/
 
             // open
-            DispatcherProc(
-                aeffectPtr,
+            Dispatcher(
                 AEffect.Opcodes.effOpen,
                 default,
                 default,
@@ -536,8 +581,7 @@ namespace Momiji.Core.Vst
             );
 
             // set sampling rate
-            DispatcherProc(
-                aeffectPtr,
+            Dispatcher(
                 AEffect.Opcodes.effSetSampleRate,
                 default,
                 default,
@@ -546,8 +590,7 @@ namespace Momiji.Core.Vst
             );
 
             // set block size
-            DispatcherProc(
-                aeffectPtr,
+            Dispatcher(
                 AEffect.Opcodes.effSetBlockSize,
                 default,
                 new IntPtr(audioMaster.BlockSize),
@@ -556,8 +599,7 @@ namespace Momiji.Core.Vst
             );
 
             // set process precision
-            DispatcherProc(
-                aeffectPtr,
+            Dispatcher(
                 AEffect.Opcodes.effSetProcessPrecision,
                 default,
                 new IntPtr((int)((SIZE_OF_T == 8) ? VstProcessPrecision.kVstProcessPrecision64 : VstProcessPrecision.kVstProcessPrecision32)),
@@ -566,8 +608,7 @@ namespace Momiji.Core.Vst
             );
 
             // resume
-            DispatcherProc(
-                aeffectPtr,
+            Dispatcher(
                 AEffect.Opcodes.effMainsChanged,
                 default,
                 new IntPtr(1),
@@ -576,58 +617,137 @@ namespace Momiji.Core.Vst
             );
 
             // start
-            DispatcherProc(
-                aeffectPtr,
+            Dispatcher(
                 AEffect.Opcodes.effStartProcess,
                 default,
                 default,
                 default,
                 default
             );
-
-            /*
-            Dispatcher(
-                aeffectPtr,
-                AEffect.Opcodes.effEditOpen,
-                default,
-                default,
-                default, // TODO hWnd
-                default
-            );
-            using (var buffer = new PinnedBuffer<IntPtr[]>(new IntPtr[1]))
-            { 
-                Dispatcher(
-                    aeffectPtr,
-                    AEffect.Opcodes.effEditGetRect,
-                    default,
-                    default,
-                    buffer.AddrOfPinnedObject, // TODO out ERect
-                    default
-                );
-
-                EditorRect = Marshal.PtrToStructure<ERect>(buffer.AddrOfPinnedObject);
-            }*/
         }
 
-        private void Close()
+        public void OpenEditor(CancellationToken cancellationToken)
         {
-            if (DispatcherProc == default)
+            var aeffect = GetAEffect();
+            if (!aeffect.flags.HasFlag(AEffect.VstAEffectFlags.effFlagsHasEditor))
+            {
+                Logger.LogInformation("[vst] effFlagsHasEditorではない");
+                return;
+            }
+
+            if (vstWindow != default)
+            {
+                Logger.LogInformation("[vst] Editorが起動済");
+                return;
+            }
+
+            vstWindow = new Window(LoggerFactory, OnCreateWindow, OnPreCloseWindow);
+
+            vstWindowTask = vstWindow.RunAsync(cancellationToken);
+            Logger.LogInformation("[vst] Editor Open");
+            _ = vstWindowTask.ContinueWith((task) =>
+            {
+                vstWindow = default;
+                vstWindowTask = default;
+            }, TaskScheduler.Default).ConfigureAwait(false);
+        }
+
+        private void OnCreateWindow(HandleRef hWnd, ref int width, ref int height)
+        {
+            {
+                Logger.LogInformation($"[vst] open call back current {Thread.CurrentThread.ManagedThreadId:X}");
+
+                var result =
+                    Dispatcher(
+                        AEffect.Opcodes.effEditOpen,
+                        default,
+                        default,
+                        hWnd.Handle,
+                        default
+                    );
+                if (result == IntPtr.Zero)
+                {
+                    Logger.LogInformation("[vst] effEditOpen failed");
+                }
+            }
+
+            {
+                using var buffer = new PinnedBuffer<IntPtr>(new IntPtr());
+                var result =
+                    Dispatcher(
+                        AEffect.Opcodes.effEditGetRect,
+                        default,
+                        default,
+                        buffer.AddrOfPinnedObject,
+                        default
+                    );
+                if (result == IntPtr.Zero)
+                {
+                    Logger.LogInformation("[vst] effEditGetRect failed");
+                }
+
+                EditorRect = Marshal.PtrToStructure<ERect>(buffer.Target);
+                Logger.LogInformation($"[vst] effEditGetRect width;{EditorRect.right - EditorRect.left} height:{EditorRect.bottom - EditorRect.top}");
+
+                //TODO 変な値になってる
+                width = EditorRect.right - EditorRect.left;
+                height = EditorRect.bottom - EditorRect.top;
+            }
+        }
+
+        private void OnPreCloseWindow()
+        {
+            Logger.LogInformation($"[vst] close call back current {Thread.CurrentThread.ManagedThreadId:X}");
+
+            {
+                var result =
+                    Dispatcher(
+                        AEffect.Opcodes.effEditClose,
+                        default,
+                        default,
+                        default,
+                        default
+                    );
+                if (result == IntPtr.Zero)
+                {
+                    Logger.LogInformation("[vst] effEditClose failed");
+                }
+            }
+        }
+
+        public async Task CloseEditor()
+        {
+            var aeffect = GetAEffect();
+            if (!aeffect.flags.HasFlag(AEffect.VstAEffectFlags.effFlagsHasEditor))
+            {
+                Logger.LogInformation("[vst] effFlagsHasEditorではない");
+                return;
+            }
+
+            if (vstWindow == default)
             {
                 return;
             }
-            /*
-            Dispatcher(
-                aeffectPtr,
-                AEffect.Opcodes.effEditClose,
-                default,
-                default,
-                default,
-                default
-            );*/
+
+            vstWindow.Close();
+
+            try
+            {
+                await vstWindowTask.ConfigureAwait(false);
+            }
+            catch (VstWindowException e)
+            {
+                Logger.LogError(e, "[vst] Editor error");
+            }
+            Logger.LogInformation("[vst] Editor Closed");
+        }
+
+        private async Task Close()
+        {
+            await CloseEditor().ConfigureAwait(false);
 
             //stop
-            DispatcherProc(
-                aeffectPtr,
+            Dispatcher(
                 AEffect.Opcodes.effStopProcess,
                 default,
                 default,
@@ -635,8 +755,7 @@ namespace Momiji.Core.Vst
                 default
             );
             //suspend
-            DispatcherProc(
-                aeffectPtr,
+            Dispatcher(
                 AEffect.Opcodes.effMainsChanged,
                 default,
                 default,
@@ -644,8 +763,7 @@ namespace Momiji.Core.Vst
                 default
             );
             //close
-            DispatcherProc(
-                aeffectPtr,
+            Dispatcher(
                 AEffect.Opcodes.effClose,
                 default,
                 default,
@@ -664,19 +782,25 @@ namespace Momiji.Core.Vst
         {
             if (disposed) return;
 
-            Logger.LogInformation("[vst] stop");
-            Close();
-
             if (disposing)
             {
+                Logger.LogInformation("[vst] stop");
+
+                Close().Wait();
+
+                DispatcherProc = default;
+                SetParameterProc = default;
+                GetParameterProc = default;
+                ProcessProc = default;
+
                 audioMasterCallBack?.Dispose();
-                audioMasterCallBack = null;
+                audioMasterCallBack = default;
 
                 events?.Dispose();
-                events = null;
+                events = default;
 
                 eventList?.Dispose();
-                eventList = null;
+                eventList = default;
             }
 
             disposed = true;
