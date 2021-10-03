@@ -2,8 +2,8 @@
 using Momiji.Interop.Buffer;
 using Momiji.Interop.Kernel32;
 using System;
-using System.Drawing;
-using System.Drawing.Imaging;
+using System.Collections.Concurrent;
+using System.Collections.Generic;
 using System.Runtime.InteropServices;
 using System.Threading;
 using System.Threading.Tasks;
@@ -54,7 +54,7 @@ namespace Momiji.Core.Vst
                 lpszClassName = Marshal.StringToHGlobalUni(nameof(Window) + Guid.NewGuid().ToString())
             };
 
-            var atom = NativeMethods.RegisterClass(ref windowClass);
+            var atom = NativeMethods.RegisterClassW(ref windowClass);
             Logger.LogInformation($"[window class] RegisterClass {windowClass.lpszClassName} {atom} {Marshal.GetLastWin32Error()}");
             if (atom == 0)
             {
@@ -82,7 +82,7 @@ namespace Momiji.Core.Vst
                 Logger.LogInformation($"[window class] disposing");
             }
 
-            var result = NativeMethods.UnregisterClass(windowClass.lpszClassName, windowClass.hInstance);
+            var result = NativeMethods.UnregisterClassW(windowClass.lpszClassName, windowClass.hInstance);
             Logger.LogInformation($"[window class] UnregisterClass {windowClass.lpszClassName} {result} {Marshal.GetLastWin32Error()}");
 
             Marshal.FreeHGlobal(windowClass.lpszClassName);
@@ -91,26 +91,28 @@ namespace Momiji.Core.Vst
         }
     }
 
-    public class Window : IDisposable
+    public class Window
     {
         private ILoggerFactory LoggerFactory { get; }
         private ILogger Logger { get; }
 
-        private bool disposed;
-
         public delegate void OnCreateWindow(HandleRef hWnd, ref int width, ref int height);
         public delegate void OnPreCloseWindow();
+        public delegate void OnPostPaint(HandleRef hWnd);
 
         private readonly OnCreateWindow onCreateWindow;
         private readonly OnPreCloseWindow onPreCloseWindow;
+        private readonly OnPostPaint onPostPaint;
 
         private HandleRef hWindow;
-        private Bitmap bitmap;
+
+        private readonly ConcurrentDictionary<IntPtr, (IntPtr, PinnedDelegate<NativeMethods.WNDPROC>)> oldWndProcMap = new();
 
         public Window(
             ILoggerFactory loggerFactory,
-            OnCreateWindow onCreateWindow,
-            OnPreCloseWindow onPreCloseWindow
+            OnCreateWindow onCreateWindow = default,
+            OnPreCloseWindow onPreCloseWindow = default,
+            OnPostPaint onPostPaint = default
         )
         {
             LoggerFactory = loggerFactory;
@@ -118,32 +120,7 @@ namespace Momiji.Core.Vst
 
             this.onCreateWindow = onCreateWindow;
             this.onPreCloseWindow = onPreCloseWindow;
-        }
-
-        ~Window()
-        {
-            Dispose(false);
-        }
-
-        public void Dispose()
-        {
-            Dispose(true);
-            GC.SuppressFinalize(this);
-        }
-
-        protected virtual void Dispose(bool disposing)
-        {
-            if (disposed) return;
-
-            if (disposing)
-            {
-                Logger.LogInformation($"[window] disposing");
-
-                bitmap?.Dispose();
-                bitmap = default;
-            }
-
-            disposed = true;
+            this.onPostPaint = onPostPaint;
         }
 
         public async Task RunAsync(CancellationToken cancellationToken)
@@ -199,7 +176,7 @@ namespace Momiji.Core.Vst
             var CW_USEDEFAULT = unchecked((int)0x80000000);
 
             hWindow = new HandleRef(this,
-                NativeMethods.CreateWindowEx(
+                NativeMethods.CreateWindowExW(
                     0,
                     windowClass.ClassName,
                     IntPtr.Zero,
@@ -213,7 +190,7 @@ namespace Momiji.Core.Vst
                     windowClass.HInstance,
                     IntPtr.Zero
                 ));
-            Logger.LogInformation($"[window] CreateWindowEx {hWindow:X} {Marshal.GetLastWin32Error()}");
+            Logger.LogInformation($"[window] CreateWindowEx {hWindow.Handle:X} {Marshal.GetLastWin32Error()}");
             if (hWindow.Handle == IntPtr.Zero)
             {
                 throw new VstWindowException("CreateWindowEx failed");
@@ -224,8 +201,6 @@ namespace Momiji.Core.Vst
             int height = 100;
             onCreateWindow?.Invoke(hWindow, ref width, ref height);
 
-            bitmap = new Bitmap(width, height, PixelFormat.Format24bppRgb);
-
             NativeMethods.MoveWindow(
                 hWindow,
                 0,
@@ -234,7 +209,10 @@ namespace Momiji.Core.Vst
                 height, 
                 true
             );
-            NativeMethods.ShowWindow(hWindow, 5 /*SW_SHOW*/);
+            NativeMethods.ShowWindow(
+                hWindow, 
+                5 // SW_SHOW
+            );
 
             MessageLoop(cancellationToken);
 
@@ -261,6 +239,7 @@ namespace Momiji.Core.Vst
                     Logger.LogInformation("[vst window] canceled");
                     Close();
 
+                    // １秒以内にクローズされなければ、ループを終わらせる
                     var _ = 
                         Task.Delay(1000, CancellationToken.None)
                         .ContinueWith(
@@ -277,15 +256,15 @@ namespace Momiji.Core.Vst
 
                 {
                     //Logger.LogInformation($"[vst window] PeekMessage current {Thread.CurrentThread.ManagedThreadId:X}");
-                    if (!NativeMethods.PeekMessage(ref msg, IntPtr.Zero, 0, 0, 0 /*NOREMOVE*/))
+                    if (!NativeMethods.PeekMessageW(ref msg, IntPtr.Zero, 0, 0, 0 /*NOREMOVE*/))
                     {
                         var res = NativeMethods.MsgWaitForMultipleObjects(0, IntPtr.Zero, false, 1000, 0x04FF /*QS_ALLINPUT*/);
-                        if (res == 258/*WAIT_TIMEOUT*/)
+                        if (res == 258) // WAIT_TIMEOUT
                         {
                             //Logger.LogError($"[vst window] MsgWaitForMultipleObjects timeout.");
                             continue;
                         }
-                        else if (res == 0/*WAIT_OBJECT_0 */)
+                        else if (res == 0) // WAIT_OBJECT_0
                         {
                             //Logger.LogError($"[vst window] MsgWaitForMultipleObjects have message.");
                             continue;
@@ -337,19 +316,21 @@ namespace Momiji.Core.Vst
             }
         }
 
-        private IntPtr WndProc(IntPtr hwnd, int msg, IntPtr wParam, IntPtr lParam)
+        private IntPtr WndProc(IntPtr hwnd, uint msg, IntPtr wParam, IntPtr lParam)
         {
-            //Logger.LogInformation($"[vst window] WndProc[{hwnd:X} {msg:X} {wParam:X} {lParam:X} current {Thread.CurrentThread.ManagedThreadId:X}");
+            var handleRef = new HandleRef(this, hwnd);
+            var isWindowUnicode = (lParam != IntPtr.Zero) && NativeMethods.IsWindowUnicode(handleRef);
+            Logger.LogInformation($"[vst window] WndProc[{hwnd:X} {msg:X} {wParam:X} {lParam:X} current {Thread.CurrentThread.ManagedThreadId:X}");
 
             switch (msg)
             {
-                case 0x0002://WM_DESTROY
+                case 0x0082://WM_NCDESTROY
                     hWindow = default;
                     NativeMethods.PostQuitMessage(0);
                     return IntPtr.Zero;
 
-                case 0x0005://WM_SIZE
-                    return IntPtr.Zero;
+//                case 0x0005://WM_SIZE
+  //                  return IntPtr.Zero;
 
                 case 0x0010://WM_CLOSE
                     try
@@ -363,32 +344,108 @@ namespace Momiji.Core.Vst
                     //DefWindowProcに移譲
                     break;
 
-                case 0x000F://WM_PAINT
-                    NativeMethods.DefWindowProc(hwnd, msg, wParam, lParam);
-                    Capture(hwnd);
-                    return IntPtr.Zero;
+                case 0x0210://WM_PARENTNOTIFY
+                    //Logger.LogInformation($"[vst window] WM_PARENTNOTIFY [{wParam:X} {lParam:X}]");
+                    switch ((int)wParam & 0xFFFF)
+                    {
+                        case 0x0001: //WM_CREATE
+                            {
+                                var childHWnd = new HandleRef(this, lParam);
+                                var isChildeWindowUnicode = (lParam != IntPtr.Zero) && NativeMethods.IsWindowUnicode(childHWnd);
+                                var subWndProc = new PinnedDelegate<NativeMethods.WNDPROC>(new(SubWndProc));
+                                var oldWndProc = isChildeWindowUnicode
+                                                    ? Environment.Is64BitProcess
+                                                        ? NativeMethods.SetWindowLongPtrW(childHWnd, -4, subWndProc.FunctionPointer) //GWLP_WNDPROC
+                                                        : NativeMethods.SetWindowLongW(childHWnd, -4, subWndProc.FunctionPointer)
+                                                    : Environment.Is64BitProcess
+                                                        ? NativeMethods.SetWindowLongPtrA(childHWnd, -4, subWndProc.FunctionPointer)
+                                                        : NativeMethods.SetWindowLongA(childHWnd, -4, subWndProc.FunctionPointer)
+                                                    ;
+                                oldWndProcMap.TryAdd(childHWnd.Handle, (oldWndProc, subWndProc));
 
-                case 0x0047://WM_WINDOWPOSCHANGED
-                    return IntPtr.Zero;
+                                break;
+                            }
+                        case 0x0002: //WM_DESTROY
+                            {
+                                var childHWnd = new HandleRef(this, lParam);
+                                if (oldWndProcMap.TryRemove(childHWnd.Handle, out var pair))
+                                {
+                                    var isChildeWindowUnicode = (lParam != IntPtr.Zero) && NativeMethods.IsWindowUnicode(childHWnd);
+                                    var _ = isChildeWindowUnicode
+                                                    ? Environment.Is64BitProcess
+                                                        ? NativeMethods.SetWindowLongPtrW(childHWnd, -4, pair.Item1) //GWLP_WNDPROC
+                                                        : NativeMethods.SetWindowLongW(childHWnd, -4, pair.Item1)
+                                                    : Environment.Is64BitProcess
+                                                        ? NativeMethods.SetWindowLongPtrA(childHWnd, -4, pair.Item1)
+                                                        : NativeMethods.SetWindowLongA(childHWnd, -4, pair.Item1)
+                                                    ;
 
+                                    pair.Item2.Dispose();
+                                }
+
+                                break;
+                            }
+                    }
+
+                    break;
             }
-            return NativeMethods.DefWindowProc(hwnd, msg, wParam, lParam);
+            return isWindowUnicode
+                ? NativeMethods.DefWindowProcW(handleRef, msg, wParam, lParam)
+                : NativeMethods.DefWindowProcA(handleRef, msg, wParam, lParam)
+                ;
         }
 
-        private void Capture(IntPtr hwnd)
+        private IntPtr SubWndProc(IntPtr hwnd, uint msg, IntPtr wParam, IntPtr lParam)
         {
-            var hWindow = new HandleRef(this, hwnd);
+            //Logger.LogInformation($"[vst window] SubWndProc[{hwnd:X} {msg:X} {wParam:X} {lParam:X} current {Thread.CurrentThread.ManagedThreadId:X}");
 
-            using var g = Graphics.FromImage(bitmap);
-            var hdc = new HandleRef(this, g.GetHdc());
+            var handleRef = new HandleRef(this, hwnd);
+            var isWindowUnicode = (lParam != IntPtr.Zero) && NativeMethods.IsWindowUnicode(handleRef);
+            var result = IntPtr.Zero;
+
+            if (oldWndProcMap.TryGetValue(hwnd, out var pair))
+            {
+                result = isWindowUnicode
+                            ? NativeMethods.CallWindowProcW(pair.Item1, handleRef, msg, wParam, lParam)
+                            : NativeMethods.CallWindowProcA(pair.Item1, handleRef, msg, wParam, lParam)
+                            ;
+            }
+            else
+            {
+                result = isWindowUnicode
+                            ? NativeMethods.DefWindowProcW(handleRef, msg, wParam, lParam)
+                            : NativeMethods.DefWindowProcA(handleRef, msg, wParam, lParam)
+                            ;
+            }
+
+/*            switch (msg)
+            {
+                case 0x000F://WM_PAINT
+                    //Logger.LogInformation($"[vst window] SubWndProc WM_PAINT[{hwnd:X} {msg:X} {wParam:X} {lParam:X} current {Thread.CurrentThread.ManagedThreadId:X}");
+                    try
+                    {
+                        onPostPaint?.Invoke(new HandleRef(this, hwnd));
+                    }
+                    catch (Exception e)
+                    {
+                        Logger.LogError(e, "[vst window] onPostPaint error");
+                    }
+                    break;
+
+                default:
+                    break;
+            }
+*/
             try
             {
-                NativeMethods.PrintWindow(hWindow, hdc, 0);
+                onPostPaint?.Invoke(new HandleRef(this, hwnd));
             }
-            finally
+            catch (Exception e)
             {
-                g.ReleaseHdc(hdc.Handle);
+                Logger.LogError(e, "[vst window] onPostPaint error");
             }
+
+            return result;
         }
 
         private void Capture1(IntPtr hwnd)

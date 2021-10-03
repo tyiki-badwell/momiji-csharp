@@ -3,10 +3,14 @@ using Momiji.Core.SharedMemory;
 using Momiji.Core.Timer;
 using Momiji.Core.WebMidi;
 using Momiji.Interop.Buffer;
+using Momiji.Interop.Kernel32;
 using Momiji.Interop.Vst;
 using Momiji.Interop.Vst.AudioMaster;
+using Momiji.Interop.Windows.Graphics.Capture;
 using System;
 using System.Collections.Generic;
+using System.Drawing;
+using System.Drawing.Imaging;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using System.Threading;
@@ -180,8 +184,10 @@ namespace Momiji.Core.Vst
 
         internal readonly IntPtr aeffectPtr;
 
-        internal Window vstWindow;
-        internal Task vstWindowTask;
+        private Window vstWindow;
+        private Task vstWindowTask;
+
+        private Bitmap bitmap;
         internal ERect EditorRect { get; private set; }
 
         private AEffect.DispatcherProc DispatcherProc { get; set; }
@@ -641,7 +647,7 @@ namespace Momiji.Core.Vst
                 return;
             }
 
-            vstWindow = new Window(LoggerFactory, OnCreateWindow, OnPreCloseWindow);
+            vstWindow = new Window(LoggerFactory, OnCreateWindow, OnPreCloseWindow, OnPostPaint);
 
             vstWindowTask = vstWindow.RunAsync(cancellationToken);
             Logger.LogInformation("[vst] Editor Open");
@@ -689,9 +695,11 @@ namespace Momiji.Core.Vst
                 EditorRect = Marshal.PtrToStructure<ERect>(buffer.Target);
                 Logger.LogInformation($"[vst] effEditGetRect width;{EditorRect.right - EditorRect.left} height:{EditorRect.bottom - EditorRect.top}");
 
-                //TODO 変な値になってる
                 width = EditorRect.right - EditorRect.left;
                 height = EditorRect.bottom - EditorRect.top;
+
+                //キャプチャ先を作成
+                //bitmap = new Bitmap(width, height, PixelFormat.Format24bppRgb);
             }
         }
 
@@ -713,6 +721,26 @@ namespace Momiji.Core.Vst
                     Logger.LogInformation("[vst] effEditClose failed");
                 }
             }
+
+            bitmap?.Dispose();
+            bitmap = default;
+
+        }
+        private void OnPostPaint(HandleRef hWnd)
+        {
+            /*
+            using var g = Graphics.FromImage(bitmap);
+            var hdc = new HandleRef(this, g.GetHdc());
+            try
+            {
+                NativeMethods.PrintWindow(hWnd, hdc, 0);
+            }
+            finally
+            {
+                g.ReleaseHdc(hdc.Handle);
+            }
+            bitmap.Save("C:\\a\\test" + Guid.NewGuid().ToString() + ".bmp");
+            */
         }
 
         public async Task CloseEditor()
@@ -801,6 +829,9 @@ namespace Momiji.Core.Vst
 
                 eventList?.Dispose();
                 eventList = default;
+
+                bitmap?.Dispose();
+                bitmap = default;
             }
 
             disposed = true;

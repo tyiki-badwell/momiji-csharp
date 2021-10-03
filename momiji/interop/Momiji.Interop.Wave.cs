@@ -323,7 +323,7 @@ namespace Momiji.Interop.Wave
 
     internal static class SafeNativeMethods
     {
-        [DllImport(Libraries.Winmm, CallingConvention = CallingConvention.Cdecl, CharSet = CharSet.Unicode, SetLastError = true)]
+        [DllImport(Libraries.Winmm, CallingConvention = CallingConvention.Winapi, CharSet = CharSet.Unicode, SetLastError = true)]
         [DefaultDllImportSearchPaths(DllImportSearchPath.System32)]
         internal static extern MMRESULT waveOutOpen(
             [Out] out WaveOut phwo,
@@ -335,17 +335,17 @@ namespace Momiji.Interop.Wave
             [In] DriverCallBack.TYPE fdwOpen
         );
 
-        [DllImport(Libraries.Winmm, CallingConvention = CallingConvention.Cdecl, CharSet = CharSet.Unicode, SetLastError = true)]
+        [DllImport(Libraries.Winmm, CallingConvention = CallingConvention.Winapi, CharSet = CharSet.Unicode, SetLastError = true)]
         [DefaultDllImportSearchPaths(DllImportSearchPath.System32)]
         internal static extern MMRESULT waveOutClose(
             [In] IntPtr hwo
         );
 
-        [DllImport(Libraries.Winmm, CallingConvention = CallingConvention.Cdecl, CharSet = CharSet.Unicode, SetLastError = true)]
+        [DllImport(Libraries.Winmm, CallingConvention = CallingConvention.Winapi, CharSet = CharSet.Unicode, SetLastError = true)]
         [DefaultDllImportSearchPaths(DllImportSearchPath.System32)]
         internal static extern uint waveOutGetNumDevs();
 
-        [DllImport(Libraries.Winmm, CallingConvention = CallingConvention.Cdecl, CharSet = CharSet.Unicode, SetLastError = true)]
+        [DllImport(Libraries.Winmm, CallingConvention = CallingConvention.Winapi, CharSet = CharSet.Unicode, SetLastError = true)]
         [DefaultDllImportSearchPaths(DllImportSearchPath.System32)]
         internal static extern MMRESULT waveOutGetDevCaps(
             [In] uint uDeviceID,
@@ -353,21 +353,21 @@ namespace Momiji.Interop.Wave
             [In] uint cbwoc
         );
 
-        [DllImport(Libraries.Winmm, CallingConvention = CallingConvention.Cdecl, CharSet = CharSet.Unicode, SetLastError = true)]
+        [DllImport(Libraries.Winmm, CallingConvention = CallingConvention.Winapi, CharSet = CharSet.Unicode, SetLastError = true)]
         [DefaultDllImportSearchPaths(DllImportSearchPath.System32)]
         internal static extern MMRESULT waveOutGetVolume(
             [In] this WaveOut hwo,
             [Out] out uint pdwVolume
         );
 
-        [DllImport(Libraries.Winmm, CallingConvention = CallingConvention.Cdecl, CharSet = CharSet.Unicode, SetLastError = true)]
+        [DllImport(Libraries.Winmm, CallingConvention = CallingConvention.Winapi, CharSet = CharSet.Unicode, SetLastError = true)]
         [DefaultDllImportSearchPaths(DllImportSearchPath.System32)]
         internal static extern MMRESULT waveOutSetVolume(
             [In] this WaveOut hwo,
             [In] uint pdwVolume
         );
 
-        [DllImport(Libraries.Winmm, CallingConvention = CallingConvention.Cdecl, CharSet = CharSet.Unicode, SetLastError = true)]
+        [DllImport(Libraries.Winmm, CallingConvention = CallingConvention.Winapi, CharSet = CharSet.Unicode, SetLastError = true)]
         [DefaultDllImportSearchPaths(DllImportSearchPath.System32)]
         internal static extern MMRESULT waveOutGetErrorText(
             [In] MMRESULT mmrError,
@@ -375,7 +375,7 @@ namespace Momiji.Interop.Wave
             [In] uint cchText
         );
 
-        [DllImport(Libraries.Winmm, CallingConvention = CallingConvention.Cdecl, CharSet = CharSet.Unicode, SetLastError = true)]
+        [DllImport(Libraries.Winmm, CallingConvention = CallingConvention.Winapi, CharSet = CharSet.Unicode, SetLastError = true)]
         [DefaultDllImportSearchPaths(DllImportSearchPath.System32)]
         internal static extern MMRESULT waveOutPrepareHeader(
             [In] this WaveOut hwo,
@@ -383,7 +383,7 @@ namespace Momiji.Interop.Wave
             [In] uint cbwh
         );
 
-        [DllImport(Libraries.Winmm, CallingConvention = CallingConvention.Cdecl, CharSet = CharSet.Unicode, SetLastError = true)]
+        [DllImport(Libraries.Winmm, CallingConvention = CallingConvention.Winapi, CharSet = CharSet.Unicode, SetLastError = true)]
         [DefaultDllImportSearchPaths(DllImportSearchPath.System32)]
         internal static extern MMRESULT waveOutUnprepareHeader(
             [In] this WaveOut hwo,
@@ -391,7 +391,7 @@ namespace Momiji.Interop.Wave
             [In] uint cbwh
         );
 
-        [DllImport(Libraries.Winmm, CallingConvention = CallingConvention.Cdecl, CharSet = CharSet.Unicode, SetLastError = true)]
+        [DllImport(Libraries.Winmm, CallingConvention = CallingConvention.Winapi, CharSet = CharSet.Unicode, SetLastError = true)]
         [DefaultDllImportSearchPaths(DllImportSearchPath.System32)]
         internal static extern MMRESULT waveOutWrite(
             [In] this WaveOut hwo,
@@ -399,25 +399,25 @@ namespace Momiji.Interop.Wave
             [In] uint cbwh
         );
 
-        [DllImport(Libraries.Winmm, CallingConvention = CallingConvention.Cdecl, CharSet = CharSet.Unicode, SetLastError = true)]
+        [DllImport(Libraries.Winmm, CallingConvention = CallingConvention.Winapi, CharSet = CharSet.Unicode, SetLastError = true)]
         [DefaultDllImportSearchPaths(DllImportSearchPath.System32)]
         internal static extern MMRESULT waveOutPause(
             [In] this WaveOut hwo
         );
 
-        [DllImport(Libraries.Winmm, CallingConvention = CallingConvention.Cdecl, CharSet = CharSet.Unicode, SetLastError = true)]
+        [DllImport(Libraries.Winmm, CallingConvention = CallingConvention.Winapi, CharSet = CharSet.Unicode, SetLastError = true)]
         [DefaultDllImportSearchPaths(DllImportSearchPath.System32)]
         internal static extern MMRESULT waveOutRestart(
             [In] this WaveOut hwo
         );
 
-        [DllImport(Libraries.Winmm, CallingConvention = CallingConvention.Cdecl, CharSet = CharSet.Unicode, SetLastError = true)]
+        [DllImport(Libraries.Winmm, CallingConvention = CallingConvention.Winapi, CharSet = CharSet.Unicode, SetLastError = true)]
         [DefaultDllImportSearchPaths(DllImportSearchPath.System32)]
         internal static extern MMRESULT waveOutReset(
             [In] this WaveOut hwo
         );
 
-        [DllImport(Libraries.Winmm, CallingConvention = CallingConvention.Cdecl, CharSet = CharSet.Unicode, SetLastError = true)]
+        [DllImport(Libraries.Winmm, CallingConvention = CallingConvention.Winapi, CharSet = CharSet.Unicode, SetLastError = true)]
         [DefaultDllImportSearchPaths(DllImportSearchPath.System32)]
         internal static extern MMRESULT waveOutBreakLoop(
             [In] this WaveOut hwo
