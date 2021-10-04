@@ -1,6 +1,7 @@
 ﻿using Microsoft.Extensions.Logging;
 using Momiji.Interop.Buffer;
 using Momiji.Interop.Kernel32;
+using Momiji.Interop.Windows.Graphics.Capture;
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
@@ -209,10 +210,21 @@ namespace Momiji.Core.Vst
                 height, 
                 true
             );
+
             NativeMethods.ShowWindow(
                 hWindow, 
                 5 // SW_SHOW
             );
+
+            try
+            {
+                //表示していないとwinrt::hresult_invalid_argumentになる
+                var a = hWindow.Handle.CreateForWindow();
+            }
+            catch (Exception e)
+            {
+                Logger.LogError(e, "[window] CreateForWindow");
+            }
 
             MessageLoop(cancellationToken);
 
@@ -256,9 +268,22 @@ namespace Momiji.Core.Vst
 
                 {
                     //Logger.LogInformation($"[vst window] PeekMessage current {Thread.CurrentThread.ManagedThreadId:X}");
-                    if (!NativeMethods.PeekMessageW(ref msg, IntPtr.Zero, 0, 0, 0 /*NOREMOVE*/))
+                    if (!NativeMethods.PeekMessageW(
+                            ref msg, 
+                            IntPtr.Zero, 
+                            0, 
+                            0, 
+                            0 // NOREMOVE
+                    ))
                     {
-                        var res = NativeMethods.MsgWaitForMultipleObjects(0, IntPtr.Zero, false, 1000, 0x04FF /*QS_ALLINPUT*/);
+                        var res = 
+                            NativeMethods.MsgWaitForMultipleObjects(
+                                0, 
+                                IntPtr.Zero, 
+                                false, 
+                                1000, 
+                                0x04FF //QS_ALLINPUT
+                            );
                         if (res == 258) // WAIT_TIMEOUT
                         {
                             //Logger.LogError($"[vst window] MsgWaitForMultipleObjects timeout.");
