@@ -11,11 +11,11 @@ namespace Momiji.Interop.Windows.Graphics.Capture
     internal interface IGraphicsCaptureItemInterop
     {
         IntPtr CreateForWindow(
-            [In] IntPtr window,
+            [In] HandleRef window,
             [In] ref Guid iid);
 
         IntPtr CreateForMonitor(
-            [In] IntPtr monitor,
+            [In] HandleRef monitor,
             [In] ref Guid iid);
     }
 
@@ -24,11 +24,10 @@ namespace Momiji.Interop.Windows.Graphics.Capture
     {
         private static readonly IGraphicsCaptureItemInterop interop = GraphicsCaptureItem.As<IGraphicsCaptureItemInterop>();
 
-        //static readonly Guid GraphicsCaptureItemGuid = GuidGenerator.CreateIID(typeof(GraphicsCaptureItem).GetInterface("Windows.Graphics.Capture.IGraphicsCaptureItem"));
-        public static GraphicsCaptureItem CreateForWindow(this IntPtr hWnd)
+        internal static GraphicsCaptureItem CreateForWindow(HandleRef hWindow)
         {
             var GraphicsCaptureItemGuid = new Guid("79C3F95B-31F7-4EC2-A464-632EF5D30760");
-            var ptr = interop.CreateForWindow(hWnd, ref GraphicsCaptureItemGuid);
+            var ptr = interop.CreateForWindow(hWindow, ref GraphicsCaptureItemGuid);
             try
             {
                 return GraphicsCaptureItem.FromAbi(ptr);

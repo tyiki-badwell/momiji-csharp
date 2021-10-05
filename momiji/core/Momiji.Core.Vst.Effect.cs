@@ -658,7 +658,7 @@ namespace Momiji.Core.Vst
             }, TaskScheduler.Default).ConfigureAwait(false);
         }
 
-        private void OnCreateWindow(HandleRef hWnd, ref int width, ref int height)
+        private void OnCreateWindow(HandleRef hWindow, ref int width, ref int height)
         {
             {
                 Logger.LogInformation($"[vst] open call back current {Thread.CurrentThread.ManagedThreadId:X}");
@@ -668,7 +668,7 @@ namespace Momiji.Core.Vst
                         AEffect.Opcodes.effEditOpen,
                         default,
                         default,
-                        hWnd.Handle,
+                        hWindow.Handle,
                         default
                     );
                 if (result == IntPtr.Zero)

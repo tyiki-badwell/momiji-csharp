@@ -1,4 +1,5 @@
 ﻿using Microsoft.Extensions.Logging;
+using Microsoft.Graphics.Canvas;
 using Momiji.Interop.Buffer;
 using Momiji.Interop.Kernel32;
 using Momiji.Interop.Windows.Graphics.Capture;
@@ -8,6 +9,7 @@ using System.Collections.Generic;
 using System.Runtime.InteropServices;
 using System.Threading;
 using System.Threading.Tasks;
+using Windows.Graphics.Capture;
 
 namespace Momiji.Core.Vst
 {
@@ -97,9 +99,9 @@ namespace Momiji.Core.Vst
         private ILoggerFactory LoggerFactory { get; }
         private ILogger Logger { get; }
 
-        public delegate void OnCreateWindow(HandleRef hWnd, ref int width, ref int height);
+        public delegate void OnCreateWindow(HandleRef hWindow, ref int width, ref int height);
         public delegate void OnPreCloseWindow();
-        public delegate void OnPostPaint(HandleRef hWnd);
+        public delegate void OnPostPaint(HandleRef hWindow);
 
         private readonly OnCreateWindow onCreateWindow;
         private readonly OnPreCloseWindow onPreCloseWindow;
@@ -216,16 +218,6 @@ namespace Momiji.Core.Vst
                 5 // SW_SHOW
             );
 
-            try
-            {
-                //表示していないとwinrt::hresult_invalid_argumentになる
-                var a = hWindow.Handle.CreateForWindow();
-            }
-            catch (Exception e)
-            {
-                Logger.LogError(e, "[window] CreateForWindow");
-            }
-
             MessageLoop(cancellationToken);
 
             hWindow = default;
@@ -233,6 +225,33 @@ namespace Momiji.Core.Vst
 
         private void MessageLoop(CancellationToken cancellationToken)
         {
+            //表示していないとwinrt::hresult_invalid_argumentになる
+            var item = GraphicsCaptureItemInterop.CreateForWindow(hWindow);
+            item.Closed += (item, obj) => {
+                Logger.LogInformation("[vst window] GraphicsCaptureItem closed");
+            };
+
+            using var canvas = new CanvasDevice();
+
+            using var pool =
+                Direct3D11CaptureFramePool.Create(
+                    canvas,
+                    Windows.Graphics.DirectX.DirectXPixelFormat.R8G8B8A8UIntNormalized,
+                    2,
+                    item.Size
+                );
+
+            pool.FrameArrived += (pool, obj) => {
+                using var frame = pool.TryGetNextFrame();
+                //frame.Surface;
+                Logger.LogInformation("[vst window] FrameArrived");
+
+            };
+
+            using var session = pool.CreateCaptureSession(item);
+            session.StartCapture();
+            Logger.LogInformation("[vst window] StartCapture");
+
             var msg = new NativeMethods.MSG();
             using var msgPin = new PinnedBuffer<NativeMethods.MSG>(msg);
             var forceCancel = false;
