@@ -1,29 +1,30 @@
 ﻿using Microsoft.Extensions.Logging;
 using Microsoft.Graphics.Canvas;
 using Momiji.Interop.Buffer;
-using Momiji.Interop.Kernel32;
 using Momiji.Interop.Windows.Graphics.Capture;
 using System;
 using System.Collections.Concurrent;
-using System.Collections.Generic;
 using System.Runtime.InteropServices;
 using System.Threading;
 using System.Threading.Tasks;
 using Windows.Graphics.Capture;
+using Gdi32 = Momiji.Interop.Gdi32.NativeMethods;
+using Kernel32 = Momiji.Interop.Kernel32.NativeMethods;
+using User32 = Momiji.Interop.User32.NativeMethods;
 
-namespace Momiji.Core.Vst
+namespace Momiji.Core.Window
 {
-    public class VstWindowException : Exception
+    public class WindowException : Exception
     {
-        public VstWindowException()
+        public WindowException()
         {
         }
 
-        public VstWindowException(string message) : base(message)
+        public WindowException(string message) : base(message)
         {
         }
 
-        public VstWindowException(string message, Exception innerException) : base(message, innerException)
+        public WindowException(string message, Exception innerException) : base(message, innerException)
         {
         }
     }
@@ -35,33 +36,34 @@ namespace Momiji.Core.Vst
 
         private bool disposed;
 
-        private NativeMethods.WNDCLASS windowClass;
+        private User32.WNDCLASS windowClass;
 
         internal IntPtr ClassName { get { return windowClass.lpszClassName; } }
 
         internal IntPtr HInstance { get { return windowClass.hInstance; } }
 
-        public WindowClass(
+        internal WindowClass(
             ILoggerFactory loggerFactory,
-            PinnedDelegate<NativeMethods.WNDPROC> wndProc
+            PinnedDelegate<User32.WNDPROC> wndProc,
+            User32.WNDCLASS.CS cs = User32.WNDCLASS.CS.NONE
         )
         {
             LoggerFactory = loggerFactory;
             Logger = LoggerFactory.CreateLogger<WindowClass>();
 
-            windowClass = new NativeMethods.WNDCLASS
+            windowClass = new User32.WNDCLASS
             {
-                //style = NativeMethods.WNDCLASS.CS.HREDRAW | NativeMethods.WNDCLASS.CS.VREDRAW,
+                style = cs,
                 lpfnWndProc = wndProc.FunctionPointer,
-                hInstance = NativeMethods.GetModuleHandle(null),
-                lpszClassName = Marshal.StringToHGlobalUni(nameof(Window) + Guid.NewGuid().ToString())
+                hInstance = Kernel32.GetModuleHandle(null),
+                lpszClassName = Marshal.StringToHGlobalUni(nameof(NativeWindow) + Guid.NewGuid().ToString())
             };
 
-            var atom = NativeMethods.RegisterClassW(ref windowClass);
+            var atom = User32.RegisterClassW(ref windowClass);
             Logger.LogInformation($"[window class] RegisterClass {windowClass.lpszClassName} {atom} {Marshal.GetLastWin32Error()}");
             if (atom == 0)
             {
-                throw new VstWindowException($"RegisterClass failed [{Marshal.GetLastWin32Error()}]");
+                throw new WindowException($"RegisterClass failed [{Marshal.GetLastWin32Error()}]");
             }
         }
 
@@ -85,7 +87,7 @@ namespace Momiji.Core.Vst
                 Logger.LogInformation($"[window class] disposing");
             }
 
-            var result = NativeMethods.UnregisterClassW(windowClass.lpszClassName, windowClass.hInstance);
+            var result = User32.UnregisterClassW(windowClass.lpszClassName, windowClass.hInstance);
             Logger.LogInformation($"[window class] UnregisterClass {windowClass.lpszClassName} {result} {Marshal.GetLastWin32Error()}");
 
             Marshal.FreeHGlobal(windowClass.lpszClassName);
@@ -94,7 +96,7 @@ namespace Momiji.Core.Vst
         }
     }
 
-    public class Window
+    public class NativeWindow
     {
         private ILoggerFactory LoggerFactory { get; }
         private ILogger Logger { get; }
@@ -109,9 +111,9 @@ namespace Momiji.Core.Vst
 
         private HandleRef hWindow;
 
-        private readonly ConcurrentDictionary<IntPtr, (IntPtr, PinnedDelegate<NativeMethods.WNDPROC>)> oldWndProcMap = new();
+        private readonly ConcurrentDictionary<IntPtr, (IntPtr, PinnedDelegate<User32.WNDPROC>)> oldWndProcMap = new();
 
-        public Window(
+        public NativeWindow(
             ILoggerFactory loggerFactory,
             OnCreateWindow onCreateWindow = default,
             OnPreCloseWindow onPreCloseWindow = default,
@@ -119,7 +121,7 @@ namespace Momiji.Core.Vst
         )
         {
             LoggerFactory = loggerFactory;
-            Logger = LoggerFactory.CreateLogger<Window>();
+            Logger = LoggerFactory.CreateLogger<NativeWindow>();
 
             this.onCreateWindow = onCreateWindow;
             this.onPreCloseWindow = onPreCloseWindow;
@@ -128,11 +130,12 @@ namespace Momiji.Core.Vst
 
         public async Task RunAsync(CancellationToken cancellationToken)
         {
-            using var wndProc = new PinnedDelegate<NativeMethods.WNDPROC>(new(WndProc));
+            using var wndProc = new PinnedDelegate<User32.WNDPROC>(new(WndProc));
             using var windowClass = new WindowClass(LoggerFactory, wndProc);
 
             var tcs = new TaskCompletionSource(TaskCreationOptions.AttachedToParent);
 
+            //TODO タスク化できないか？
             var thread = new Thread(() =>
             {
                 try
@@ -143,7 +146,7 @@ namespace Momiji.Core.Vst
                 }
                 catch (Exception e)
                 {
-                    tcs.SetException(new VstWindowException("thread error", e));
+                    tcs.SetException(new WindowException("thread error", e));
                     Logger.LogInformation(e, $"[vst window] exception");
                 }
             })
@@ -164,7 +167,7 @@ namespace Momiji.Core.Vst
         private void WindowThread(WindowClass windowClass, CancellationToken cancellationToken)
         {
             {
-                var result = NativeMethods.IsGUIThread(true);
+                var result = User32.IsGUIThread(true);
                 Logger.LogInformation($"[vst window] IsGUIThread {result} {Marshal.GetLastWin32Error()}");
             }
             var style = unchecked((int)
@@ -179,7 +182,7 @@ namespace Momiji.Core.Vst
             var CW_USEDEFAULT = unchecked((int)0x80000000);
 
             hWindow = new HandleRef(this,
-                NativeMethods.CreateWindowExW(
+                User32.CreateWindowExW(
                     0,
                     windowClass.ClassName,
                     IntPtr.Zero,
@@ -196,7 +199,7 @@ namespace Momiji.Core.Vst
             Logger.LogInformation($"[window] CreateWindowEx {hWindow.Handle:X} {Marshal.GetLastWin32Error()}");
             if (hWindow.Handle == IntPtr.Zero)
             {
-                throw new VstWindowException("CreateWindowEx failed");
+                throw new WindowException("CreateWindowEx failed");
             }
 
             //RECTを受け取る
@@ -204,7 +207,7 @@ namespace Momiji.Core.Vst
             int height = 100;
             onCreateWindow?.Invoke(hWindow, ref width, ref height);
 
-            NativeMethods.MoveWindow(
+            User32.MoveWindow(
                 hWindow,
                 0,
                 0,
@@ -213,7 +216,7 @@ namespace Momiji.Core.Vst
                 true
             );
 
-            NativeMethods.ShowWindow(
+            User32.ShowWindow(
                 hWindow, 
                 5 // SW_SHOW
             );
@@ -225,6 +228,7 @@ namespace Momiji.Core.Vst
 
         private void MessageLoop(CancellationToken cancellationToken)
         {
+            /*
             //表示していないとwinrt::hresult_invalid_argumentになる
             var item = GraphicsCaptureItemInterop.CreateForWindow(hWindow);
             item.Closed += (item, obj) => {
@@ -251,9 +255,10 @@ namespace Momiji.Core.Vst
             using var session = pool.CreateCaptureSession(item);
             session.StartCapture();
             Logger.LogInformation("[vst window] StartCapture");
+            */
 
-            var msg = new NativeMethods.MSG();
-            using var msgPin = new PinnedBuffer<NativeMethods.MSG>(msg);
+            var msg = new User32.MSG();
+            using var msgPin = new PinnedBuffer<User32.MSG>(msg);
             var forceCancel = false;
 
             while (true)
@@ -287,7 +292,7 @@ namespace Momiji.Core.Vst
 
                 {
                     //Logger.LogInformation($"[vst window] PeekMessage current {Thread.CurrentThread.ManagedThreadId:X}");
-                    if (!NativeMethods.PeekMessageW(
+                    if (!User32.PeekMessageW(
                             ref msg, 
                             IntPtr.Zero, 
                             0, 
@@ -296,7 +301,7 @@ namespace Momiji.Core.Vst
                     ))
                     {
                         var res = 
-                            NativeMethods.MsgWaitForMultipleObjects(
+                            User32.MsgWaitForMultipleObjects(
                                 0, 
                                 IntPtr.Zero, 
                                 false, 
@@ -320,14 +325,14 @@ namespace Momiji.Core.Vst
                 }
                 //Logger.LogInformation($"[vst window] MSG {msg.hwnd:X} {msg.message:X} {msg.wParam:X} {msg.lParam:X} {msg.time} {msg.pt_x} {msg.pt_y}");
 
-                var IsWindowUnicode = (msg.hwnd != IntPtr.Zero) && NativeMethods.IsWindowUnicode(new HandleRef(this, msg.hwnd));
+                var IsWindowUnicode = (msg.hwnd != IntPtr.Zero) && User32.IsWindowUnicode(new HandleRef(this, msg.hwnd));
                 //Logger.LogInformation($"[vst window] IsWindowUnicode {IsWindowUnicode}");
 
                 {
                     //Logger.LogInformation("[vst window] GetMessage");
                     var ret = IsWindowUnicode
-                                ? NativeMethods.GetMessageW(ref msg, IntPtr.Zero, 0, 0)
-                                : NativeMethods.GetMessageA(ref msg, IntPtr.Zero, 0, 0)
+                                ? User32.GetMessageW(ref msg, IntPtr.Zero, 0, 0)
+                                : User32.GetMessageA(ref msg, IntPtr.Zero, 0, 0)
                                 ;
                     //Logger.LogInformation($"[vst window] GetMessage {ret} {msg.hwnd:X} {msg.message:X} {msg.wParam:X} {msg.lParam:X} {msg.time} {msg.pt_x} {msg.pt_y}");
 
@@ -345,15 +350,15 @@ namespace Momiji.Core.Vst
 
                 {
                     //    Logger.LogInformation("[vst window] TranslateMessage");
-                    var _ = NativeMethods.TranslateMessage(ref msg);
+                    var _ = User32.TranslateMessage(ref msg);
                     //    Logger.LogInformation($"[vst window] TranslateMessage {ret} {Marshal.GetLastWin32Error()}");
                 }
 
                 {
                     //    Logger.LogInformation("[vst window] DispatchMessage");
                     var _ = IsWindowUnicode
-                                ? NativeMethods.DispatchMessageW(ref msg)
-                                : NativeMethods.DispatchMessageA(ref msg)
+                                ? User32.DispatchMessageW(ref msg)
+                                : User32.DispatchMessageA(ref msg)
                                 ;
                     //    Logger.LogInformation($"[vst window] DispatchMessage {ret} {Marshal.GetLastWin32Error()}");
                 }
@@ -363,14 +368,14 @@ namespace Momiji.Core.Vst
         private IntPtr WndProc(IntPtr hwnd, uint msg, IntPtr wParam, IntPtr lParam)
         {
             var handleRef = new HandleRef(this, hwnd);
-            var isWindowUnicode = (lParam != IntPtr.Zero) && NativeMethods.IsWindowUnicode(handleRef);
+            var isWindowUnicode = (lParam != IntPtr.Zero) && User32.IsWindowUnicode(handleRef);
             Logger.LogInformation($"[vst window] WndProc[{hwnd:X} {msg:X} {wParam:X} {lParam:X} current {Thread.CurrentThread.ManagedThreadId:X}");
 
             switch (msg)
             {
                 case 0x0082://WM_NCDESTROY
                     hWindow = default;
-                    NativeMethods.PostQuitMessage(0);
+                    User32.PostQuitMessage(0);
                     return IntPtr.Zero;
 
 //                case 0x0005://WM_SIZE
@@ -395,15 +400,15 @@ namespace Momiji.Core.Vst
                         case 0x0001: //WM_CREATE
                             {
                                 var childHWnd = new HandleRef(this, lParam);
-                                var isChildeWindowUnicode = (lParam != IntPtr.Zero) && NativeMethods.IsWindowUnicode(childHWnd);
-                                var subWndProc = new PinnedDelegate<NativeMethods.WNDPROC>(new(SubWndProc));
+                                var isChildeWindowUnicode = (lParam != IntPtr.Zero) && User32.IsWindowUnicode(childHWnd);
+                                var subWndProc = new PinnedDelegate<User32.WNDPROC>(new(SubWndProc));
                                 var oldWndProc = isChildeWindowUnicode
                                                     ? Environment.Is64BitProcess
-                                                        ? NativeMethods.SetWindowLongPtrW(childHWnd, -4, subWndProc.FunctionPointer) //GWLP_WNDPROC
-                                                        : NativeMethods.SetWindowLongW(childHWnd, -4, subWndProc.FunctionPointer)
+                                                        ? User32.SetWindowLongPtrW(childHWnd, -4, subWndProc.FunctionPointer) //GWLP_WNDPROC
+                                                        : User32.SetWindowLongW(childHWnd, -4, subWndProc.FunctionPointer)
                                                     : Environment.Is64BitProcess
-                                                        ? NativeMethods.SetWindowLongPtrA(childHWnd, -4, subWndProc.FunctionPointer)
-                                                        : NativeMethods.SetWindowLongA(childHWnd, -4, subWndProc.FunctionPointer)
+                                                        ? User32.SetWindowLongPtrA(childHWnd, -4, subWndProc.FunctionPointer)
+                                                        : User32.SetWindowLongA(childHWnd, -4, subWndProc.FunctionPointer)
                                                     ;
                                 oldWndProcMap.TryAdd(childHWnd.Handle, (oldWndProc, subWndProc));
 
@@ -414,14 +419,14 @@ namespace Momiji.Core.Vst
                                 var childHWnd = new HandleRef(this, lParam);
                                 if (oldWndProcMap.TryRemove(childHWnd.Handle, out var pair))
                                 {
-                                    var isChildeWindowUnicode = (lParam != IntPtr.Zero) && NativeMethods.IsWindowUnicode(childHWnd);
+                                    var isChildeWindowUnicode = (lParam != IntPtr.Zero) && User32.IsWindowUnicode(childHWnd);
                                     var _ = isChildeWindowUnicode
                                                     ? Environment.Is64BitProcess
-                                                        ? NativeMethods.SetWindowLongPtrW(childHWnd, -4, pair.Item1) //GWLP_WNDPROC
-                                                        : NativeMethods.SetWindowLongW(childHWnd, -4, pair.Item1)
+                                                        ? User32.SetWindowLongPtrW(childHWnd, -4, pair.Item1) //GWLP_WNDPROC
+                                                        : User32.SetWindowLongW(childHWnd, -4, pair.Item1)
                                                     : Environment.Is64BitProcess
-                                                        ? NativeMethods.SetWindowLongPtrA(childHWnd, -4, pair.Item1)
-                                                        : NativeMethods.SetWindowLongA(childHWnd, -4, pair.Item1)
+                                                        ? User32.SetWindowLongPtrA(childHWnd, -4, pair.Item1)
+                                                        : User32.SetWindowLongA(childHWnd, -4, pair.Item1)
                                                     ;
 
                                     pair.Item2.Dispose();
@@ -434,8 +439,8 @@ namespace Momiji.Core.Vst
                     break;
             }
             return isWindowUnicode
-                ? NativeMethods.DefWindowProcW(handleRef, msg, wParam, lParam)
-                : NativeMethods.DefWindowProcA(handleRef, msg, wParam, lParam)
+                ? User32.DefWindowProcW(handleRef, msg, wParam, lParam)
+                : User32.DefWindowProcA(handleRef, msg, wParam, lParam)
                 ;
         }
 
@@ -444,21 +449,21 @@ namespace Momiji.Core.Vst
             //Logger.LogInformation($"[vst window] SubWndProc[{hwnd:X} {msg:X} {wParam:X} {lParam:X} current {Thread.CurrentThread.ManagedThreadId:X}");
 
             var handleRef = new HandleRef(this, hwnd);
-            var isWindowUnicode = (lParam != IntPtr.Zero) && NativeMethods.IsWindowUnicode(handleRef);
+            var isWindowUnicode = (lParam != IntPtr.Zero) && User32.IsWindowUnicode(handleRef);
             var result = IntPtr.Zero;
 
             if (oldWndProcMap.TryGetValue(hwnd, out var pair))
             {
                 result = isWindowUnicode
-                            ? NativeMethods.CallWindowProcW(pair.Item1, handleRef, msg, wParam, lParam)
-                            : NativeMethods.CallWindowProcA(pair.Item1, handleRef, msg, wParam, lParam)
+                            ? User32.CallWindowProcW(pair.Item1, handleRef, msg, wParam, lParam)
+                            : User32.CallWindowProcA(pair.Item1, handleRef, msg, wParam, lParam)
                             ;
             }
             else
             {
                 result = isWindowUnicode
-                            ? NativeMethods.DefWindowProcW(handleRef, msg, wParam, lParam)
-                            : NativeMethods.DefWindowProcA(handleRef, msg, wParam, lParam)
+                            ? User32.DefWindowProcW(handleRef, msg, wParam, lParam)
+                            : User32.DefWindowProcA(handleRef, msg, wParam, lParam)
                             ;
             }
 
@@ -496,9 +501,9 @@ namespace Momiji.Core.Vst
         {
             var hWindow = new HandleRef(this, hwnd);
 
-            var rcClient = new NativeMethods.RECT();
+            var rcClient = new User32.RECT();
             {
-                var res = NativeMethods.GetClientRect(hWindow, ref rcClient);
+                var res = User32.GetClientRect(hWindow, ref rcClient);
                 if (!res)
                 {
                     Logger.LogError($"[vst window] GetClientRect failed {Marshal.GetLastWin32Error()}");
@@ -509,7 +514,7 @@ namespace Momiji.Core.Vst
             var cx = (int)(rcClient.right - rcClient.left);
             var cy = (int)(rcClient.bottom - rcClient.top);
 
-            var hdcWindow = new HandleRef(this, NativeMethods.GetDC(hWindow));
+            var hdcWindow = new HandleRef(this, User32.GetDC(hWindow));
             if (hdcWindow.Handle == default)
             {
                 Logger.LogError($"[vst window] GetDC failed {Marshal.GetLastWin32Error()}");
@@ -517,7 +522,7 @@ namespace Momiji.Core.Vst
             }
             try
             {
-                var hdcMemDC = new HandleRef(this, NativeMethods.CreateCompatibleDC(hdcWindow));
+                var hdcMemDC = new HandleRef(this, Gdi32.CreateCompatibleDC(hdcWindow));
                 if (hdcMemDC.Handle == default)
                 {
                     Logger.LogError($"[vst window] CreateCompatibleDC failed {Marshal.GetLastWin32Error()}");
@@ -526,7 +531,7 @@ namespace Momiji.Core.Vst
                 try
                 {
                     var hbmScreen = new HandleRef(this,
-                        NativeMethods.CreateCompatibleBitmap(
+                        Gdi32.CreateCompatibleBitmap(
                             hdcWindow,
                             cx,
                             cy
@@ -538,7 +543,7 @@ namespace Momiji.Core.Vst
                     }
                     try
                     {
-                        var hOld = NativeMethods.SelectObject(hdcMemDC, hbmScreen);
+                        var hOld = Gdi32.SelectObject(hdcMemDC, hbmScreen);
                         if (hOld == default)
                         {
                             Logger.LogError($"[vst window] SelectObject failed {Marshal.GetLastWin32Error()}");
@@ -547,7 +552,7 @@ namespace Momiji.Core.Vst
 
                         {
                             var res =
-                                NativeMethods.BitBlt(
+                                Gdi32.BitBlt(
                                     hdcMemDC,
                                     0,
                                     0,
@@ -567,7 +572,7 @@ namespace Momiji.Core.Vst
                     }
                     finally
                     {
-                        var res = NativeMethods.DeleteObject(hbmScreen);
+                        var res = Gdi32.DeleteObject(hbmScreen);
                         if (!res)
                         {
                             Logger.LogError($"[vst window] DeleteObject failed {Marshal.GetLastWin32Error()}");
@@ -576,7 +581,7 @@ namespace Momiji.Core.Vst
                 }
                 finally
                 {
-                    var res = NativeMethods.DeleteDC(hdcMemDC);
+                    var res = Gdi32.DeleteDC(hdcMemDC);
                     if (!res)
                     {
                         Logger.LogError($"[vst window] DeleteDC failed {Marshal.GetLastWin32Error()}");
@@ -585,7 +590,7 @@ namespace Momiji.Core.Vst
             }
             finally
             {
-                var res = NativeMethods.ReleaseDC(hWindow, hdcWindow);
+                var res = User32.ReleaseDC(hWindow, hdcWindow);
                 if (res != 1)
                 {
                     Logger.LogError($"[vst window] ReleaseDC failed {Marshal.GetLastWin32Error()}");
@@ -595,10 +600,10 @@ namespace Momiji.Core.Vst
 
         public void Close()
         {
-            var IsWindowUnicode = NativeMethods.IsWindowUnicode(hWindow);
+            var IsWindowUnicode = User32.IsWindowUnicode(hWindow);
             var _ = IsWindowUnicode
-                        ? NativeMethods.SendNotifyMessageW(hWindow, 0x0010, IntPtr.Zero, IntPtr.Zero)
-                        : NativeMethods.SendNotifyMessageA(hWindow, 0x0010, IntPtr.Zero, IntPtr.Zero)
+                        ? User32.SendNotifyMessageW(hWindow, 0x0010, IntPtr.Zero, IntPtr.Zero)
+                        : User32.SendNotifyMessageA(hWindow, 0x0010, IntPtr.Zero, IntPtr.Zero)
                         ;
         }
     }

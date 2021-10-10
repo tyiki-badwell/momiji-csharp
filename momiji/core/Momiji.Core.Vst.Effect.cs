@@ -2,6 +2,7 @@
 using Momiji.Core.SharedMemory;
 using Momiji.Core.Timer;
 using Momiji.Core.WebMidi;
+using Momiji.Core.Window;
 using Momiji.Interop.Buffer;
 using Momiji.Interop.Kernel32;
 using Momiji.Interop.Vst;
@@ -184,10 +185,10 @@ namespace Momiji.Core.Vst
 
         internal readonly IntPtr aeffectPtr;
 
-        private Window vstWindow;
-        private Task vstWindowTask;
+        private NativeWindow window;
+        private Task windowTask;
 
-        private Bitmap bitmap;
+        //private Bitmap bitmap;
         internal ERect EditorRect { get; private set; }
 
         private AEffect.DispatcherProc DispatcherProc { get; set; }
@@ -641,20 +642,20 @@ namespace Momiji.Core.Vst
                 return;
             }
 
-            if (vstWindow != default)
+            if (window != default)
             {
                 Logger.LogInformation("[vst] Editorが起動済");
                 return;
             }
 
-            vstWindow = new Window(LoggerFactory, OnCreateWindow, OnPreCloseWindow, OnPostPaint);
+            window = new NativeWindow(LoggerFactory, OnCreateWindow, OnPreCloseWindow, OnPostPaint);
 
-            vstWindowTask = vstWindow.RunAsync(cancellationToken);
+            windowTask = window.RunAsync(cancellationToken);
             Logger.LogInformation("[vst] Editor Open");
-            _ = vstWindowTask.ContinueWith((task) =>
+            _ = windowTask.ContinueWith((task) =>
             {
-                vstWindow = default;
-                vstWindowTask = default;
+                window = default;
+                windowTask = default;
             }, TaskScheduler.Default).ConfigureAwait(false);
         }
 
@@ -716,15 +717,18 @@ namespace Momiji.Core.Vst
                         default,
                         default
                     );
+                /*
                 if (result == IntPtr.Zero)
                 {
                     Logger.LogInformation("[vst] effEditClose failed");
                 }
+                */
             }
 
+            /*
             bitmap?.Dispose();
             bitmap = default;
-
+            */
         }
         private void OnPostPaint(HandleRef hWnd)
         {
@@ -752,18 +756,18 @@ namespace Momiji.Core.Vst
                 return;
             }
 
-            if (vstWindow == default)
+            if (window == default)
             {
                 return;
             }
 
-            vstWindow.Close();
+            window.Close();
 
             try
             {
-                await vstWindowTask.ConfigureAwait(false);
+                await windowTask.ConfigureAwait(false);
             }
-            catch (VstWindowException e)
+            catch (WindowException e)
             {
                 Logger.LogError(e, "[vst] Editor error");
             }
@@ -829,9 +833,10 @@ namespace Momiji.Core.Vst
 
                 eventList?.Dispose();
                 eventList = default;
-
+                /*
                 bitmap?.Dispose();
                 bitmap = default;
+                */
             }
 
             disposed = true;

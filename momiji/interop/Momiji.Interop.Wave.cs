@@ -315,13 +315,13 @@ namespace Momiji.Interop.Wave
 
         protected override bool ReleaseHandle()
         {
-            MMRESULT mmResult = SafeNativeMethods.waveOutClose(handle);
+            MMRESULT mmResult = NativeMethods.waveOutClose(handle);
             return (mmResult == MMRESULT.NOERROR);
         }
 
     }
 
-    internal static class SafeNativeMethods
+    internal static class NativeMethods
     {
         [DllImport(Libraries.Winmm, CallingConvention = CallingConvention.Winapi, CharSet = CharSet.Unicode, SetLastError = true)]
         [DefaultDllImportSearchPaths(DllImportSearchPath.System32)]

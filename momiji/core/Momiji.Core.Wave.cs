@@ -34,7 +34,7 @@ namespace Momiji.Core.Wave
         static private string MakeMessage(MMRESULT mmResult)
         {
             var text = new System.Text.StringBuilder(256);
-            SafeNativeMethods.waveOutGetErrorText(mmResult, text, (uint)text.Capacity);
+            NativeMethods.waveOutGetErrorText(mmResult, text, (uint)text.Capacity);
             return $"{text}({mmResult})";
         }
     }
@@ -267,7 +267,7 @@ namespace Momiji.Core.Wave
             using var formatPin = new PinnedBuffer<WaveFormatExtensible>(format);
 
             var mmResult =
-                SafeNativeMethods.waveOutOpen(
+                NativeMethods.waveOutOpen(
                     out handle,
                     deviceID,
                     ref format,

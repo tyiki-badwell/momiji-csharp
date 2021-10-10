@@ -203,12 +203,12 @@ namespace Momiji.Core.H264
             MaxFrameRate = maxFrameRate;
 
             {
-                SafeNativeMethods.WelsGetCodecVersionEx(out var version);
+                NativeMethods.WelsGetCodecVersionEx(out var version);
                 Logger.LogInformation($"[h264] version {version.uMajor}.{version.uMinor}.{version.uReserved}.{version.uRevision}");
             }
 
             {
-                var result = SafeNativeMethods.WelsCreateSVCEncoder(out var handle);
+                var result = NativeMethods.WelsCreateSVCEncoder(out var handle);
                 if (result != 0)
                 {
                     throw new H264Exception($"WelsCreateSVCEncoder failed {result}");

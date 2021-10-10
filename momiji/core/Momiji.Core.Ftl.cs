@@ -78,12 +78,12 @@ namespace Momiji.Core.Ftl
             if (connect)
             {
                 Status status;
-                status = SafeNativeMethods.ftl_init();
+                status = NativeMethods.ftl_init();
                 Logger.LogInformation($"ftl_init:{status}");
 
                 handle = new PinnedBuffer<FtlHandle>(new FtlHandle());
 
-                status = SafeNativeMethods.ftl_ingest_create(handle.AddrOfPinnedObject, ref param);
+                status = NativeMethods.ftl_ingest_create(handle.AddrOfPinnedObject, ref param);
                 Logger.LogInformation($"ftl_ingest_create:{status}");
                 if (status != Status.FTL_SUCCESS)
                 {
@@ -119,7 +119,7 @@ namespace Momiji.Core.Ftl
             if (handle != null)
             {
                 Status status;
-                status = SafeNativeMethods.ftl_ingest_disconnect(handle.AddrOfPinnedObject);
+                status = NativeMethods.ftl_ingest_disconnect(handle.AddrOfPinnedObject);
                 Logger.LogInformation($"ftl_ingest_disconnect:{status}");
 
                 logCancel.Cancel();
@@ -140,7 +140,7 @@ namespace Momiji.Core.Ftl
                     logTask = null;
                 }
 
-                status = SafeNativeMethods.ftl_ingest_destroy(handle.AddrOfPinnedObject);
+                status = NativeMethods.ftl_ingest_destroy(handle.AddrOfPinnedObject);
                 Logger.LogInformation($"ftl_ingest_destroy:{status}");
 
                 handle.Dispose();
@@ -155,7 +155,7 @@ namespace Momiji.Core.Ftl
                 return;
             }
 
-            var status = SafeNativeMethods.ftl_ingest_connect(handle.AddrOfPinnedObject);
+            var status = NativeMethods.ftl_ingest_connect(handle.AddrOfPinnedObject);
             Logger.LogInformation($"ftl_ingest_connect:{status}");
             if (status != Status.FTL_SUCCESS)
             {
@@ -187,7 +187,7 @@ namespace Momiji.Core.Ftl
             var sent = 0;
             if (handle != null)
             {
-                sent = SafeNativeMethods.ftl_ingest_send_media_dts(
+                sent = NativeMethods.ftl_ingest_send_media_dts(
                     handle.AddrOfPinnedObject,
                     MediaType.FTL_AUDIO_DATA,
                     time,
@@ -244,7 +244,7 @@ namespace Momiji.Core.Ftl
                     var sent = 0;
                     if (handle != null)
                     {
-                        sent = SafeNativeMethods.ftl_ingest_send_media_dts(
+                        sent = NativeMethods.ftl_ingest_send_media_dts(
                             handle.AddrOfPinnedObject,
                             MediaType.FTL_VIDEO_DATA,
                             time,
@@ -292,7 +292,7 @@ namespace Momiji.Core.Ftl
 
                     while (true)
                     {
-                        var status = SafeNativeMethods.ftl_ingest_get_status(handle.AddrOfPinnedObject, msg, 500);
+                        var status = NativeMethods.ftl_ingest_get_status(handle.AddrOfPinnedObject, msg, 500);
                         if (status != Status.FTL_SUCCESS)
                         {
                             if (ct.IsCancellationRequested)

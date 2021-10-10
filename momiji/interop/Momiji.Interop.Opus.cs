@@ -207,12 +207,12 @@ namespace Momiji.Interop.Opus
         override protected bool ReleaseHandle()
         {
             //Trace.WriteLine("opus_encoder_destroy");
-            SafeNativeMethods.opus_encoder_destroy(handle);
+            NativeMethods.opus_encoder_destroy(handle);
             return true;
         }
     }
 
-    internal static class SafeNativeMethods
+    internal static class NativeMethods
     {
         [DllImport(Libraries.Opus, CallingConvention = CallingConvention.StdCall)]
         [DefaultDllImportSearchPaths(DllImportSearchPath.UserDirectories | DllImportSearchPath.UseDllDirectoryForDependencies)]

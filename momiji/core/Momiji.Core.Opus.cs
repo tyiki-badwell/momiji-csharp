@@ -78,16 +78,16 @@ namespace Momiji.Core.Opus
             Logger = LoggerFactory.CreateLogger<OpusEncoder>();
             LapTimer = lapTimer;
 
-            Logger.LogInformation($"opus version {SafeNativeMethods.opus_get_version_string()}");
+            Logger.LogInformation($"opus version {NativeMethods.opus_get_version_string()}");
 
             encoder =
-                SafeNativeMethods.opus_encoder_create(
+                NativeMethods.opus_encoder_create(
                     Fs, channels, OpusApplicationType.Audio, out var error
                 );
 
             if (error != OpusStatusCode.OK)
             {
-                throw new OpusException($"[opus] opus_encoder_create error:{SafeNativeMethods.opus_strerror((int)error)}({error})");
+                throw new OpusException($"[opus] opus_encoder_create error:{NativeMethods.opus_strerror((int)error)}({error})");
             }
         }
 
@@ -160,7 +160,7 @@ namespace Momiji.Core.Opus
             dest.Log.Add($"[opus] end opus_encode_float {dest.Wrote}", LapTimer.USecDouble);
             if (dest.Wrote < 0)
             {
-                throw new OpusException($"[opus] opus_encode_float error:{SafeNativeMethods.opus_strerror(dest.Wrote)}({dest.Wrote})");
+                throw new OpusException($"[opus] opus_encode_float error:{NativeMethods.opus_strerror(dest.Wrote)}({dest.Wrote})");
             }
         }
     }

@@ -164,7 +164,7 @@ namespace Momiji.Interop.Ftl
         public IntPtr priv;
     }
 
-    internal static class SafeNativeMethods
+    internal static class NativeMethods
     {
         //FTL_API ftl_status_t ftl_init();
         [DllImport(Libraries.Ftl, CallingConvention = CallingConvention.Cdecl)]
