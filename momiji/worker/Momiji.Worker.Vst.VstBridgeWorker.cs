@@ -66,7 +66,7 @@ namespace Momiji.Core.Vst.Worker
         void Cancel();
 
         void OpenEditor();
-        Task CloseEditor();
+        Task CloseEditorAsync();
 
         //void Note(MIDIMessageEvent[] midiMessage);
         //Task AcceptWebSocket(WebSocket webSocket);
@@ -254,9 +254,9 @@ namespace Momiji.Core.Vst.Worker
             effect.OpenEditor(processCancel.Token);
         }
 
-        public async Task CloseEditor()
+        public async Task CloseEditorAsync()
         {
-            await effect.CloseEditor().ConfigureAwait(false);
+            await effect.CloseEditorAsync().ConfigureAwait(false);
         }
     }
 }

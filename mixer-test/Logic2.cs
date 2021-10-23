@@ -339,7 +339,7 @@ namespace mixerTest
 
         public void CloseEditor()
         {
-            effect.CloseEditor().Wait();
+            effect.CloseEditorAsync().Wait();
         }
     }
 }

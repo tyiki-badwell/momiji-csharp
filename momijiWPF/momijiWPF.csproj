@@ -6,6 +6,7 @@
     <UseWPF>true</UseWPF>
     <Platforms>x86;x64</Platforms>
     <AnalysisMode>AllEnabledByDefault</AnalysisMode>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
   </PropertyGroup>
 
   <ItemGroup>
@@ -21,7 +22,8 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\momiji\momiji.csproj" />
+    <ProjectReference Include="..\momijiRT\MomijiRT.csproj" />
+    <ProjectReference Include="..\momiji\Momiji.csproj" />
     <PackageReference Include="Microsoft.Extensions.Logging.Console" Version="5.0.0" />
     <PackageReference Include="Microsoft.Extensions.Configuration.Json" Version="5.0.0" />
     <PackageReference Include="Microsoft.Extensions.Configuration.UserSecrets" Version="5.0.0" />

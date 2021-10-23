@@ -12,7 +12,7 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\momiji\momiji.csproj" />
+    <ProjectReference Include="..\momiji\Momiji.csproj" />
   </ItemGroup>
 
 </Project>

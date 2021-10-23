@@ -4,14 +4,10 @@ using Momiji.Core.Timer;
 using Momiji.Core.WebMidi;
 using Momiji.Core.Window;
 using Momiji.Interop.Buffer;
-using Momiji.Interop.Kernel32;
 using Momiji.Interop.Vst;
 using Momiji.Interop.Vst.AudioMaster;
-using Momiji.Interop.Windows.Graphics.Capture;
 using System;
 using System.Collections.Generic;
-using System.Drawing;
-using System.Drawing.Imaging;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using System.Threading;
@@ -172,7 +168,7 @@ namespace Momiji.Core.Vst
             ITargetBlock<MIDIMessageEvent2> midiEventOutput = null
         );
         void OpenEditor(CancellationToken cancellationToken);
-        Task CloseEditor();
+        Task CloseEditorAsync();
     }
 
     internal class Effect<T> : IEffect<T>, IDisposable where T : struct
@@ -709,7 +705,7 @@ namespace Momiji.Core.Vst
             Logger.LogInformation($"[vst] close call back current {Thread.CurrentThread.ManagedThreadId:X}");
 
             {
-                var result =
+                var _ =
                     Dispatcher(
                         AEffect.Opcodes.effEditClose,
                         default,
@@ -747,7 +743,7 @@ namespace Momiji.Core.Vst
             */
         }
 
-        public async Task CloseEditor()
+        public async Task CloseEditorAsync()
         {
             var aeffect = GetAEffect();
             if (!aeffect.flags.HasFlag(AEffect.VstAEffectFlags.effFlagsHasEditor))
@@ -776,7 +772,7 @@ namespace Momiji.Core.Vst
 
         private async Task Close()
         {
-            await CloseEditor().ConfigureAwait(false);
+            await CloseEditorAsync().ConfigureAwait(false);
 
             //stop
             Dispatcher(

@@ -144,7 +144,9 @@ namespace Momiji.Core.Window
                     tcs.SetResult();
                     Logger.LogInformation($"[vst window] normal");
                 }
+#pragma warning disable CA1031 // 一般的な例外の種類はキャッチしません
                 catch (Exception e)
+#pragma warning restore CA1031 // 一般的な例外の種類はキャッチしません
                 {
                     tcs.SetException(new WindowException("thread error", e));
                     Logger.LogInformation(e, $"[vst window] exception");
@@ -386,7 +388,9 @@ namespace Momiji.Core.Window
                     {
                         onPreCloseWindow?.Invoke();
                     }
+#pragma warning disable CA1031 // 一般的な例外の種類はキャッチしません
                     catch (Exception e)
+#pragma warning restore CA1031 // 一般的な例外の種類はキャッチしません
                     {
                         Logger.LogError(e, "[vst window] onPreCloseWindow error");
                     }
@@ -450,7 +454,7 @@ namespace Momiji.Core.Window
 
             var handleRef = new HandleRef(this, hwnd);
             var isWindowUnicode = (lParam != IntPtr.Zero) && User32.IsWindowUnicode(handleRef);
-            var result = IntPtr.Zero;
+            IntPtr result;
 
             if (oldWndProcMap.TryGetValue(hwnd, out var pair))
             {
@@ -489,7 +493,9 @@ namespace Momiji.Core.Window
             {
                 onPostPaint?.Invoke(new HandleRef(this, hwnd));
             }
+#pragma warning disable CA1031 // 一般的な例外の種類はキャッチしません
             catch (Exception e)
+#pragma warning restore CA1031 // 一般的な例外の種類はキャッチしません
             {
                 Logger.LogError(e, "[vst window] onPostPaint error");
             }
