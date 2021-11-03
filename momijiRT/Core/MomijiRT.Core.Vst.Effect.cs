@@ -16,8 +16,13 @@ namespace MomijiRT.Core.Vst
         void GetBuffer(out byte* buffer, out uint capacity);
     }
 
-    public sealed class Effect : IBasicAudioEffect
+    public sealed class Effect : IBasicAudioEffect, IAudioEffectDefinition
     {
+        public Effect()
+        {
+            Debug.Print("Effect create");
+        }
+
         public IReadOnlyList<AudioEncodingProperties> SupportedEncodingProperties
         {
             get
@@ -48,7 +53,7 @@ namespace MomijiRT.Core.Vst
             get
             {
                 Debug.Print("ActivatableClassId get");
-                return "effectX";
+                return typeof(Effect).FullName;
             }
         }
 

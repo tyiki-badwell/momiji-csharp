@@ -142,14 +142,23 @@ namespace Momiji.Core.Window
                 {
                     WindowThread(windowClass, cancellationToken);
                     tcs.SetResult();
-                    Logger.LogInformation($"[vst window] normal");
+                    Logger.LogInformation($"[window] normal end");
                 }
 #pragma warning disable CA1031 // 一般的な例外の種類はキャッチしません
                 catch (Exception e)
 #pragma warning restore CA1031 // 一般的な例外の種類はキャッチしません
                 {
                     tcs.SetException(new WindowException("thread error", e));
-                    Logger.LogInformation(e, $"[vst window] exception");
+                    Logger.LogInformation(e, "[window] exception");
+                }
+#pragma warning disable CA1031 // 一般的な例外の種類はキャッチしません
+#pragma warning disable CS1058 // 前の catch 句は、すべての例外を既にキャッチしています
+                catch
+#pragma warning restore CS1058 // 前の catch 句は、すべての例外を既にキャッチしています
+#pragma warning restore CA1031 // 一般的な例外の種類はキャッチしません
+                {
+                    tcs.SetException(new WindowException("thread error"));
+                    Logger.LogInformation("[window] exception");
                 }
             })
             {
@@ -157,20 +166,20 @@ namespace Momiji.Core.Window
             };
 
             thread.SetApartmentState(ApartmentState.STA);
-            Logger.LogInformation($"[vst window] GetApartmentState {thread.GetApartmentState()}");
+            Logger.LogInformation($"[window] GetApartmentState {thread.GetApartmentState()}");
             thread.Start();
 
             await tcs.Task.ConfigureAwait(false);
             //thread.Join();
 
-            Logger.LogInformation($"[vst window] end");
+            Logger.LogInformation($"[window] end");
         }
 
         private void WindowThread(WindowClass windowClass, CancellationToken cancellationToken)
         {
             {
                 var result = User32.IsGUIThread(true);
-                Logger.LogInformation($"[vst window] IsGUIThread {result} {Marshal.GetLastWin32Error()}");
+                Logger.LogInformation($"[window] IsGUIThread {result} {Marshal.GetLastWin32Error()}");
             }
             var style = unchecked((int)
                 0x80000000 //WS_POPUP
@@ -234,7 +243,7 @@ namespace Momiji.Core.Window
             //表示していないとwinrt::hresult_invalid_argumentになる
             var item = GraphicsCaptureItemInterop.CreateForWindow(hWindow);
             item.Closed += (item, obj) => {
-                Logger.LogInformation("[vst window] GraphicsCaptureItem closed");
+                Logger.LogInformation("[window] GraphicsCaptureItem closed");
             };
 
             using var canvas = new CanvasDevice();
@@ -250,13 +259,13 @@ namespace Momiji.Core.Window
             pool.FrameArrived += (pool, obj) => {
                 using var frame = pool.TryGetNextFrame();
                 //frame.Surface;
-                Logger.LogInformation("[vst window] FrameArrived");
+                Logger.LogInformation("[window] FrameArrived");
 
             };
 
             using var session = pool.CreateCaptureSession(item);
             session.StartCapture();
-            Logger.LogInformation("[vst window] StartCapture");
+            Logger.LogInformation("[window] StartCapture");
             */
 
             var msg = new User32.MSG();
@@ -265,16 +274,16 @@ namespace Momiji.Core.Window
 
             while (true)
             {
-                //Logger.LogInformation($"[vst window] MessageLoop createThreadId {window.CreateThreadId:X} current {Thread.CurrentThread.ManagedThreadId:X}");
+                //Logger.LogInformation($"[window] MessageLoop createThreadId {window.CreateThreadId:X} current {Thread.CurrentThread.ManagedThreadId:X}");
                 if (forceCancel)
                 {
-                    Logger.LogInformation("[vst window] force canceled");
+                    Logger.LogInformation("[window] force canceled");
                     break;
                 }
 
                 if (cancellationToken.IsCancellationRequested)
                 {
-                    Logger.LogInformation("[vst window] canceled");
+                    Logger.LogInformation("[window] canceled");
                     Close();
 
                     // １秒以内にクローズされなければ、ループを終わらせる
@@ -288,12 +297,12 @@ namespace Momiji.Core.Window
 
                 if (hWindow.Handle == IntPtr.Zero)
                 {
-                    Logger.LogInformation("[vst window] destroyed");
+                    Logger.LogInformation("[window] destroyed");
                     break;
                 }
 
                 {
-                    //Logger.LogInformation($"[vst window] PeekMessage current {Thread.CurrentThread.ManagedThreadId:X}");
+                    //Logger.LogInformation($"[window] PeekMessage current {Thread.CurrentThread.ManagedThreadId:X}");
                     if (!User32.PeekMessageW(
                             ref msg, 
                             IntPtr.Zero, 
@@ -312,57 +321,56 @@ namespace Momiji.Core.Window
                             );
                         if (res == 258) // WAIT_TIMEOUT
                         {
-                            //Logger.LogError($"[vst window] MsgWaitForMultipleObjects timeout.");
+                            //Logger.LogError($"[window] MsgWaitForMultipleObjects timeout.");
                             continue;
                         }
                         else if (res == 0) // WAIT_OBJECT_0
                         {
-                            //Logger.LogError($"[vst window] MsgWaitForMultipleObjects have message.");
+                            //Logger.LogError($"[window] MsgWaitForMultipleObjects have message.");
                             continue;
                         }
 
-                        Logger.LogError($"[vst window] MsgWaitForMultipleObjects failed {Marshal.GetLastWin32Error()}");
-                        break;
+                        throw new WindowException($"MsgWaitForMultipleObjects failed {Marshal.GetLastWin32Error()}");
                     }
                 }
-                //Logger.LogInformation($"[vst window] MSG {msg.hwnd:X} {msg.message:X} {msg.wParam:X} {msg.lParam:X} {msg.time} {msg.pt_x} {msg.pt_y}");
+                //Logger.LogInformation($"[window] MSG {msg.hwnd:X} {msg.message:X} {msg.wParam:X} {msg.lParam:X} {msg.time} {msg.pt_x} {msg.pt_y}");
 
                 var IsWindowUnicode = (msg.hwnd != IntPtr.Zero) && User32.IsWindowUnicode(new HandleRef(this, msg.hwnd));
-                //Logger.LogInformation($"[vst window] IsWindowUnicode {IsWindowUnicode}");
+                //Logger.LogInformation($"[window] IsWindowUnicode {IsWindowUnicode}");
 
                 {
-                    //Logger.LogInformation("[vst window] GetMessage");
+                    //Logger.LogInformation("[window] GetMessage");
                     var ret = IsWindowUnicode
                                 ? User32.GetMessageW(ref msg, IntPtr.Zero, 0, 0)
                                 : User32.GetMessageA(ref msg, IntPtr.Zero, 0, 0)
                                 ;
-                    //Logger.LogInformation($"[vst window] GetMessage {ret} {msg.hwnd:X} {msg.message:X} {msg.wParam:X} {msg.lParam:X} {msg.time} {msg.pt_x} {msg.pt_y}");
+                    //Logger.LogInformation($"[window] GetMessage {ret} {msg.hwnd:X} {msg.message:X} {msg.wParam:X} {msg.lParam:X} {msg.time} {msg.pt_x} {msg.pt_y}");
 
                     if (ret == -1)
                     {
-                        Logger.LogError($"[vst window] GetMessage failed {Marshal.GetLastWin32Error()}");
+                        Logger.LogError($"[window] GetMessage failed {Marshal.GetLastWin32Error()}");
                         break;
                     }
                     else if (ret == 0)
                     {
-                        Logger.LogInformation($"[vst window] GetMessage Quit {msg.message:X}");
+                        Logger.LogInformation($"[window] GetMessage Quit {msg.message:X}");
                         break;
                     }
                 }
 
                 {
-                    //    Logger.LogInformation("[vst window] TranslateMessage");
+                    //    Logger.LogInformation("[window] TranslateMessage");
                     var _ = User32.TranslateMessage(ref msg);
-                    //    Logger.LogInformation($"[vst window] TranslateMessage {ret} {Marshal.GetLastWin32Error()}");
+                    //    Logger.LogInformation($"[window] TranslateMessage {ret} {Marshal.GetLastWin32Error()}");
                 }
 
                 {
-                    //    Logger.LogInformation("[vst window] DispatchMessage");
+                    //    Logger.LogInformation("[window] DispatchMessage");
                     var _ = IsWindowUnicode
                                 ? User32.DispatchMessageW(ref msg)
                                 : User32.DispatchMessageA(ref msg)
                                 ;
-                    //    Logger.LogInformation($"[vst window] DispatchMessage {ret} {Marshal.GetLastWin32Error()}");
+                    //    Logger.LogInformation($"[window] DispatchMessage {ret} {Marshal.GetLastWin32Error()}");
                 }
             }
         }
@@ -371,7 +379,7 @@ namespace Momiji.Core.Window
         {
             var handleRef = new HandleRef(this, hwnd);
             var isWindowUnicode = (lParam != IntPtr.Zero) && User32.IsWindowUnicode(handleRef);
-            Logger.LogInformation($"[vst window] WndProc[{hwnd:X} {msg:X} {wParam:X} {lParam:X} current {Thread.CurrentThread.ManagedThreadId:X}");
+            Logger.LogInformation($"[window] WndProc[{hwnd:X} {msg:X} {wParam:X} {lParam:X} current {Environment.CurrentManagedThreadId:X}");
 
             switch (msg)
             {
@@ -392,13 +400,13 @@ namespace Momiji.Core.Window
                     catch (Exception e)
 #pragma warning restore CA1031 // 一般的な例外の種類はキャッチしません
                     {
-                        Logger.LogError(e, "[vst window] onPreCloseWindow error");
+                        Logger.LogError(e, "[window] onPreCloseWindow error");
                     }
                     //DefWindowProcに移譲
                     break;
 
                 case 0x0210://WM_PARENTNOTIFY
-                    //Logger.LogInformation($"[vst window] WM_PARENTNOTIFY [{wParam:X} {lParam:X}]");
+                    //Logger.LogInformation($"[window] WM_PARENTNOTIFY [{wParam:X} {lParam:X}]");
                     switch ((int)wParam & 0xFFFF)
                     {
                         case 0x0001: //WM_CREATE
@@ -450,7 +458,7 @@ namespace Momiji.Core.Window
 
         private IntPtr SubWndProc(IntPtr hwnd, uint msg, IntPtr wParam, IntPtr lParam)
         {
-            //Logger.LogInformation($"[vst window] SubWndProc[{hwnd:X} {msg:X} {wParam:X} {lParam:X} current {Thread.CurrentThread.ManagedThreadId:X}");
+            //Logger.LogInformation($"[window] SubWndProc[{hwnd:X} {msg:X} {wParam:X} {lParam:X} current {Thread.CurrentThread.ManagedThreadId:X}");
 
             var handleRef = new HandleRef(this, hwnd);
             var isWindowUnicode = (lParam != IntPtr.Zero) && User32.IsWindowUnicode(handleRef);
@@ -474,14 +482,14 @@ namespace Momiji.Core.Window
 /*            switch (msg)
             {
                 case 0x000F://WM_PAINT
-                    //Logger.LogInformation($"[vst window] SubWndProc WM_PAINT[{hwnd:X} {msg:X} {wParam:X} {lParam:X} current {Thread.CurrentThread.ManagedThreadId:X}");
+                    //Logger.LogInformation($"[window] SubWndProc WM_PAINT[{hwnd:X} {msg:X} {wParam:X} {lParam:X} current {Thread.CurrentThread.ManagedThreadId:X}");
                     try
                     {
                         onPostPaint?.Invoke(new HandleRef(this, hwnd));
                     }
                     catch (Exception e)
                     {
-                        Logger.LogError(e, "[vst window] onPostPaint error");
+                        Logger.LogError(e, "[window] onPostPaint error");
                     }
                     break;
 
@@ -497,7 +505,7 @@ namespace Momiji.Core.Window
             catch (Exception e)
 #pragma warning restore CA1031 // 一般的な例外の種類はキャッチしません
             {
-                Logger.LogError(e, "[vst window] onPostPaint error");
+                Logger.LogError(e, "[window] onPostPaint error");
             }
 
             return result;
@@ -512,7 +520,7 @@ namespace Momiji.Core.Window
                 var res = User32.GetClientRect(hWindow, ref rcClient);
                 if (!res)
                 {
-                    Logger.LogError($"[vst window] GetClientRect failed {Marshal.GetLastWin32Error()}");
+                    Logger.LogError($"[window] GetClientRect failed {Marshal.GetLastWin32Error()}");
                     return;
                 }
             }
@@ -523,7 +531,7 @@ namespace Momiji.Core.Window
             var hdcWindow = new HandleRef(this, User32.GetDC(hWindow));
             if (hdcWindow.Handle == default)
             {
-                Logger.LogError($"[vst window] GetDC failed {Marshal.GetLastWin32Error()}");
+                Logger.LogError($"[window] GetDC failed {Marshal.GetLastWin32Error()}");
                 return;
             }
             try
@@ -531,7 +539,7 @@ namespace Momiji.Core.Window
                 var hdcMemDC = new HandleRef(this, Gdi32.CreateCompatibleDC(hdcWindow));
                 if (hdcMemDC.Handle == default)
                 {
-                    Logger.LogError($"[vst window] CreateCompatibleDC failed {Marshal.GetLastWin32Error()}");
+                    Logger.LogError($"[window] CreateCompatibleDC failed {Marshal.GetLastWin32Error()}");
                     return;
                 }
                 try
@@ -544,7 +552,7 @@ namespace Momiji.Core.Window
                         ));
                     if (hbmScreen.Handle == default)
                     {
-                        Logger.LogError($"[vst window] CreateCompatibleBitmap failed {Marshal.GetLastWin32Error()}");
+                        Logger.LogError($"[window] CreateCompatibleBitmap failed {Marshal.GetLastWin32Error()}");
                         return;
                     }
                     try
@@ -552,7 +560,7 @@ namespace Momiji.Core.Window
                         var hOld = Gdi32.SelectObject(hdcMemDC, hbmScreen);
                         if (hOld == default)
                         {
-                            Logger.LogError($"[vst window] SelectObject failed {Marshal.GetLastWin32Error()}");
+                            Logger.LogError($"[window] SelectObject failed {Marshal.GetLastWin32Error()}");
                             return;
                         }
 
@@ -570,7 +578,7 @@ namespace Momiji.Core.Window
                                     0x00CC0020 /*SRCCOPY*/);
                             if (!res)
                             {
-                                Logger.LogError($"[vst window] BitBlt failed {Marshal.GetLastWin32Error()}");
+                                Logger.LogError($"[window] BitBlt failed {Marshal.GetLastWin32Error()}");
                             }
                         }
 
@@ -581,7 +589,7 @@ namespace Momiji.Core.Window
                         var res = Gdi32.DeleteObject(hbmScreen);
                         if (!res)
                         {
-                            Logger.LogError($"[vst window] DeleteObject failed {Marshal.GetLastWin32Error()}");
+                            Logger.LogError($"[window] DeleteObject failed {Marshal.GetLastWin32Error()}");
                         }
                     }
                 }
@@ -590,7 +598,7 @@ namespace Momiji.Core.Window
                     var res = Gdi32.DeleteDC(hdcMemDC);
                     if (!res)
                     {
-                        Logger.LogError($"[vst window] DeleteDC failed {Marshal.GetLastWin32Error()}");
+                        Logger.LogError($"[window] DeleteDC failed {Marshal.GetLastWin32Error()}");
                     }
                 }
             }
@@ -599,7 +607,7 @@ namespace Momiji.Core.Window
                 var res = User32.ReleaseDC(hWindow, hdcWindow);
                 if (res != 1)
                 {
-                    Logger.LogError($"[vst window] ReleaseDC failed {Marshal.GetLastWin32Error()}");
+                    Logger.LogError($"[window] ReleaseDC failed {Marshal.GetLastWin32Error()}");
                 }
             }
         }

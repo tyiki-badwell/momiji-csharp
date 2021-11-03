@@ -81,7 +81,7 @@ namespace Momiji.Core.Vst.Worker
         private Param Param { get; set; }
 
         private bool disposed;
-        private object sync = new();
+        private readonly object sync = new();
         private CancellationTokenSource processCancel;
         private Task processTask;
         private IEffect<float> effect;
@@ -93,8 +93,14 @@ namespace Momiji.Core.Vst.Worker
             Logger = LoggerFactory.CreateLogger<Runner>();
             DllManager = dllManager;
 
-            var param = new Param();
-            Configuration.GetSection(typeof(Param).FullName).Bind(param);
+            var section = Configuration.GetSection(typeof(Param).FullName);
+            var param = section.Get<Param>();
+
+            if (param == default)
+            {
+                throw new ArgumentNullException(typeof(Param).FullName);
+            }
+
             Logger.LogInformation($"BufferCount:{param.BufferCount}");
             Logger.LogInformation($"Local:{param.Local}");
             Logger.LogInformation($"Connect:{param.Connect}");

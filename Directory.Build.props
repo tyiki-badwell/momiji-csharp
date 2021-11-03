@@ -1,0 +1,10 @@
+<Project>
+  <PropertyGroup>
+	<BuildOutDir>$([MSBuild]::NormalizeDirectory('$(SolutionDir)', '_build', '$(Platform)', '$(Configuration)', '$(TargetCompactFramework)'))</BuildOutDir>
+	<OutDir>$([MSBuild]::NormalizeDirectory('$(BuildOutDir)', '$(MSBuildProjectName)', 'bin'))</OutDir>
+
+<!--	  
+	  <IntermediateOutputPath>$([MSBuild]::NormalizeDirectory('$(BuildOutDir)', '$(MSBuildProjectName)', 'obj'))</IntermediateOutputPath>
+-->
+  </PropertyGroup>
+</Project>

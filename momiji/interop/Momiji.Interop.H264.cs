@@ -668,7 +668,7 @@ namespace Momiji.Interop.H264
 
     internal sealed class SVCEncoder : Microsoft.Win32.SafeHandles.SafeHandleZeroOrMinusOneIsInvalid
     {
-        private SVCEncoder() : base(true)
+        public SVCEncoder() : base(true)
         {
         }
 

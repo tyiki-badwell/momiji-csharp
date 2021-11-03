@@ -309,7 +309,7 @@ namespace Momiji.Interop.Wave
 
     internal sealed class WaveOut : Microsoft.Win32.SafeHandles.SafeHandleZeroOrMinusOneIsInvalid
     {
-        private WaveOut() : base(true)
+        public WaveOut() : base(true)
         {
         }
 

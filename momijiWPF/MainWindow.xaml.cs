@@ -1,5 +1,6 @@
 ﻿using Microsoft.Extensions.Hosting;
 using Momiji.Core.Vst.Worker;
+using MomijiRT.Core.Vst;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
@@ -255,9 +256,23 @@ namespace momijiWPF
             {
                 var subNode = audioGraph.CreateSubmixNode();
                 subNode.Stop();
+                /*
+                EchoEffectDefinition echoEffect = new EchoEffectDefinition(audioGraph);
+                echoEffect.Delay = 1000.0;
+                echoEffect.Feedback = .2;
+                echoEffect.WetDryMix = .5;
+                */
+                var ef = new Effect();
+                
 
-                var a = new AudioEffectDefinition(typeof(Effect).FullName);
-                //var a = new Effect();
+                //WinRT.ActivationFactory<EchoEffectDefinition>.As(GuidGenerator.GetIID(typeof(IEchoEffectDefinitionFactory).GetHelperType()));
+
+                var b = WinRT.Module.GetActivationFactory(typeof(Effect).FullName);
+                //var a = ABI.MomijiRT.Core.Vst.Effect.FromAbi(b);
+
+                //var a = new AudioEffectDefinition(typeof(EchoEffectDefinition).FullName);
+
+                var a = new AudioEffectDefinition(ef.ActivatableClassId);
 
                 //inNode.EffectDefinitions.Add(new Effect());
                 subNode.EffectDefinitions.Add(a);

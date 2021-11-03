@@ -200,7 +200,7 @@ namespace Momiji.Interop.Opus
 
     internal sealed class Encoder : Microsoft.Win32.SafeHandles.SafeHandleZeroOrMinusOneIsInvalid
     {
-        private Encoder() : base(true)
+        public Encoder() : base(true)
         {
         }
 

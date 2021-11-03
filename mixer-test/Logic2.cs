@@ -141,7 +141,7 @@ namespace mixerTest
                         effect.ProcessReplacing(nowTime, buffer);
 
                         //trans
-                        var pcm = pcmTask.Result;
+                        var pcm = await pcmTask.ConfigureAwait(false);
                         toPcm.Execute(buffer, pcm);
                         vstBufferPool.Post(buffer);
 
@@ -303,7 +303,7 @@ namespace mixerTest
                     effect.ProcessReplacing(nowTime, buffer);
 
                     //trans
-                    var pcm = pcmTask.Result;
+                    var pcm = await pcmTask.ConfigureAwait(false);
                     toPcm.Execute(buffer, pcm);
                     vstBufferPool.Post(buffer);
                     return pcm;

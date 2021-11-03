@@ -650,6 +650,7 @@ namespace Momiji.Core.Vst
             Logger.LogInformation("[vst] Editor Open");
             _ = windowTask.ContinueWith((task) =>
             {
+                Logger.LogInformation("[vst] Editor End");
                 window = default;
                 windowTask = default;
             }, TaskScheduler.Default).ConfigureAwait(false);
@@ -658,7 +659,7 @@ namespace Momiji.Core.Vst
         private void OnCreateWindow(HandleRef hWindow, ref int width, ref int height)
         {
             {
-                Logger.LogInformation($"[vst] open call back current {Thread.CurrentThread.ManagedThreadId:X}");
+                Logger.LogInformation($"[vst] open call back current {Environment.CurrentManagedThreadId:X}");
 
                 var result =
                     Dispatcher(
@@ -702,7 +703,7 @@ namespace Momiji.Core.Vst
 
         private void OnPreCloseWindow()
         {
-            Logger.LogInformation($"[vst] close call back current {Thread.CurrentThread.ManagedThreadId:X}");
+            Logger.LogInformation($"[vst] close call back current {Environment.CurrentManagedThreadId:X}");
 
             {
                 var _ =

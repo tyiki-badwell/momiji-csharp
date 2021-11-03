@@ -135,12 +135,12 @@ namespace mixerTest
                         effect.ProcessReplacing(nowTime, buffer);
 
                         //trans
-                        var pcm = pcmTask.Result;
+                        var pcm = await pcmTask.ConfigureAwait(false);
                         buffer.Log.Add("[audio] opus input get", timer.USecDouble);
                         toPcm.Execute(buffer, pcm);
                         vstBufferPool.Post(buffer);
 
-                        var audio = audioTask.Result;
+                        var audio = await audioTask.ConfigureAwait(false);
                         pcm.Log.Add("[audio] opus output get", timer.USecDouble);
                         opus.Execute(pcm, audio);
 
@@ -189,7 +189,7 @@ namespace mixerTest
                         fft.Execute(buffer);
 
                         //H264
-                        var video = videoTask.Result;
+                        var video = await videoTask.ConfigureAwait(false);
                         buffer.Log.Add("[video] h264 output get", timer.USecDouble);
 
                         var insertIntraFrame = (intraFrameCount <= 0);
@@ -280,11 +280,11 @@ namespace mixerTest
                         effect.ProcessReplacing(nowTime, buffer);
 
                         //trans
-                        var pcm = pcmTask.Result;
+                        var pcm = await pcmTask.ConfigureAwait(false);
                         toPcm.Execute(buffer, pcm);
                         vstBufferPool.Post(buffer);
 
-                        var audio = audioTask.Result;
+                        var audio = await audioTask.ConfigureAwait(false);
                         pcm.Log.Add("[audio] opus output get", lapTimer.USecDouble);
                         opus.Execute(pcm, audio);
 
@@ -332,7 +332,7 @@ namespace mixerTest
                         fft.Execute(buffer);
 
                         //H264
-                        var video = videoTask.Result;
+                        var video = await videoTask.ConfigureAwait(false);
                         buffer.Log.Add("[video] h264 output get", lapTimer.USecDouble);
                         var insertIntraFrame = (intraFrameCount <= 0);
                         h264.Execute(buffer, video, insertIntraFrame);
