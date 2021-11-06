@@ -1,6 +1,6 @@
 {
   "profiles": {
-    "momijiWPF": {
+    "MomijiWPF": {
       "commandName": "Project",
       "nativeDebugging": true
     }

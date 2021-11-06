@@ -14,7 +14,7 @@ using Windows.Media.Effects;
 using Windows.Media.MediaProperties;
 using WinRT;
 
-namespace momijiWPF
+namespace MomijiWPF
 {
 
     /// <summary>
@@ -262,17 +262,17 @@ namespace momijiWPF
                 echoEffect.Feedback = .2;
                 echoEffect.WetDryMix = .5;
                 */
-                var ef = new Effect();
-                
+                //var ef = new Effect();
+
 
                 //WinRT.ActivationFactory<EchoEffectDefinition>.As(GuidGenerator.GetIID(typeof(IEchoEffectDefinitionFactory).GetHelperType()));
 
-                var b = WinRT.Module.GetActivationFactory(typeof(Effect).FullName);
+                //var b = WinRT.Module.GetActivationFactory(typeof(Effect).FullName);
                 //var a = ABI.MomijiRT.Core.Vst.Effect.FromAbi(b);
 
                 //var a = new AudioEffectDefinition(typeof(EchoEffectDefinition).FullName);
 
-                var a = new AudioEffectDefinition(ef.ActivatableClassId);
+                var a = new AudioEffectDefinition(typeof(Effect).FullName);
 
                 //inNode.EffectDefinitions.Add(new Effect());
                 subNode.EffectDefinitions.Add(a);

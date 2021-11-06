@@ -1,7 +1,7 @@
-﻿<Application x:Class="momijiWPF.App"
+﻿<Application x:Class="MomijiWPF.App"
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-             xmlns:local="clr-namespace:momijiWPF"
+             xmlns:local="clr-namespace:MomijiWPF"
              StartupUri="MainWindow.xaml">
     <Application.Resources>
          

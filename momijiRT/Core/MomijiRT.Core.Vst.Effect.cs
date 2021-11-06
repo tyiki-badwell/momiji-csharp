@@ -30,10 +30,10 @@ namespace MomijiRT.Core.Vst
                 Debug.Print("SupportedEncodingProperties get");
 
                 var supportedEncodingProperties = new List<AudioEncodingProperties>();
-                AudioEncodingProperties encodingProps2 = AudioEncodingProperties.CreatePcm(48000, 1, 32);
-                encodingProps2.Subtype = MediaEncodingSubtypes.Float;
+                var props = AudioEncodingProperties.CreatePcm(48000, 1, 32);
+                props.Subtype = MediaEncodingSubtypes.Float;
 
-                supportedEncodingProperties.Add(encodingProps2);
+                supportedEncodingProperties.Add(props);
 
                 return supportedEncodingProperties;
             }
@@ -155,11 +155,18 @@ namespace MomijiRT.Core.Vst
         {
             this.configuration = configuration;
 
-            foreach (var key in configuration.Keys)
+            if (this.configuration == default)
             {
-                if (configuration.TryGetValue(key, out var value))
+                Debug.Print("configuration EMPTY");
+            }
+            else
+            {
+                foreach (var key in configuration.Keys)
                 {
-                    Debug.Print($"configuration {key} {value}");
+                    if (configuration.TryGetValue(key, out var value))
+                    {
+                        Debug.Print($"configuration {key} {value}");
+                    }
                 }
             }
         }
