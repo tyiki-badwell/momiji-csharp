@@ -5,6 +5,7 @@ using System.Runtime.InteropServices;
 using Windows.Foundation.Collections;
 using Windows.Media.Effects;
 using Windows.Media.MediaProperties;
+using WinRT;
 
 namespace MomijiRT.Core.Vst
 {
@@ -16,11 +17,23 @@ namespace MomijiRT.Core.Vst
         void GetBuffer(out byte* buffer, out uint capacity);
     }
 
-    public sealed class Effect : IBasicAudioEffect, IAudioEffectDefinition
+    public sealed class Effect : IBasicAudioEffect
     {
+        private AudioEncodingProperties currentEncodingProperties;
+        private List<AudioEncodingProperties> supportedEncodingProperties = new();
+
         public Effect()
         {
             Debug.Print("Effect create");
+
+            var props = AudioEncodingProperties.CreatePcm(48000, 1, 32);
+            props.Subtype = MediaEncodingSubtypes.Float;
+
+            supportedEncodingProperties.Add(props);
+        }
+        ~Effect()
+        {
+            Debug.Print("Effect dispose");
         }
 
         public IReadOnlyList<AudioEncodingProperties> SupportedEncodingProperties
@@ -28,12 +41,6 @@ namespace MomijiRT.Core.Vst
             get
             {
                 Debug.Print("SupportedEncodingProperties get");
-
-                var supportedEncodingProperties = new List<AudioEncodingProperties>();
-                var props = AudioEncodingProperties.CreatePcm(48000, 1, 32);
-                props.Subtype = MediaEncodingSubtypes.Float;
-
-                supportedEncodingProperties.Add(props);
 
                 return supportedEncodingProperties;
             }
@@ -45,24 +52,6 @@ namespace MomijiRT.Core.Vst
             {
                 Debug.Print("UseInputFrameForOutput get");
                 return false;
-            }
-        }
-
-        public string ActivatableClassId
-        {
-            get
-            {
-                Debug.Print("ActivatableClassId get");
-                return typeof(Effect).FullName;
-            }
-        }
-
-        public IPropertySet Properties
-        {
-            get
-            {
-                Debug.Print("Properties get");
-                return configuration;
             }
         }
 
@@ -103,14 +92,13 @@ namespace MomijiRT.Core.Vst
 
                 unsafe
                 {
-                    //IMemoryBufferByteAccess outAccess = outReference.As<IMemoryBufferByteAccess>();
-                    IMemoryBufferByteAccess outAccess = (IMemoryBufferByteAccess)outReference;
+                    IMemoryBufferByteAccess outAccess = ((IWinRTObject)outReference).As<IMemoryBufferByteAccess>();
                     outAccess.GetBuffer(out byte* dataInBytes, out uint capacityInBytes);
                     var dataInFloat = (float*)dataInBytes;
 
                     float freq = 0.480f; // choosing to generate frequency of 1kHz
                     float amplitude = 0.3f;
-                    int sampleRate = (int)encodingProperties.SampleRate;
+                    int sampleRate = (int)currentEncodingProperties.SampleRate;
                     double sampleIncrement = (freq * (Math.PI * 2)) / sampleRate;
 
                     // Generate a 1kHz sine wave and populate the values in the memory buffer
@@ -124,11 +112,9 @@ namespace MomijiRT.Core.Vst
             }
         }
 
-        private AudioEncodingProperties encodingProperties;
-
         public void SetEncodingProperties(AudioEncodingProperties encodingProperties)
         {
-            this.encodingProperties = encodingProperties;
+            currentEncodingProperties = encodingProperties;
 
             Debug.Print($"encodingProperties.SampleRate {encodingProperties.SampleRate}");
             Debug.Print($"encodingProperties.Type {encodingProperties.Type}");
