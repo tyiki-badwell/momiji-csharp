@@ -14,7 +14,7 @@ namespace Momiji.Core.Vst
     {
         private ILoggerFactory LoggerFactory { get; }
         private ILogger Logger { get; }
-        private LapTimer LapTimer { get; }
+        private ElapsedTimeCounter Counter { get; }
         internal IDllManager DllManager { get; }
 
         private bool disposed;
@@ -42,13 +42,13 @@ namespace Momiji.Core.Vst
             int samplingRate,
             int blockSize,
             ILoggerFactory loggerFactory,
-            LapTimer lapTimer,
+            ElapsedTimeCounter counter,
             IDllManager dllManager
         )
         {
             LoggerFactory = loggerFactory;
             Logger = LoggerFactory.CreateLogger<AudioMaster<T>>();
-            LapTimer = lapTimer;
+            Counter = counter;
             DllManager = dllManager;
 
             param = new("vstTimeInfo", 1, LoggerFactory);
@@ -80,7 +80,7 @@ namespace Momiji.Core.Vst
 
         public IEffect<T> AddEffect(string library)
         {
-            var effect = new Effect<T>(library, this, LoggerFactory, LapTimer);
+            var effect = new Effect<T>(library, this, LoggerFactory, Counter);
             effectMap.Add(effect.aeffectPtr, effect);
             effect.Open();
 
@@ -142,7 +142,7 @@ namespace Momiji.Core.Vst
                 case Opcodes.audioMasterGetTime:
                     {
                         var p = param.AsSpan(0, 1);
-                        p[0].vstTimeInfo.nanoSeconds = LapTimer.USecDouble * 1000;
+                        p[0].vstTimeInfo.nanoSeconds = Counter.NowTicks * 100;
                         return param.GetIntPtr(0);
                     }
                 case Opcodes.audioMasterGetSampleRate:

@@ -31,25 +31,25 @@ namespace Momiji.Core.Ftl
     {
         private ILoggerFactory LoggerFactory { get; }
         private ILogger Logger { get; }
-        private LapTimer LapTimer { get; }
-        private double AudioInterval { get; }
-        private double VideoInterval { get; }
+        private ElapsedTimeCounter Counter { get; }
+        private long AudioInterval { get; }
+        private long VideoInterval { get; }
 
         private bool disposed;
         private PinnedBuffer<FtlHandle> handle;
         private readonly CancellationTokenSource logCancel = new();
         private Task logTask;
 
-        private double lastAudioUsec;
-        private double lastVideoUsec;
+        private long lastAudioUsec;
+        private long lastVideoUsec;
 
         public FtlIngest(
             string streamKey,
             string ingestHostname,
             ILoggerFactory loggerFactory,
-            LapTimer lapTimer,
-            double audioInterval,
-            double videoInterval,
+            ElapsedTimeCounter counter,
+            long audioInterval,
+            long videoInterval,
             bool connect = true,
             string mixerApiClientId = default,
             string caInfoPath = default
@@ -57,7 +57,7 @@ namespace Momiji.Core.Ftl
         {
             LoggerFactory = loggerFactory;
             Logger = LoggerFactory.CreateLogger<FtlIngest>();
-            LapTimer = lapTimer;
+            Counter = counter;
             AudioInterval = audioInterval;
             VideoInterval = videoInterval;
 
@@ -170,7 +170,7 @@ namespace Momiji.Core.Ftl
                 throw new ArgumentNullException(nameof(source));
             }
 
-            double now = LapTimer.USecDouble;
+            long now = Counter.NowTicks / 10;
             if (lastAudioUsec == default)
             {
                 lastAudioUsec = now;
@@ -181,8 +181,8 @@ namespace Momiji.Core.Ftl
                 Logger.LogDebug($"[ftl] AUDIO delay {now - lastAudioUsec} {now - source.Log.FirstTime()}");
             }
 
-            long time = (long)lastAudioUsec;
-            source.Log.Add("[ftl] start ftl_ingest_send_media_dts AUDIO", LapTimer.USecDouble);
+            long time = lastAudioUsec;
+            source.Log.Add("[ftl] start ftl_ingest_send_media_dts AUDIO", Counter.NowTicks);
 
             var sent = 0;
             if (handle != null)
@@ -196,7 +196,7 @@ namespace Momiji.Core.Ftl
                     0
                 );
             }
-            source.Log.Add($"[ftl] end ftl_ingest_send_media_dts AUDIO [{sent}][{source.Wrote}][{new DateTime(time * 10, DateTimeKind.Utc):HH:mm:ss ffffff}]", LapTimer.USecDouble);
+            source.Log.Add($"[ftl] end ftl_ingest_send_media_dts AUDIO [{sent}][{source.Wrote}][{new DateTime(time * 10, DateTimeKind.Utc):HH:mm:ss ffffff}]", Counter.NowTicks);
 
             if (Logger.IsEnabled(LogLevel.Debug))
             {
@@ -221,7 +221,7 @@ namespace Momiji.Core.Ftl
                 throw new ArgumentNullException(nameof(source));
             }
 
-            double now = LapTimer.USecDouble;
+            long now = Counter.NowTicks / 10;
             if (lastVideoUsec == default)
             {
                 lastVideoUsec = now;
@@ -232,7 +232,7 @@ namespace Momiji.Core.Ftl
                 Logger.LogDebug($"[ftl] VIDEO delay {now - lastVideoUsec} {now - source.Log.FirstTime()}");
             }
 
-            long time = (long)lastVideoUsec;
+            long time = lastVideoUsec;
 
             foreach (var nuls in source.LayerNuls)
             {
@@ -240,7 +240,7 @@ namespace Momiji.Core.Ftl
                 {
                     var (offset, length) = nuls[idx];
                     var endOfFrame = (idx == nuls.Count - 1) ? 1 : 0;
-                    source.Log.Add("[ftl] start ftl_ingest_send_media_dts VIDEO", LapTimer.USecDouble);
+                    source.Log.Add("[ftl] start ftl_ingest_send_media_dts VIDEO", Counter.NowTicks);
                     var sent = 0;
                     if (handle != null)
                     {
@@ -253,7 +253,7 @@ namespace Momiji.Core.Ftl
                             endOfFrame
                         );
                     }
-                    source.Log.Add($"[ftl] end ftl_ingest_send_media_dts VIDEO [{sent}][{length}][{endOfFrame}][{new DateTime(time * 10, DateTimeKind.Utc):HH:mm:ss ffffff}]", LapTimer.USecDouble);
+                    source.Log.Add($"[ftl] end ftl_ingest_send_media_dts VIDEO [{sent}][{length}][{endOfFrame}][{new DateTime(time * 10, DateTimeKind.Utc):HH:mm:ss ffffff}]", Counter.NowTicks);
                     time++;
                 }
             }

@@ -10,18 +10,18 @@ namespace Momiji.Core.Trans
     {
         private ILoggerFactory LoggerFactory { get; }
         private ILogger Logger { get; }
-        private LapTimer LapTimer { get; }
+        private ElapsedTimeCounter Counter { get; }
 
         private bool disposed;
 
         public ToPcm(
             ILoggerFactory loggerFactory,
-            LapTimer lapTimer
+            ElapsedTimeCounter counter
         )
         {
             LoggerFactory = loggerFactory;
             Logger = LoggerFactory.CreateLogger<ToPcm<T>>();
-            LapTimer = lapTimer;
+            Counter = counter;
         }
 
         ~ToPcm()
@@ -68,13 +68,13 @@ namespace Momiji.Core.Trans
             var left = new ReadOnlySpan<T>(source.GetChannelBuffer(0));
             var right = new ReadOnlySpan<T>(source.GetChannelBuffer(1));
 
-            dest.Log.Add("[to pcm] start", LapTimer.USecDouble);
+            dest.Log.Add("[to pcm] start", Counter.NowTicks);
             for (var idx = 0; idx < left.Length; idx++)
             {
                 target[targetIdx++] = left[idx];
                 target[targetIdx++] = right[idx];
             }
-            dest.Log.Add("[to pcm] end", LapTimer.USecDouble);
+            dest.Log.Add("[to pcm] end", Counter.NowTicks);
         }
         public void Execute(
             VstBuffer2<T> source,
@@ -99,14 +99,14 @@ namespace Momiji.Core.Trans
                 var left = new ReadOnlySpan<T>(source.GetChannelBuffer(0).ToPointer(), source.BlockSize);
                 var right = new ReadOnlySpan<T>(source.GetChannelBuffer(1).ToPointer(), source.BlockSize);
 
-                dest.Log.Add("[to pcm] start", LapTimer.USecDouble);
+                dest.Log.Add("[to pcm] start", Counter.NowTicks);
                 for (var idx = 0; idx < left.Length; idx++)
                 {
                     target[targetIdx++] = left[idx];
                     target[targetIdx++] = right[idx];
                 }
             }
-            dest.Log.Add("[to pcm] end", LapTimer.USecDouble);
+            dest.Log.Add("[to pcm] end", Counter.NowTicks);
         }
     }
 }

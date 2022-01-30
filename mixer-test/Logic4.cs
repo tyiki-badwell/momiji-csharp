@@ -89,14 +89,14 @@ namespace mixerTest
             var blockSize = (int)(Param.SamplingRate * Param.SampleLength);
             Logger.LogInformation($"[loop5] blockSize {blockSize}");
 
-            var audioInterval = 1_000_000.0 * Param.SampleLength;
+            var audioInterval = (long)(10_000_000.0 * Param.SampleLength);
             Logger.LogInformation($"[loop5] audioInterval {audioInterval}");
-            var videoInterval = 1_000_000.0 / Param.MaxFrameRate;
+            var videoInterval = (long)(10_000_000.0 / Param.MaxFrameRate);
             Logger.LogInformation($"[loop5] videoInterval {videoInterval}");
 
-            using var timer = new LapTimer();
-            using var audioWaiter = new Waiter(timer, audioInterval);
-            using var videoWaiter = new Waiter(timer, videoInterval);
+            var counter = new ElapsedTimeCounter();
+            using var audioWaiter = new Waiter(counter, audioInterval);
+            using var videoWaiter = new Waiter(counter, videoInterval);
             using var buf = new IPCBuffer<float>(Param.EffectName, blockSize * 2 * Param.BufferCount, LoggerFactory);
             using var vstBufferPool = new BufferPool<VstBuffer2<float>>(Param.BufferCount, () => new VstBuffer2<float>(blockSize, 2, buf), LoggerFactory);
             using var pcmPool = new BufferPool<PcmBuffer<float>>(Param.BufferCount, () => new PcmBuffer<float>(blockSize, 2), LoggerFactory);
@@ -104,11 +104,11 @@ namespace mixerTest
             using var pcmDrowPool = new BufferPool<PcmBuffer<float>>(Param.BufferCount, () => new PcmBuffer<float>(blockSize, 2), LoggerFactory);
             using var bmpPool = new BufferPool<H264InputBuffer>(Param.BufferCount, () => new H264InputBuffer(Param.Width, Param.Height), LoggerFactory);
             using var videoPool = new BufferPool<H264OutputBuffer>(Param.BufferCount, () => new H264OutputBuffer(200000), LoggerFactory);
-            using var vst = new AudioMaster<float>(Param.SamplingRate, blockSize, LoggerFactory, timer, DllManager);
-            using var toPcm = new ToPcm<float>(LoggerFactory, timer);
-            using var opus = new OpusEncoder(SamplingRate.Sampling48000, Channels.Stereo, LoggerFactory, timer);
-            using var fft = new FFTEncoder(Param.Width, Param.Height, Param.MaxFrameRate, LoggerFactory, timer);
-            using var h264 = new H264Encoder(Param.Width, Param.Height, Param.TargetBitrate, Param.MaxFrameRate, LoggerFactory, timer);
+            using var vst = new AudioMaster<float>(Param.SamplingRate, blockSize, LoggerFactory, counter, DllManager);
+            using var toPcm = new ToPcm<float>(LoggerFactory, counter);
+            using var opus = new OpusEncoder(SamplingRate.Sampling48000, Channels.Stereo, LoggerFactory, counter);
+            using var fft = new FFTEncoder(Param.Width, Param.Height, Param.MaxFrameRate, LoggerFactory, counter);
+            using var h264 = new H264Encoder(Param.Width, Param.Height, Param.TargetBitrate, Param.MaxFrameRate, LoggerFactory, counter);
             var effect = vst.AddEffect(Param.EffectName);
 
             var options = new ExecutionDataflowBlockOptions
@@ -126,22 +126,22 @@ namespace mixerTest
                         var audioTask = audioPool.ReceiveAsync(ct);
 
                         buffer.Log.Clear();
-                        await audioWaiter.Wait(ct).ConfigureAwait(false);
-                        buffer.Log.Add("[audio] start", timer.USecDouble);
+                        audioWaiter.Wait();
+                        buffer.Log.Add("[audio] start", counter.NowTicks);
 
                         //VST
-                        var nowTime = timer.USecDouble;
+                        var nowTime = counter.NowTicks / 10;
                         effect.ProcessEvent(nowTime, MidiEventInput);
                         effect.ProcessReplacing(nowTime, buffer);
 
                         //trans
                         var pcm = await pcmTask.ConfigureAwait(false);
-                        buffer.Log.Add("[audio] opus input get", timer.USecDouble);
+                        buffer.Log.Add("[audio] opus input get", counter.NowTicks);
                         toPcm.Execute(buffer, pcm);
                         vstBufferPool.Post(buffer);
 
                         var audio = await audioTask.ConfigureAwait(false);
-                        pcm.Log.Add("[audio] opus output get", timer.USecDouble);
+                        pcm.Log.Add("[audio] opus output get", counter.NowTicks);
                         opus.Execute(pcm, audio);
 
                         pcmDrowPool.Post(pcm);
@@ -182,15 +182,15 @@ namespace mixerTest
 
                         buffer.Log.Clear();
 
-                        await videoWaiter.Wait(ct).ConfigureAwait(false);
-                        buffer.Log.Add("[video] start", timer.USecDouble);
+                        videoWaiter.Wait();
+                        buffer.Log.Add("[video] start", counter.NowTicks);
 
                         //FFT
                         fft.Execute(buffer);
 
                         //H264
                         var video = await videoTask.ConfigureAwait(false);
-                        buffer.Log.Add("[video] h264 output get", timer.USecDouble);
+                        buffer.Log.Add("[video] h264 output get", counter.NowTicks);
 
                         var insertIntraFrame = (intraFrameCount <= 0);
                         h264.Execute(buffer, video, insertIntraFrame);
@@ -231,14 +231,14 @@ namespace mixerTest
             var blockSize = (int)(Param.SamplingRate * Param.SampleLength);
             Logger.LogInformation($"[loop4] blockSize {blockSize}");
 
-            var audioInterval = 1_000_000.0 * Param.SampleLength;
+            var audioInterval = (long)(10_000_000.0 * Param.SampleLength);
             Logger.LogInformation($"[loop4] audioInterval {audioInterval}");
-            var videoInterval = 1_000_000.0 / Param.MaxFrameRate;
+            var videoInterval = (long)(10_000_000.0 / Param.MaxFrameRate);
             Logger.LogInformation($"[loop4] videoInterval {videoInterval}");
 
-            using var lapTimer = new LapTimer();
-            using var audioWaiter = new Waiter(lapTimer, audioInterval);
-            using var videoWaiter = new Waiter(lapTimer, videoInterval);
+            var counter = new ElapsedTimeCounter();
+            using var audioWaiter = new Waiter(counter, audioInterval);
+            using var videoWaiter = new Waiter(counter, videoInterval);
             using var buf = new IPCBuffer<float>(Param.EffectName, blockSize * 2 * Param.BufferCount, LoggerFactory);
             using var vstBufferPool = new BufferPool<VstBuffer2<float>>(Param.BufferCount, () => new VstBuffer2<float>(blockSize, 2, buf), LoggerFactory);
             using var pcmPool = new BufferPool<PcmBuffer<float>>(Param.BufferCount, () => new PcmBuffer<float>(blockSize, 2), LoggerFactory);
@@ -246,14 +246,14 @@ namespace mixerTest
             using var pcmDrowPool = new BufferPool<PcmBuffer<float>>(Param.BufferCount, () => new PcmBuffer<float>(blockSize, 2), LoggerFactory);
             using var bmpPool = new BufferPool<H264InputBuffer>(Param.BufferCount, () => new H264InputBuffer(Param.Width, Param.Height), LoggerFactory);
             using var videoPool = new BufferPool<H264OutputBuffer>(Param.BufferCount, () => new H264OutputBuffer(200000), LoggerFactory);
-            using var vst = new AudioMaster<float>(Param.SamplingRate, blockSize, LoggerFactory, lapTimer, DllManager);
-            using var toPcm = new ToPcm<float>(LoggerFactory, lapTimer);
-            using var opus = new OpusEncoder(SamplingRate.Sampling48000, Channels.Stereo, LoggerFactory, lapTimer);
-            using var fft = new FFTEncoder(Param.Width, Param.Height, Param.MaxFrameRate, LoggerFactory, lapTimer);
-            using var h264 = new H264Encoder(Param.Width, Param.Height, Param.TargetBitrate, Param.MaxFrameRate, LoggerFactory, lapTimer);
+            using var vst = new AudioMaster<float>(Param.SamplingRate, blockSize, LoggerFactory, counter, DllManager);
+            using var toPcm = new ToPcm<float>(LoggerFactory, counter);
+            using var opus = new OpusEncoder(SamplingRate.Sampling48000, Channels.Stereo, LoggerFactory, counter);
+            using var fft = new FFTEncoder(Param.Width, Param.Height, Param.MaxFrameRate, LoggerFactory, counter);
+            using var h264 = new H264Encoder(Param.Width, Param.Height, Param.TargetBitrate, Param.MaxFrameRate, LoggerFactory, counter);
             var effect = vst.AddEffect(Param.EffectName);
 
-            using var ftl = new FtlIngest(StreamKey, IngestHostname, LoggerFactory, lapTimer, audioInterval, videoInterval, Param.Connect, default, CaInfoPath);
+            using var ftl = new FtlIngest(StreamKey, IngestHostname, LoggerFactory, counter, audioInterval, videoInterval, Param.Connect, default, CaInfoPath);
             ftl.Connect();
 
             var options = new ExecutionDataflowBlockOptions
@@ -271,11 +271,11 @@ namespace mixerTest
                         var audioTask = audioPool.ReceiveAsync(ct);
 
                         buffer.Log.Clear();
-                        await audioWaiter.Wait(ct).ConfigureAwait(false);
-                        buffer.Log.Add("[audio] start", lapTimer.USecDouble);
+                        audioWaiter.Wait();
+                        buffer.Log.Add("[audio] start", counter.NowTicks);
 
                         //VST
-                        var nowTime = lapTimer.USecDouble;
+                        var nowTime = counter.NowTicks / 10;
                         effect.ProcessEvent(nowTime, MidiEventInput);
                         effect.ProcessReplacing(nowTime, buffer);
 
@@ -285,7 +285,7 @@ namespace mixerTest
                         vstBufferPool.Post(buffer);
 
                         var audio = await audioTask.ConfigureAwait(false);
-                        pcm.Log.Add("[audio] opus output get", lapTimer.USecDouble);
+                        pcm.Log.Add("[audio] opus output get", counter.NowTicks);
                         opus.Execute(pcm, audio);
 
                         pcmDrowPool.Post(pcm);
@@ -325,15 +325,15 @@ namespace mixerTest
 
                         buffer.Log.Clear();
 
-                        await videoWaiter.Wait(ct).ConfigureAwait(false);
-                        buffer.Log.Add("[video] start", lapTimer.USecDouble);
+                        videoWaiter.Wait();
+                        buffer.Log.Add("[video] start", counter.NowTicks);
 
                         //FFT
                         fft.Execute(buffer);
 
                         //H264
                         var video = await videoTask.ConfigureAwait(false);
-                        buffer.Log.Add("[video] h264 output get", lapTimer.USecDouble);
+                        buffer.Log.Add("[video] h264 output get", counter.NowTicks);
                         var insertIntraFrame = (intraFrameCount <= 0);
                         h264.Execute(buffer, video, insertIntraFrame);
                         bmpPool.Post(buffer);

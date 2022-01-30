@@ -68,9 +68,11 @@ namespace MomijiRT.Core.Vst
         private double audioWaveTheta = 0;
         public void ProcessFrame(ProcessAudioFrameContext context)
         {
+
             Debug.Print($"ProcessFrame context.InputFrame.RelativeTime {context.InputFrame.RelativeTime}");
             Debug.Print($"ProcessFrame context.InputFrame.SystemRelativeTime {context.InputFrame.SystemRelativeTime}");
             Debug.Print($"ProcessFrame context.InputFrame.Duration {context.InputFrame.Duration}");
+
             Debug.Print($"ProcessFrame context.InputFrame.Type {context.InputFrame.Type}");
             Debug.Print($"ProcessFrame context.InputFrame.IsDiscontinuous {context.InputFrame.IsDiscontinuous}");
             Debug.Print($"ProcessFrame context.InputFrame.IsReadOnly {context.InputFrame.IsReadOnly}");
@@ -78,36 +80,35 @@ namespace MomijiRT.Core.Vst
             Debug.Print($"ProcessFrame context.OutputFrame.RelativeTime {context.OutputFrame.RelativeTime}");
             Debug.Print($"ProcessFrame context.OutputFrame.SystemRelativeTime {context.OutputFrame.SystemRelativeTime}");
             Debug.Print($"ProcessFrame context.OutputFrame.Duration {context.OutputFrame.Duration}");
+
             Debug.Print($"ProcessFrame context.OutputFrame.Type {context.OutputFrame.Type}");
             Debug.Print($"ProcessFrame context.OutputFrame.IsDiscontinuous {context.OutputFrame.IsDiscontinuous}");
             Debug.Print($"ProcessFrame context.OutputFrame.IsReadOnly {context.OutputFrame.IsReadOnly}");
 
 
-            using (var inBuffer = context.InputFrame.LockBuffer(Windows.Media.AudioBufferAccessMode.Read))
-            using (var outBuffer = context.OutputFrame.LockBuffer(Windows.Media.AudioBufferAccessMode.Write))
-            using (var inReference = inBuffer.CreateReference())
-            using (var outReference = outBuffer.CreateReference())
+            using var inBuffer = context.InputFrame.LockBuffer(Windows.Media.AudioBufferAccessMode.Read);
+            using var outBuffer = context.OutputFrame.LockBuffer(Windows.Media.AudioBufferAccessMode.Write);
+            using var inReference = inBuffer.CreateReference();
+            using var outReference = outBuffer.CreateReference();
+            var samples = (uint)inBuffer.Length / sizeof(float);
+
+            unsafe
             {
-                var samples = (uint)inBuffer.Length / sizeof(float);
+                IMemoryBufferByteAccess outAccess = ((IWinRTObject)outReference).As<IMemoryBufferByteAccess>();
+                outAccess.GetBuffer(out byte* dataInBytes, out uint capacityInBytes);
+                var dataInFloat = (float*)dataInBytes;
 
-                unsafe
+                float freq = 0.480f; // choosing to generate frequency of 1kHz
+                float amplitude = 0.3f;
+                int sampleRate = (int)currentEncodingProperties.SampleRate;
+                double sampleIncrement = (freq * (Math.PI * 2)) / sampleRate;
+
+                // Generate a 1kHz sine wave and populate the values in the memory buffer
+                for (int i = 0; i < samples; i++)
                 {
-                    IMemoryBufferByteAccess outAccess = ((IWinRTObject)outReference).As<IMemoryBufferByteAccess>();
-                    outAccess.GetBuffer(out byte* dataInBytes, out uint capacityInBytes);
-                    var dataInFloat = (float*)dataInBytes;
-
-                    float freq = 0.480f; // choosing to generate frequency of 1kHz
-                    float amplitude = 0.3f;
-                    int sampleRate = (int)currentEncodingProperties.SampleRate;
-                    double sampleIncrement = (freq * (Math.PI * 2)) / sampleRate;
-
-                    // Generate a 1kHz sine wave and populate the values in the memory buffer
-                    for (int i = 0; i < samples; i++)
-                    {
-                        double sinValue = amplitude * Math.Sin(audioWaveTheta);
-                        dataInFloat[i] = (float)sinValue;
-                        audioWaveTheta += sampleIncrement;
-                    }
+                    double sinValue = amplitude * Math.Sin(audioWaveTheta);
+                    dataInFloat[i] = (float)sinValue;
+                    audioWaveTheta += sampleIncrement;
                 }
             }
         }

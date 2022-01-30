@@ -39,14 +39,14 @@ namespace Momiji.Core.Vst
             var logger = loggerFactory.CreateLogger<VstUnitTest>();
 
             using var dllManager = new DllManager(configuration, loggerFactory);
-            using var lapTimer = new LapTimer();
+            var counter = new ElapsedTimeCounter();
 
             var blockSize = 2880;
 
             var midiEventInput = new BufferBlock<MIDIMessageEvent2>();
             using var buffer = new VstBuffer<double>(blockSize, 2);
 
-            using var vst = new AudioMaster<double>(48000, blockSize, loggerFactory, lapTimer, dllManager);
+            using var vst = new AudioMaster<double>(48000, blockSize, loggerFactory, counter, dllManager);
             var effect = vst.AddEffect("Dexed.dll");
 
 
@@ -61,7 +61,7 @@ namespace Momiji.Core.Vst
             //}
 
             {
-                var nowTime = lapTimer.USecDouble;
+                var nowTime = counter.NowTicks / 10;
                 midiEventInput.Post(new MIDIMessageEvent2()
                 {
                     midiMessageEvent = {
@@ -89,7 +89,7 @@ namespace Momiji.Core.Vst
             }
 
             {
-                var nowTime = lapTimer.USecDouble;
+                var nowTime = counter.NowTicks / 10;
                 midiEventInput.Post(new MIDIMessageEvent2()
                 {
                     midiMessageEvent = {
@@ -105,7 +105,7 @@ namespace Momiji.Core.Vst
                 effect.ProcessReplacing(nowTime, buffer);
             }
             {
-                var nowTime = lapTimer.USecDouble;
+                var nowTime = counter.NowTicks / 10;
                 midiEventInput.Post(new MIDIMessageEvent2()
                 {
                     midiMessageEvent = {
@@ -121,7 +121,7 @@ namespace Momiji.Core.Vst
                 effect.ProcessReplacing(nowTime, buffer);
             }
             {
-                var nowTime = lapTimer.USecDouble;
+                var nowTime = counter.NowTicks / 10;
                 midiEventInput.Post(new MIDIMessageEvent2()
                 {
                     midiMessageEvent = {

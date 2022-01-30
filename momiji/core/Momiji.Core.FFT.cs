@@ -15,7 +15,7 @@ namespace Momiji.Core.FFT
     {
         private ILoggerFactory LoggerFactory { get; }
         private ILogger Logger { get; }
-        private LapTimer LapTimer { get; }
+        private ElapsedTimeCounter Counter { get; }
 
         private int PicWidth { get; }
         private int PicHeight { get; }
@@ -35,12 +35,12 @@ namespace Momiji.Core.FFT
             int picHeight,
             float maxFrameRate,
             ILoggerFactory loggerFactory,
-            LapTimer lapTimer
+            ElapsedTimeCounter counter
         )
         {
             LoggerFactory = loggerFactory;
             Logger = LoggerFactory.CreateLogger<FFTEncoder>();
-            LapTimer = lapTimer;
+            Counter = counter;
 
             PicWidth = picWidth;
             PicHeight = picHeight;
@@ -101,7 +101,7 @@ namespace Momiji.Core.FFT
             list.Insert(0,
                 $"{DateTimeOffset.FromUnixTimeMilliseconds((long)midiEvent.midiMessageEvent.receivedTime).ToUniversalTime():HH:mm:ss.fff} => " +
                 $"{DateTimeOffset.FromUnixTimeMilliseconds((long)(midiEvent.receivedTimeUSec / 1000)).ToUniversalTime():HH:mm:ss.fff} => " +
-                $"{DateTimeOffset.FromUnixTimeMilliseconds((long)(LapTimer.USecDouble / 1000)).ToUniversalTime():HH:mm:ss.fff} " +
+                $"{DateTimeOffset.FromUnixTimeMilliseconds((long)(Counter.NowTicks / 10000)).ToUniversalTime():HH:mm:ss.fff} " +
                 $"{midiEvent.midiMessageEvent.data0:X2}" +
                 $"{midiEvent.midiMessageEvent.data1:X2}" +
                 $"{midiEvent.midiMessageEvent.data2:X2}" +
@@ -134,7 +134,7 @@ namespace Momiji.Core.FFT
             {
                 throw new ArgumentNullException(nameof(source));
             }
-            source.Log.Add("[fft] start", LapTimer.USecDouble);
+            source.Log.Add("[fft] start", Counter.NowTicks);
 
             lock (syncInput)
             {
@@ -188,9 +188,9 @@ namespace Momiji.Core.FFT
                 }
 
                 g.DrawString($"{data.Length} {max} {min}", font, white, 0, PicHeight - 50);
-                g.DrawString($"{DateTimeOffset.FromUnixTimeMilliseconds(LapTimer.USec / 1000).ToUniversalTime():HH:mm:ss.fff}", font, white, PicWidth - 200, PicHeight - 20);
+                g.DrawString($"{DateTimeOffset.FromUnixTimeMilliseconds(Counter.NowTicks / 10000).ToUniversalTime():HH:mm:ss.fff}", font, white, PicWidth - 200, PicHeight - 20);
             }
-            source.Log.Add("[fft] drawn", LapTimer.USecDouble);
+            source.Log.Add("[fft] drawn", Counter.NowTicks);
         }
 
         public void Execute(
@@ -248,7 +248,7 @@ namespace Momiji.Core.FFT
                             hOdd = !hOdd;
                         }
                     }
-                    dest.Log.Add("[fft] end", LapTimer.USecDouble);
+                    dest.Log.Add("[fft] end", Counter.NowTicks);
                 }
                 finally
                 {

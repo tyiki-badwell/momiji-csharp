@@ -272,7 +272,7 @@ namespace mixerTest
                     await SendWebsocketAsync(webSocket, message, ct).ConfigureAwait(false);
                 }));
 
-                using var lapTimer = new LapTimer();
+                var counter = new ElapsedTimeCounter();
                 var buf = WebSocket.CreateServerBuffer(1024);
 
                 await SendWebsocketAsync(webSocket, new Dictionary<string, object>
@@ -308,7 +308,7 @@ namespace mixerTest
                         );*/
                         MIDIMessageEvent2 midiEvent2;
                         midiEvent2.midiMessageEvent = midiEvent;
-                        midiEvent2.receivedTimeUSec = lapTimer.USecDouble;
+                        midiEvent2.receivedTimeUSec = counter.NowTicks / 10;
                         midiEventInput.Post(midiEvent2);
                         midiEventOutput.Post(midiEvent2);
                     }

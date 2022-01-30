@@ -81,7 +81,7 @@ namespace Momiji.Core.Wave
             int samplesPerSecond,
             SPEAKER channelMask,
             ILoggerFactory loggerFactory,
-            LapTimer lapTimer,
+            ElapsedTimeCounter counter,
             ITargetBlock<PcmBuffer<short>> sourceReleaseQueue
         ) : base(
             deviceID,
@@ -90,7 +90,7 @@ namespace Momiji.Core.Wave
             channelMask,
             new Guid("00000001-0000-0010-8000-00aa00389b71"),
             loggerFactory,
-            lapTimer,
+            counter,
             sourceReleaseQueue
             )
         { }
@@ -104,7 +104,7 @@ namespace Momiji.Core.Wave
             int samplesPerSecond,
             SPEAKER channelMask,
             ILoggerFactory loggerFactory,
-            LapTimer lapTimer,
+            ElapsedTimeCounter counter,
             ITargetBlock<PcmBuffer<float>> sourceReleaseQueue
         ) : base(
             deviceID,
@@ -113,7 +113,7 @@ namespace Momiji.Core.Wave
             channelMask,
             new Guid("00000003-0000-0010-8000-00aa00389b71"),
             loggerFactory,
-            lapTimer,
+            counter,
             sourceReleaseQueue
             )
         { }
@@ -154,7 +154,7 @@ namespace Momiji.Core.Wave
     {
         private ILoggerFactory LoggerFactory { get; }
         private ILogger Logger { get; }
-        private LapTimer LapTimer { get; }
+        private ElapsedTimeCounter Counter { get; }
 
         private bool disposed;
 
@@ -235,12 +235,12 @@ namespace Momiji.Core.Wave
             SPEAKER channelMask,
             Guid formatSubType,
             ILoggerFactory loggerFactory,
-            LapTimer lapTimer,
+            ElapsedTimeCounter counter,
             ITargetBlock<PcmBuffer<T>> releaseQueue
         )
         {
             LoggerFactory = loggerFactory ?? throw new ArgumentNullException(nameof(loggerFactory));
-            LapTimer = lapTimer ?? throw new ArgumentNullException(nameof(lapTimer));
+            Counter = counter ?? throw new ArgumentNullException(nameof(counter));
             if (releaseQueue == default)
             {
                 throw new ArgumentNullException(nameof(releaseQueue));
@@ -432,7 +432,7 @@ namespace Momiji.Core.Wave
             if (Logger.IsEnabled(LogLevel.Debug))
             {
                 Logger.LogDebug($"[wave] unprepare [{headerPtr}][{dataBusyPool.Count}]");
-                source.Log.Add("[wave] unprepare", LapTimer.USecDouble);
+                source.Log.Add("[wave] unprepare", Counter.NowTicks);
                 var log = "";
                 double? temp = null;
                 source.Log.ForEach((a) =>
@@ -493,10 +493,10 @@ namespace Momiji.Core.Wave
             {
                 Logger.LogDebug($"[wave] execute [{source.Buffer.AddrOfPinnedObject}]");
             }
-            source.Log.Add("[wave] send start", LapTimer.USecDouble);
+            source.Log.Add("[wave] send start", Counter.NowTicks);
             var headerPtr = Prepare(source, ct);
             Send(headerPtr);
-            source.Log.Add("[wave] send end", LapTimer.USecDouble);
+            source.Log.Add("[wave] send end", Counter.NowTicks);
         }
     }
 }

@@ -1,79 +1,151 @@
-﻿using System;
+﻿using Momiji.Interop.Kernel32;
+using System;
 using System.Diagnostics;
-using System.Threading;
-using System.Threading.Tasks;
+using System.Runtime.InteropServices;
 
 namespace Momiji.Core.Timer
 {
-    public class LapTimer : IDisposable
+    public class TimerException : Exception
     {
-        private bool disposed;
-
-        private double StartUsec { get; }
-
-        private Stopwatch stopwatch;
-
-        public LapTimer()
+        public TimerException()
         {
-            StartUsec = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds() * 1000.0;
-            stopwatch = Stopwatch.StartNew();
         }
 
-        ~LapTimer()
+        public TimerException(string message) : base(message)
         {
-            Dispose(false);
         }
 
-        public long USec
+        public TimerException(string message, Exception innerException) : base(message, innerException)
+        {
+        }
+    }
+
+    public class ElapsedTimeCounter
+    {
+        private long StartTicks { get; set; }
+
+        private long StartTimestamp { get; set; }
+
+        public ElapsedTimeCounter()
+        {
+            Reset();
+        }
+
+        public void Reset()
+        {
+            StartTicks = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds() * 10_000;
+            StartTimestamp = Stopwatch.GetTimestamp();
+        }
+
+        public long Elapsed
         {
             get
             {
-                return (long)USecDouble;
+                return Stopwatch.GetTimestamp() - StartTimestamp;
             }
         }
 
-        public double USecDouble
+        public long ElapsedTicks
         {
             get
             {
-                return StartUsec + (((double)stopwatch.ElapsedTicks / Stopwatch.Frequency) * 1_000_000.0);
+                return (Elapsed * 10_000_000) / Stopwatch.Frequency;
             }
         }
 
-        public void Dispose()
+        public long NowTicks
         {
-            Dispose(true);
-            GC.SuppressFinalize(this);
-        }
-
-        protected virtual void Dispose(bool disposing)
-        {
-            if (disposed) return;
-
-            if (disposing)
+            get
             {
+                return StartTicks + ElapsedTicks;
             }
-
-            stopwatch?.Stop();
-            stopwatch = null;
-
-            disposed = true;
         }
     }
 
     public class Waiter : IDisposable
     {
         private bool disposed;
+        private ElapsedTimeCounter Counter { get; }
+        private long IntervalTicks { get; }
 
-        private LapTimer LapTimer { get; }
-        private double Interval { get; }
-        private double Before;
+        public long BeforeFlames { set; get; }
 
-        public Waiter(LapTimer lapTimer, double interval)
+        private WaitableTimer handle;
+
+        public Waiter(ElapsedTimeCounter counter, long intervalTicks) : this(counter, intervalTicks, false)
         {
-            LapTimer = lapTimer ?? throw new ArgumentNullException(nameof(lapTimer));
-            Interval = interval;
-            Before = LapTimer.USecDouble;
+        }
+        public Waiter(ElapsedTimeCounter counter, long intervalTicks, bool highResolution)
+        {
+            Counter = counter ?? throw new ArgumentNullException(nameof(counter));
+            if (intervalTicks < 0)
+            {
+                throw new ArgumentOutOfRangeException(nameof(intervalTicks));
+            }
+            IntervalTicks = intervalTicks;
+
+            handle =
+                NativeMethods.CreateWaitableTimerEx(
+                    IntPtr.Zero,
+                    IntPtr.Zero,
+                    WaitableTimer.FLAGS.MANUAL_RESET | (highResolution ? WaitableTimer.FLAGS.HIGH_RESOLUTION : 0),
+                    WaitableTimer.ACCESSES.SYNCHRONIZE | WaitableTimer.ACCESSES.TIMER_ALL_ACCESS
+                );
+
+            if (handle.IsInvalid)
+            {
+                throw new TimerException($"CreateWaitableTimerEx failed [{Marshal.GetLastWin32Error()}]");
+            }
+
+            Reset();
+        }
+
+        private void Reset()
+        {
+            BeforeFlames = Counter.ElapsedTicks / IntervalTicks;
+        }
+
+        public int Wait()
+        {
+            var left = (IntervalTicks * (BeforeFlames+1)) - Counter.ElapsedTicks;
+            var frames = 1;
+
+            if (left > 0)
+            {
+                //１回分以内なら時間調整を行う
+                {
+                    var dueTime = left * -1;
+                    var result =
+                        handle.SetWaitableTimerEx(
+                            ref dueTime,
+                            0,
+                            IntPtr.Zero,
+                            IntPtr.Zero,
+                            IntPtr.Zero,
+                            0
+                        );
+                    if (!result)
+                    {
+                        throw new TimerException($"SetWaitableTimerEx failed [{Marshal.GetLastWin32Error()}]");
+                    }
+                }
+                {
+                    var result = handle.WaitForSingleObject(0xFFFFFFFF);
+                    if (result != 0)
+                    {
+                        throw new TimerException($"WaitForSingleObject failed [{Marshal.GetLastWin32Error()}]");
+                    }
+                }
+            }
+            else
+            {
+                //遅れているならバーストさせる
+                frames = (int)(left / IntervalTicks * -1)+1;
+            }
+
+            Reset();
+
+            return frames;
         }
 
         ~Waiter()
@@ -95,22 +167,19 @@ namespace Momiji.Core.Timer
             {
             }
 
-            disposed = true;
-        }
+            if (handle != default)
+            {
+                if (
+                    !handle.IsInvalid
+                    && !handle.IsClosed
+                )
+                {
+                    handle.Close();
+                }
+                handle = default;
+            }
 
-        public async Task Wait(CancellationToken ct)
-        {
-            var left = Interval - (LapTimer.USecDouble - Before);
-            if (left > 0)
-            {
-                //時間調整を行う
-                await Task.Delay(new TimeSpan((long)(left * 10)), ct).ConfigureAwait(false);
-            }
-            else
-            {
-                //TODO マイナスだった場合はそのままスルー
-            }
-            Before = LapTimer.USecDouble;
+            disposed = true;
         }
     }
 

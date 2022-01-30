@@ -152,16 +152,16 @@ namespace Momiji.Core.Vst.Worker
             var taskSet = new HashSet<Task>();
 
             var blockSize = (int)(Param.SamplingRate * Param.SampleLength);
-            var audioInterval = 1_000_000.0 * Param.SampleLength;
+            var audioInterval = (long)(10_000_000.0 * Param.SampleLength);
 
             using var buf = new IPCBuffer<float>(Param.EffectName, blockSize * 2 * Param.BufferCount, LoggerFactory);
             //            using var vstBufferPool = new BufferPool<VstBuffer<float>>(param.BufferCount, () => new VstBuffer<float>(blockSize, 2), LoggerFactory);
             using var vstBufferPool = new BufferPool<VstBuffer2<float>>(Param.BufferCount, () => new VstBuffer2<float>(blockSize, 2, buf), LoggerFactory);
             using var pcmPool = new BufferPool<PcmBuffer<float>>(Param.BufferCount, () => new PcmBuffer<float>(blockSize, 2), LoggerFactory);
-            using var timer = new LapTimer();
-            using var audioWaiter = new Waiter(timer, audioInterval);
-            using var vst = new AudioMaster<float>(Param.SamplingRate, blockSize, LoggerFactory, timer, DllManager);
-            using var toPcm = new ToPcm<float>(LoggerFactory, timer);
+            var counter = new ElapsedTimeCounter();
+            using var audioWaiter = new Waiter(counter, audioInterval);
+            using var vst = new AudioMaster<float>(Param.SamplingRate, blockSize, LoggerFactory, counter, DllManager);
+            using var toPcm = new ToPcm<float>(LoggerFactory, counter);
 
             Logger.LogInformation($"AddEffect:{Param.EffectName}");
 
@@ -173,7 +173,7 @@ namespace Momiji.Core.Vst.Worker
                 Param.SamplingRate,
                 SPEAKER.FrontLeft | SPEAKER.FrontRight,
                 LoggerFactory,
-                timer,
+                counter,
                 pcmPool);
 
             var options = new ExecutionDataflowBlockOptions
@@ -182,15 +182,20 @@ namespace Momiji.Core.Vst.Worker
                 MaxDegreeOfParallelism = 1
             };
 
-            var vstBlock =
-                //                new TransformBlock<VstBuffer<float>, PcmBuffer<float>>(async buffer =>
-                new TransformBlock<VstBuffer2<float>, PcmBuffer<float>>(async buffer =>
-                {
+            var audioStartBlock =
+                new TransformBlock<VstBuffer2<float>, VstBuffer2<float>>(buffer => {
                     buffer.Log.Clear();
-                    await audioWaiter.Wait(ct).ConfigureAwait(false);
+                    audioWaiter.Wait();
+                    return buffer;
+                }, options);
+            taskSet.Add(audioStartBlock.Completion);
+            vstBufferPool.LinkTo(audioStartBlock);
+
+            var vstBlock =
+                new TransformBlock<VstBuffer2<float>, PcmBuffer<float>>(buffer =>
+                {
                     //VST
-                    var nowTime = timer.USecDouble;
-                    //    effect.ProcessEvent(nowTime, MidiEventInput);
+                    var nowTime = counter.NowTicks / 10;
                     effect.ProcessReplacing(nowTime, buffer);
 
                     //trans
@@ -201,7 +206,7 @@ namespace Momiji.Core.Vst.Worker
                     return pcm;
                 }, options);
             taskSet.Add(vstBlock.Completion);
-            vstBufferPool.LinkTo(vstBlock);
+            audioStartBlock.LinkTo(vstBlock);
 
             var waveBlock =
                 new ActionBlock<PcmBuffer<float>>(buffer =>

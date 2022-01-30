@@ -164,7 +164,7 @@ namespace Momiji.Core.H264
     {
         private ILoggerFactory LoggerFactory { get; }
         private ILogger Logger { get; }
-        private LapTimer LapTimer { get; }
+        private ElapsedTimeCounter Counter { get; }
 
         private bool disposed;
         private SVCEncoder Encoder;
@@ -190,12 +190,12 @@ namespace Momiji.Core.H264
             int targetBitrate,
             float maxFrameRate,
             ILoggerFactory loggerFactory,
-            LapTimer lapTimer
+            ElapsedTimeCounter counter
         )
         {
             LoggerFactory = loggerFactory;
             Logger = LoggerFactory.CreateLogger<H264Encoder>();
-            LapTimer = lapTimer;
+            Counter = counter;
 
             PicWidth = picWidth;
             PicHeight = picHeight;
@@ -346,7 +346,7 @@ namespace Momiji.Core.H264
 
             if (insertIntraFrame)
             {
-                source.Log.Add("[h264] ForceIntraFrame", LapTimer.USecDouble);
+                source.Log.Add("[h264] ForceIntraFrame", Counter.NowTicks);
                 var result = ForceIntraFrame(Encoder, true);
                 if (result != 0)
                 {
@@ -355,19 +355,19 @@ namespace Momiji.Core.H264
             }
 
             {
-                source.Log.Add("[h264] start EncodeFrame", LapTimer.USecDouble);
-                source.SSourcePictureBuffer.Target.uiTimeStamp = (long)(LapTimer.USecDouble / 1000);
+                source.Log.Add("[h264] start EncodeFrame", Counter.NowTicks);
+                source.SSourcePictureBuffer.Target.uiTimeStamp = Counter.NowTicks / 10000;
                 var result = EncodeFrame(Encoder, source.SSourcePictureBuffer.AddrOfPinnedObject, sFrameBSInfoBuffer.AddrOfPinnedObject);
                 if (result != 0)
                 {
                     throw new H264Exception($"WelsCreateSVCEncoder EncodeFrame failed {result}");
                 }
-                source.Log.Add("[h264] end EncodeFrame", LapTimer.USecDouble);
+                source.Log.Add("[h264] end EncodeFrame", Counter.NowTicks);
             }
 
             dest.Log.Marge(source.Log);
             dest.LayerNuls.Clear();
-            dest.Log.Add("[h264] start copy frame", LapTimer.USecDouble);
+            dest.Log.Add("[h264] start copy frame", Counter.NowTicks);
             CopyMemory(
                 dest.Buffer.AddrOfPinnedObject,
                 dest.Buffer.Target.Length,
@@ -392,7 +392,7 @@ namespace Momiji.Core.H264
                     offset += length;
                 }
             }
-            dest.Log.Add("[h264] end copy frame", LapTimer.USecDouble);
+            dest.Log.Add("[h264] end copy frame", Counter.NowTicks);
         }
 
         private unsafe static void CopyMemory(

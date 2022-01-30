@@ -62,7 +62,7 @@ namespace Momiji.Core.Opus
     {
         private ILoggerFactory LoggerFactory { get; }
         private ILogger Logger { get; }
-        private LapTimer LapTimer { get; }
+        private ElapsedTimeCounter Counter { get; }
 
         private bool disposed;
         private Encoder encoder;
@@ -71,12 +71,12 @@ namespace Momiji.Core.Opus
             SamplingRate Fs,
             Channels channels,
             ILoggerFactory loggerFactory,
-            LapTimer lapTimer
+            ElapsedTimeCounter counter
         )
         {
             LoggerFactory = loggerFactory;
             Logger = LoggerFactory.CreateLogger<OpusEncoder>();
-            LapTimer = lapTimer;
+            Counter = counter;
 
             Logger.LogInformation($"opus version {NativeMethods.opus_get_version_string()}");
 
@@ -140,7 +140,7 @@ namespace Momiji.Core.Opus
             }
             dest.Log.Marge(source.Log);
 
-            dest.Log.Add("[opus] start opus_encode_float", LapTimer.USecDouble);
+            dest.Log.Add("[opus] start opus_encode_float", Counter.NowTicks);
             dest.Wrote = encoder.opus_encode_float(
                 source.Buffer.AddrOfPinnedObject,
                 source.Buffer.Target.Length / 2,
@@ -157,7 +157,7 @@ namespace Momiji.Core.Opus
                   50*blockSize!=4*samplingRate &&  50*blockSize!=5*samplingRate &&  50*blockSize!=6*samplingRate)
                 return -1;
             */
-            dest.Log.Add($"[opus] end opus_encode_float {dest.Wrote}", LapTimer.USecDouble);
+            dest.Log.Add($"[opus] end opus_encode_float {dest.Wrote}", Counter.NowTicks);
             if (dest.Wrote < 0)
             {
                 throw new OpusException($"[opus] opus_encode_float error:{NativeMethods.opus_strerror(dest.Wrote)}({dest.Wrote})");

@@ -35,10 +35,10 @@ namespace Momiji.Core.Opus
                 builder.AddConsole();
                 builder.AddDebug();
             });
-            using var lapTimer = new LapTimer();
+            var counter = new ElapsedTimeCounter();
             using var dllManager = new DllManager(configuration, loggerFactory);
 
-            using var opus = new OpusEncoder(SamplingRate.Sampling48000, Channels.Stereo, loggerFactory, lapTimer);
+            using var opus = new OpusEncoder(SamplingRate.Sampling48000, Channels.Stereo, loggerFactory, counter);
 
         }
     }

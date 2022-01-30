@@ -1,4 +1,5 @@
 ﻿using Microsoft.Extensions.Hosting;
+using Momiji.Core.Timer;
 using Momiji.Core.Vst.Worker;
 using MomijiRT.Core.Vst;
 using System;
@@ -83,8 +84,11 @@ namespace MomijiWPF
             list.Clear();
         }
 
-        AudioGraph audioGraph = null;
+        private AudioGraph audioGraph = null;
         private double audioWaveTheta = 0;
+        private ElapsedTimeCounter counter = new();
+        private double before = 0;
+
         private async void Button_Click_AppWindow(object sender, RoutedEventArgs e)
         {
             /*
@@ -136,13 +140,15 @@ namespace MomijiWPF
             {
                 var settings = new AudioGraphSettings(Windows.Media.Render.AudioRenderCategory.Media)
                 {
-                    QuantumSizeSelectionMode = QuantumSizeSelectionMode.LowestLatency,
+                    QuantumSizeSelectionMode = QuantumSizeSelectionMode.SystemDefault,
+                    //QuantumSizeSelectionMode = QuantumSizeSelectionMode.LowestLatency,
                     DesiredSamplesPerQuantum = default,
                     //QuantumSizeSelectionMode = QuantumSizeSelectionMode.ClosestToDesired,
                     //DesiredSamplesPerQuantum = 10000,
                     AudioRenderCategory = Windows.Media.Render.AudioRenderCategory.GameMedia,
                     MaxPlaybackSpeedFactor = 1,
-                    DesiredRenderDeviceAudioProcessing = Windows.Media.AudioProcessing.Raw,
+                    //DesiredRenderDeviceAudioProcessing = Windows.Media.AudioProcessing.Raw,
+                    DesiredRenderDeviceAudioProcessing = Windows.Media.AudioProcessing.Default,
                     EncodingProperties = default,
                     PrimaryRenderDevice = default
                 };
@@ -196,6 +202,10 @@ namespace MomijiWPF
                 inNode.Stop();
                 inNode.QuantumStarted += (AudioFrameInputNode sender, FrameInputNodeQuantumStartedEventArgs args) =>
                 {
+                    var now = counter.NowTicks;
+                 //   Debug.Print($"LAP {now - before}");
+                    before = now;
+
                     //Debug.Print($"args.RequiredSamples {args.RequiredSamples}");
                     if (args.RequiredSamples <= 0)
                     {
@@ -207,6 +217,7 @@ namespace MomijiWPF
 
                     //TODO 別でメモリ管理する
                     var frame = new Windows.Media.AudioFrame(bufferSize);
+                    
 
                     using (var buffer = frame.LockBuffer(Windows.Media.AudioBufferAccessMode.Write))
                     using (var reference = buffer.CreateReference())
@@ -231,10 +242,12 @@ namespace MomijiWPF
                         }
                     }
 
+                    
                     sender.AddFrame(frame);
                 };
 
                 //inNode.AddOutgoingConnection(outNode);
+                
                 inNode.Start();
             }
             /*
@@ -253,34 +266,16 @@ namespace MomijiWPF
             }
             */
 
+            //if (false)
             {
+
                 var subNode = audioGraph.CreateSubmixNode();
                 subNode.Stop();
-                /*
-                EchoEffectDefinition echoEffect = new EchoEffectDefinition(audioGraph);
-                echoEffect.Delay = 1000.0;
-                echoEffect.Feedback = .2;
-                echoEffect.WetDryMix = .5;
-                */
-                //var ef = new Effect();
-
-
-                //WinRT.ActivationFactory<EchoEffectDefinition>.As(GuidGenerator.GetIID(typeof(IEchoEffectDefinitionFactory).GetHelperType()));
-
-                //var b = WinRT.Module.GetActivationFactory(typeof(Effect).FullName);
-                //var a = ABI.MomijiRT.Core.Vst.Effect.FromAbi(b);
-
-                //var a = new AudioEffectDefinition(typeof(EchoEffectDefinition).FullName);
 
                 var a = new AudioEffectDefinition(typeof(Effect).FullName);
 
-                //inNode.EffectDefinitions.Add(new Effect());
                 subNode.EffectDefinitions.Add(a);
-                
-                //IAudioEffectDefinition
-                //IBasicAudioEffect
 
-                //inNode.AddOutgoingConnection(outNode);
                 inNode.AddOutgoingConnection(subNode, 1.0);
                 
                 subNode.AddOutgoingConnection(outNode, 1.0);
@@ -288,6 +283,7 @@ namespace MomijiWPF
                 subNode.EnableEffectsByDefinition(a);
 
                 subNode.Start();
+
             }
 
             audioGraph.Start();
@@ -303,149 +299,6 @@ namespace MomijiWPF
     {
         void GetBuffer(out byte* buffer, out uint capacity);
     }
-    /*
-    public sealed class Effect : IBasicAudioEffect, IAudioEffectDefinition
-    {
-        public IReadOnlyList<AudioEncodingProperties> SupportedEncodingProperties
-        {
-            get
-            {
-                Debug.Print("SupportedEncodingProperties get");
 
-                var supportedEncodingProperties = new List<AudioEncodingProperties>();
-                AudioEncodingProperties encodingProps2 = AudioEncodingProperties.CreatePcm(48000, 2, 32);
-                encodingProps2.Subtype = MediaEncodingSubtypes.Float;
-
-                supportedEncodingProperties.Add(encodingProps2);
-
-                return supportedEncodingProperties;
-            }
-        }
-
-        public bool UseInputFrameForOutput
-        {
-            get
-            {
-                Debug.Print("UseInputFrameForOutput get");
-                return false;
-            }
-        }
-
-        public string ActivatableClassId
-        {
-            get
-            {
-                Debug.Print("ActivatableClassId get");
-                return typeof(Effect).FullName;
-            }
-        }
-
-        public IPropertySet Properties
-        {
-            get
-            {
-                Debug.Print("Properties get");
-                return configuration;
-            }
-        }
-
-        public void Close(MediaEffectClosedReason reason)
-        {
-            Debug.Print($"Close reason {reason}");
-        }
-
-        public void DiscardQueuedFrames()
-        {
-            Debug.Print("DiscardQueuedFrames");
-        }
-
-        private double audioWaveTheta = 0;
-        public void ProcessFrame(ProcessAudioFrameContext context)
-        {
-            Debug.Print($"ProcessFrame context.InputFrame.RelativeTime {context.InputFrame.RelativeTime}");
-            Debug.Print($"ProcessFrame context.InputFrame.SystemRelativeTime {context.InputFrame.SystemRelativeTime}");
-            Debug.Print($"ProcessFrame context.InputFrame.Duration {context.InputFrame.Duration}");
-            Debug.Print($"ProcessFrame context.InputFrame.Type {context.InputFrame.Type}");
-            Debug.Print($"ProcessFrame context.InputFrame.IsDiscontinuous {context.InputFrame.IsDiscontinuous}");
-            Debug.Print($"ProcessFrame context.InputFrame.IsReadOnly {context.InputFrame.IsReadOnly}");
-
-            Debug.Print($"ProcessFrame context.OutputFrame.RelativeTime {context.OutputFrame.RelativeTime}");
-            Debug.Print($"ProcessFrame context.OutputFrame.SystemRelativeTime {context.OutputFrame.SystemRelativeTime}");
-            Debug.Print($"ProcessFrame context.OutputFrame.Duration {context.OutputFrame.Duration}");
-            Debug.Print($"ProcessFrame context.OutputFrame.Type {context.OutputFrame.Type}");
-            Debug.Print($"ProcessFrame context.OutputFrame.IsDiscontinuous {context.OutputFrame.IsDiscontinuous}");
-            Debug.Print($"ProcessFrame context.OutputFrame.IsReadOnly {context.OutputFrame.IsReadOnly}");
-
-
-            using (var inBuffer = context.InputFrame.LockBuffer(Windows.Media.AudioBufferAccessMode.Read))
-            using (var outBuffer = context.OutputFrame.LockBuffer(Windows.Media.AudioBufferAccessMode.Write))
-            using (var inReference = inBuffer.CreateReference())
-            using (var outReference = outBuffer.CreateReference())
-            {
-                var samples = (uint)inBuffer.Length / sizeof(float);
-
-                unsafe
-                {
-                    IMemoryBufferByteAccess outAccess = outReference.As<IMemoryBufferByteAccess>();
-                    outAccess.GetBuffer(out byte* dataInBytes, out uint capacityInBytes);
-                    var dataInFloat = (float*)dataInBytes;
-
-                    float freq = 0.480f; // choosing to generate frequency of 1kHz
-                    float amplitude = 0.3f;
-                    int sampleRate = (int)encodingProperties.SampleRate;
-                    double sampleIncrement = (freq * (Math.PI * 2)) / sampleRate;
-
-                    // Generate a 1kHz sine wave and populate the values in the memory buffer
-                    for (int i = 0; i < samples; i++)
-                    {
-                        double sinValue = amplitude * Math.Sin(audioWaveTheta);
-                        dataInFloat[i] = (float)sinValue;
-                        audioWaveTheta += sampleIncrement;
-                    }
-                }
-            }
-        }
-
-        private AudioEncodingProperties encodingProperties;
-
-        public void SetEncodingProperties(AudioEncodingProperties encodingProperties)
-        {
-            this.encodingProperties = encodingProperties;
-
-            Debug.Print($"encodingProperties.SampleRate {encodingProperties.SampleRate}");
-            Debug.Print($"encodingProperties.Type {encodingProperties.Type}");
-            Debug.Print($"encodingProperties.Subtype {encodingProperties.Subtype}");
-            Debug.Print($"encodingProperties.ChannelCount {encodingProperties.ChannelCount}");
-            Debug.Print($"encodingProperties.Bitrate {encodingProperties.Bitrate}");
-            Debug.Print($"encodingProperties.BitsPerSample {encodingProperties.BitsPerSample}");
-            Debug.Print($"encodingProperties.IsSpatial {encodingProperties.IsSpatial}");
-
-            if (encodingProperties.Properties != default)
-            {
-                foreach (var key in encodingProperties.Properties.Keys)
-                {
-                    if (encodingProperties.Properties.TryGetValue(key, out var value))
-                    {
-                        Debug.Print($"encodingProperties.Properties {key} {value}");
-                    }
-                }
-            }
-        }
-
-        private IPropertySet configuration;
-        public void SetProperties(IPropertySet configuration)
-        {
-            this.configuration = configuration;
-
-            foreach (var key in configuration.Keys)
-            {
-                if (configuration.TryGetValue(key, out var value))
-                {
-                    Debug.Print($"configuration {key} {value}");
-                }
-            }
-        }
-    }
-    */
 }
 

@@ -154,16 +154,16 @@ namespace Momiji.Core.Vst
     public interface IEffect<T> where T : struct
     {
         void ProcessReplacing(
-            double nowTime,
+            long nowTime,
             VstBuffer<T> source
         );
 
         void ProcessReplacing(
-            double nowTime,
+            long nowTime,
             VstBuffer2<T> source
         );
         void ProcessEvent(
-            double nowTime,
+            long nowTime,
             IReceivableSourceBlock<MIDIMessageEvent2> midiEventInput,
             ITargetBlock<MIDIMessageEvent2> midiEventOutput = null
         );
@@ -175,7 +175,7 @@ namespace Momiji.Core.Vst
     {
         private ILoggerFactory LoggerFactory { get; }
         private ILogger Logger { get; }
-        private LapTimer LapTimer { get; }
+        private ElapsedTimeCounter Counter { get; }
 
         private bool disposed;
 
@@ -198,7 +198,7 @@ namespace Momiji.Core.Vst
         private PinnedBuffer<byte[]> events;
         private PinnedBuffer<byte[]> eventList;
 
-        private double beforeTime;
+        private long beforeTime;
         private MIDIMessageEvent2? extraMidiEvent;
 
         private static readonly int SIZE_OF_VSTEVENTS = Marshal.SizeOf<VstEvents>();
@@ -211,12 +211,12 @@ namespace Momiji.Core.Vst
             string library,
             AudioMaster<T> audioMaster,
             ILoggerFactory loggerFactory,
-            LapTimer lapTimer
+            ElapsedTimeCounter counter
         )
         {
             LoggerFactory = loggerFactory;
             Logger = LoggerFactory.CreateLogger<Effect<T>>();
-            LapTimer = lapTimer;
+            Counter = counter;
 
             this.audioMaster = audioMaster;
 
@@ -316,7 +316,7 @@ namespace Momiji.Core.Vst
                 }
             }
 
-            beforeTime = LapTimer.USecDouble;
+            beforeTime = Counter.NowTicks;
         }
 
         ~Effect()
@@ -412,7 +412,7 @@ namespace Momiji.Core.Vst
         }
 
         public void ProcessReplacing(
-            double nowTime,
+            long nowTime,
             VstBuffer<T> source
         )
         {
@@ -427,7 +427,7 @@ namespace Momiji.Core.Vst
 
             var blockSize = source.BlockSize;
 
-            source.Log.Add("[vst] start processReplacing", LapTimer.USecDouble);
+            source.Log.Add("[vst] start processReplacing", Counter.NowTicks);
             try
             {
                 ProcessProc(
@@ -436,7 +436,7 @@ namespace Momiji.Core.Vst
                     source.Buffer.AddrOfPinnedObject,
                     blockSize
                 );
-                source.Log.Add("[vst] end processReplacing", LapTimer.USecDouble);
+                source.Log.Add("[vst] end processReplacing", Counter.NowTicks);
                 beforeTime = nowTime;
             }
 #pragma warning disable CA1031 // 一般的な例外の種類はキャッチしません
@@ -448,7 +448,7 @@ namespace Momiji.Core.Vst
         }
 
         public void ProcessReplacing(
-            double nowTime,
+            long nowTime,
             VstBuffer2<T> source
         )
         {
@@ -463,7 +463,7 @@ namespace Momiji.Core.Vst
 
             var blockSize = source.BlockSize;
 
-            source.Log.Add("[vst] start processReplacing", LapTimer.USecDouble);
+            source.Log.Add("[vst] start processReplacing", Counter.NowTicks);
             try
             {
                 ProcessProc(
@@ -472,7 +472,7 @@ namespace Momiji.Core.Vst
                     source.Buffer.AddrOfPinnedObject,
                     blockSize
                 );
-                source.Log.Add("[vst] end processReplacing", LapTimer.USecDouble);
+                source.Log.Add("[vst] end processReplacing", Counter.NowTicks);
                 beforeTime = nowTime;
             }
 #pragma warning disable CA1031 // 一般的な例外の種類はキャッチしません
@@ -484,7 +484,7 @@ namespace Momiji.Core.Vst
         }
 
         public void ProcessEvent(
-            double nowTime,
+            long nowTime,
             IReceivableSourceBlock<MIDIMessageEvent2> midiEventInput,
             ITargetBlock<MIDIMessageEvent2> midiEventOutput = null
         )
