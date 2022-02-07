@@ -1,16 +1,10 @@
-﻿using Microsoft.Extensions.Configuration;
-using Microsoft.Extensions.Logging;
-using Momiji.Core.Configuration;
+﻿using Momiji.Core.Configuration;
 using Momiji.Core.Dll;
 using Momiji.Core.Timer;
 using Momiji.Core.WebMidi;
-using System;
-using System.Collections.Generic;
 using System.Net.WebSockets;
 using System.Text;
 using System.Text.Json;
-using System.Threading;
-using System.Threading.Tasks;
 using System.Threading.Tasks.Dataflow;
 
 namespace mixerTest
@@ -41,22 +35,22 @@ namespace mixerTest
         private IDllManager DllManager { get; }
         private Param Param { get; set; }
 
-        private bool disposed;
+        private bool _disposed;
 
         private delegate void OnDispatch();
-        private readonly ActionBlock<OnDispatch> dispatcher = new((task) => { task(); });
+        private readonly ActionBlock<OnDispatch> _dispatcher = new((task) => { task(); });
 
-        private CancellationTokenSource processCancel;
-        private Task processTask;
-        private readonly BufferBlock<MIDIMessageEvent2> midiEventInput = new();
-        private readonly BufferBlock<MIDIMessageEvent2> midiEventOutput = new();
+        private CancellationTokenSource? _processCancel;
+        private Task? _processTask;
+        private readonly BufferBlock<MIDIMessageEvent2> _midiEventInput = new();
+        private readonly BufferBlock<MIDIMessageEvent2> _midiEventOutput = new();
 
-        private ILogic logic;
+        private ILogic? _logic;
 
         //private readonly IDictionary<WebSocket, int> webSocketPool = new ConcurrentDictionary<WebSocket, int>();
 
-        private readonly BroadcastBlock<string> wsBroadcaster = new(null);
-        private CancellationTokenSource wsProcessCancel = new();
+        private readonly BroadcastBlock<string> _wsBroadcaster = new(null);
+        private CancellationTokenSource _wsProcessCancel = new();
 
         //private BufferBlock<OpusOutputBuffer> audioOutput = new BufferBlock<OpusOutputBuffer>();
         //private BufferBlock<H264OutputBuffer> videoOutput = new BufferBlock<H264OutputBuffer>();
@@ -82,135 +76,126 @@ namespace mixerTest
 
         protected virtual void Dispose(bool disposing)
         {
-            if (disposed) return;
+            if (_disposed) return;
 
             if (disposing)
             {
                 try
                 {
-                    wsProcessCancel.Cancel();
+                    _wsProcessCancel.Cancel();
                 }
                 catch (AggregateException e)
                 {
                     Logger.LogInformation(e, "[home] WebSocket Process Cancel Exception");
                 }
-                wsProcessCancel.Dispose();
-                wsProcessCancel = null;
+                _wsProcessCancel.Dispose();
+                //wsProcessCancel = null;
 
                 Cancel();
 
-                dispatcher.Complete();
-                dispatcher.Completion.Wait();
+                _dispatcher.Complete();
+                _dispatcher.Completion.Wait();
+
+                _processTask?.Wait();
+                _processTask?.Dispose();
+                _processTask = null;
+                _processCancel?.Dispose();
+                _processCancel = null;
             }
-            disposed = true;
+            _disposed = true;
         }
 
         public void Start()
         {
-            dispatcher.Post(() =>
+            _dispatcher.Post(async () =>
             {
-                if (processCancel != null)
+                if (_processCancel != null)
                 {
                     Logger.LogInformation("[home] already started.");
                     return;
                 }
-                processCancel = new CancellationTokenSource();
-                processTask = Loop().ContinueWith((task)=> { Cancel(); }, TaskScheduler.Default);
+                _processCancel = new CancellationTokenSource();
 
-                Logger.LogInformation("[home] started.");
+                BroadcastStatus("start");
+                Logger.LogInformation("main loop start");
+
+                try
+                {
+                    //logic = new Logic1(Configuration, LoggerFactory, DllManager, Param, midiEventInput, midiEventOutput, processCancel);
+                    _logic = new Logic2(Configuration, LoggerFactory, DllManager, Param, _midiEventInput, _midiEventOutput, _processCancel);
+                    //logic = new Logic4(Configuration, LoggerFactory, DllManager, Param, midiEventInput, midiEventOutput, processCancel);
+
+                    _processTask = _logic.RunAsync().ContinueWith((task) => { Cancel(); }, TaskScheduler.Default);
+
+                    BroadcastStatus("run");
+                    Logger.LogInformation("[home] started.");
+
+                    await _processTask.ConfigureAwait(false);
+
+                    Logger.LogInformation("main loop end");
+                }
+                catch (TaskCanceledException)
+                {
+                    Logger.LogInformation("TaskCanceled");
+                }
+                catch (Exception e)
+                {
+                    Logger.LogInformation(e, "Exception");
+                    throw;
+                }
+                finally
+                {
+                    _processTask?.Dispose();
+                    _processTask = null;
+                    _processCancel?.Dispose();
+                    _processCancel = null;
+
+                    BroadcastStatus("stop");
+                    Logger.LogInformation("[home] stopped.");
+                }
             });
         }
 
-
         public void Cancel()
         {
-            dispatcher.Post(() =>
+            _dispatcher.Post(() =>
             {
-                if (processCancel == null)
+                if (_processCancel == null)
                 {
                     Logger.LogInformation("[home] already stopped.");
                     return;
                 }
 
-                try
-                {
-                    processCancel.Cancel();
-                    processTask.Wait();
-                }
-                catch (AggregateException e)
-                {
-                    Logger.LogInformation(e, "[home] Process Cancel Exception");
-                }
-                finally
-                {
-                    processTask?.Dispose();
-                    processTask = null;
-                    processCancel?.Dispose();
-                    processCancel = null;
-                }
-                Logger.LogInformation("[home] stopped.");
+                _processCancel?.Cancel();
             });
         }
 
         public void OpenEditor()
         {
-            dispatcher.Post(() =>
+            _dispatcher.Post(() =>
             {
-                if (processCancel == null)
+                if (_processCancel == null)
                 {
                     Logger.LogInformation("[home] already stopped.");
                     return;
                 }
 
-                logic.OpenEditor();
+                _logic?.OpenEditor();
             });
         }
 
         public void CloseEditor()
         {
-            dispatcher.Post(() =>
+            _dispatcher.Post(() =>
             {
-                if (processCancel == null)
+                if (_processCancel == null)
                 {
                     Logger.LogInformation("[home] already stopped.");
                     return;
                 }
 
-                logic.CloseEditor();
+                _logic?.CloseEditor();
             });
-        }
-
-        private async Task Loop()
-        {
-            BroadcastStatus("start");
-            Logger.LogInformation("main loop start");
-
-            try
-            {
-                //logic = new Logic1(Configuration, LoggerFactory, DllManager, Param, midiEventInput, midiEventOutput, processCancel);
-                logic = new Logic2(Configuration, LoggerFactory, DllManager, Param, midiEventInput, midiEventOutput, processCancel);
-                //logic = new Logic4(Configuration, LoggerFactory, DllManager, Param, midiEventInput, midiEventOutput, processCancel);
-
-                var task = logic.RunAsync();
-
-                BroadcastStatus("run");
-
-                await task.ConfigureAwait(false);
-            }
-            catch (TaskCanceledException)
-            {
-                Logger.LogInformation("TaskCanceled");
-            }
-            catch (Exception e)
-            {
-                Logger.LogInformation(e, "Exception");
-                throw;
-            }
-            finally
-            {
-                BroadcastStatus("stop");
-                Logger.LogInformation("main loop end");
-            }
         }
 
         /*
@@ -241,7 +226,7 @@ namespace mixerTest
                 ["value"] = status
             };
 
-            wsBroadcaster.Post(JsonSerializer.Serialize(param, new JsonSerializerOptions()));
+            _wsBroadcaster.Post(JsonSerializer.Serialize(param, new JsonSerializerOptions()));
         }
 
         private static async Task SendWebsocketAsync(WebSocket webSocket, IDictionary<string, object> param, CancellationToken ct)
@@ -263,11 +248,11 @@ namespace mixerTest
 
             Logger.LogInformation("[web socket] start");
 
-            var ct = wsProcessCancel.Token;
+            var ct = _wsProcessCancel.Token;
 
             try
             {
-                using var unlink = wsBroadcaster.LinkTo(new ActionBlock<string>(async message =>
+                using var unlink = _wsBroadcaster.LinkTo(new ActionBlock<string>(async message =>
                 {
                     await SendWebsocketAsync(webSocket, message, ct).ConfigureAwait(false);
                 }));
@@ -309,15 +294,26 @@ namespace mixerTest
                         MIDIMessageEvent2 midiEvent2;
                         midiEvent2.midiMessageEvent = midiEvent;
                         midiEvent2.receivedTimeUSec = counter.NowTicks / 10;
-                        midiEventInput.Post(midiEvent2);
-                        midiEventOutput.Post(midiEvent2);
+                        _midiEventInput.Post(midiEvent2);
+                        _midiEventOutput.Post(midiEvent2);
                     }
                     else if (result.MessageType == WebSocketMessageType.Text)
                     {
-                        var text = Encoding.UTF8.GetString(buf.Array, 0, result.Count).Trim();
+                        var bufArray = buf.Array;
+                        if (bufArray == default)
+                        {
+                            continue;
+                        }
+
+                        var text = Encoding.UTF8.GetString(bufArray, 0, result.Count).Trim();
                         Logger.LogInformation($"[web socket] text [{text}]");
 
                         var json = JsonSerializer.Deserialize<IDictionary<string, JsonElement>>(text);
+                        if (json == default)
+                        {
+                            continue;
+                        }
+
                         var type = json["type"].GetString();
                         Logger.LogInformation($"[web socket] type = {type}.");
 
@@ -359,7 +355,10 @@ namespace mixerTest
                             };
 
                             var param = JsonSerializer.Deserialize<Param>(paramJson, options);
-                            Param = param;
+                            if (param != default)
+                            {
+                                Param = param;
+                            }
                         }
                         else if (type == "offer")
                         {
@@ -389,7 +388,7 @@ namespace mixerTest
             }
         }
 
-        static MIDIMessageEvent ToMIDIMessageEvent(byte[] buf)
+        static MIDIMessageEvent ToMIDIMessageEvent(byte[]? buf)
         {
             unsafe
             {

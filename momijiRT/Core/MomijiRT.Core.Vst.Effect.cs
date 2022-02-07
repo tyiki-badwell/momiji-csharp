@@ -19,7 +19,7 @@ namespace MomijiRT.Core.Vst
 
     public sealed class Effect : IBasicAudioEffect
     {
-        private AudioEncodingProperties currentEncodingProperties;
+        private AudioEncodingProperties? currentEncodingProperties;
         private List<AudioEncodingProperties> supportedEncodingProperties = new();
 
         public Effect()
@@ -100,7 +100,7 @@ namespace MomijiRT.Core.Vst
 
                 float freq = 0.480f; // choosing to generate frequency of 1kHz
                 float amplitude = 0.3f;
-                int sampleRate = (int)currentEncodingProperties.SampleRate;
+                int sampleRate = (currentEncodingProperties != default) ? (int)currentEncodingProperties.SampleRate: 48000;
                 double sampleIncrement = (freq * (Math.PI * 2)) / sampleRate;
 
                 // Generate a 1kHz sine wave and populate the values in the memory buffer
@@ -137,7 +137,7 @@ namespace MomijiRT.Core.Vst
             }
         }
 
-        private IPropertySet configuration;
+        private IPropertySet? configuration;
         public void SetProperties(IPropertySet configuration)
         {
             this.configuration = configuration;

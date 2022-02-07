@@ -10,6 +10,8 @@
     <Platforms>AnyCPU;x86;x64</Platforms>
     <AnalysisMode>AllEnabledByDefault</AnalysisMode>
     <AutoGenerateBindingRedirects>false</AutoGenerateBindingRedirects>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
   </PropertyGroup>
 
   <ItemGroup>

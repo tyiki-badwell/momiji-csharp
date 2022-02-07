@@ -32,7 +32,7 @@ namespace MomijiWPF
 
         private async void Button_Click_Run(object sender, RoutedEventArgs e)
         {
-            var host = VstBridgeWorker.CreateHostBuilder(null).Build();
+            var host = VstBridgeWorker.CreateHostBuilder(Array.Empty<string>()).Build();
             list.Add(host);
 
             await host.StartAsync().ConfigureAwait(false);
@@ -47,7 +47,12 @@ namespace MomijiWPF
         {
             foreach (var host in list)
             {
-                var worker = (IRunner)host.Services.GetService(typeof(IRunner));
+                var worker = (IRunner?)host.Services.GetService(typeof(IRunner));
+                if (worker == null)
+                {
+                    continue;
+                }
+
                 worker.OpenEditor();
             }
         }
@@ -57,7 +62,12 @@ namespace MomijiWPF
             var taskSet = new HashSet<Task>();
             foreach (var host in list)
             {
-                var worker = (IRunner)host.Services.GetService(typeof(IRunner));
+                var worker = (IRunner?)host.Services.GetService(typeof(IRunner));
+                if (worker == null)
+                {
+                    continue;
+                }
+
                 taskSet.Add(worker.CloseEditorAsync());
             }
             await Task.WhenAll(taskSet).ConfigureAwait(false);
@@ -84,10 +94,10 @@ namespace MomijiWPF
             list.Clear();
         }
 
-        private AudioGraph audioGraph = null;
-        private double audioWaveTheta = 0;
+        private AudioGraph? audioGraph;
+        private double audioWaveTheta;
         private ElapsedTimeCounter counter = new();
-        private double before = 0;
+        private double before;
 
         private async void Button_Click_AppWindow(object sender, RoutedEventArgs e)
         {
@@ -156,27 +166,27 @@ namespace MomijiWPF
                 var result = await AudioGraph.CreateAsync(settings);
                 if (result.Status != AudioGraphCreationStatus.Success)
                 {
-                    throw new Exception("create failed.", result.ExtendedError);
+                    throw new InvalidOperationException("create failed.", result.ExtendedError);
                 }
                 audioGraph = result.Graph;
             }
             Debug.Print($"audioGraph.SamplesPerQuantum {audioGraph.SamplesPerQuantum}");
             Debug.Print($"audioGraph.LatencyInSamples {audioGraph.LatencyInSamples}");
 
-            AudioDeviceOutputNode outNode = null;
+            AudioDeviceOutputNode outNode;
             {
                 var result = await audioGraph.CreateDeviceOutputNodeAsync();
                 if (result.Status != AudioDeviceNodeCreationStatus.Success)
                 {
-                    throw new Exception("create failed.", result.ExtendedError);
+                    throw new InvalidOperationException("create failed.", result.ExtendedError);
                 }
                 outNode = result.DeviceOutputNode;
                 outNode.Start();
             }
 
-            AudioFrameInputNode inNode = null;
+            AudioFrameInputNode inNode;
             {
-                var prop = AudioEncodingProperties.CreatePcm((uint)48000, 2, sizeof(float) * 8);
+                var prop = AudioEncodingProperties.CreatePcm(48000, 2, sizeof(float) * 8);
                 prop.Subtype = MediaEncodingSubtypes.Float;
 
                 Debug.Print($"prop.SampleRate {prop.SampleRate}");

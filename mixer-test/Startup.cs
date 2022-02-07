@@ -1,10 +1,4 @@
-﻿using Microsoft.AspNetCore.Builder;
-using Microsoft.AspNetCore.Hosting;
-using Microsoft.AspNetCore.Http;
-using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Hosting;
-using Microsoft.Extensions.Logging;
-using Momiji.Core.Dll;
+﻿using Momiji.Core.Dll;
 
 namespace mixerTest
 {
@@ -70,7 +64,7 @@ namespace mixerTest
             });
             appLifetime?.ApplicationStopped.Register(() =>
             {
-                app.ApplicationServices.GetService<IRunner>().Cancel();
+                app.ApplicationServices.GetService<IRunner>()?.Cancel();
                 logger.LogInformation("ApplicationStopped");
             });
         }

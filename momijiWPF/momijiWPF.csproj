@@ -8,6 +8,8 @@
     <AnalysisMode>AllEnabledByDefault</AnalysisMode>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
 	<ApplicationManifest>MomijiWPF.exe.manifest</ApplicationManifest>
+	<Nullable>enable</Nullable>
+	<ImplicitUsings>enable</ImplicitUsings>
   </PropertyGroup>
 
   <ItemGroup>

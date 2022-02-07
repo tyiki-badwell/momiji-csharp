@@ -1,5 +1,4 @@
-﻿using System;
-using System.Runtime.InteropServices;
+﻿using System.Runtime.InteropServices;
 
 #pragma warning disable CA1069 // 列挙値を重複させることはできない
 
@@ -26,7 +25,6 @@ namespace Momiji.Interop.Vst
 
     namespace AudioMaster
     {
-
         //-------------------------------------------------------------------------------------------------------
         /** Basic dispatcher Opcodes (Plug-in to Host) */
         //-------------------------------------------------------------------------------------------------------
@@ -333,7 +331,7 @@ namespace Momiji.Interop.Vst
 
         [MarshalAs(UnmanagedType.ByValArray, SizeConst = 56)]
         public fixed char future[56];  //< reserved for future use (please zero)
-                                       //-------------------------------------------------------------------------------------------------------
+                                        //-------------------------------------------------------------------------------------------------------
 
         [UnmanagedFunctionPointer(CallingConvention.Cdecl, CharSet = CharSet.Ansi, SetLastError = false)]
         internal delegate IntPtr VSTPluginMain(
@@ -439,7 +437,7 @@ namespace Momiji.Interop.Vst
 
         [MarshalAs(UnmanagedType.ByValArray, SizeConst = 16)]
         readonly char[] future;  //< reserved for future use
-                                 //-------------------------------------------------------------------------------------------------------
+                                    //-------------------------------------------------------------------------------------------------------
     };
 
 
@@ -510,7 +508,7 @@ namespace Momiji.Interop.Vst
 
         [MarshalAs(UnmanagedType.ByValArray, SizeConst = 48)]
         readonly char[] future;              //< reserved for future use
-                                             //-------------------------------------------------------------------------------------------------------
+                                                //-------------------------------------------------------------------------------------------------------
     };
 
     //-------------------------------------------------------------------------------------------------------
@@ -585,8 +583,8 @@ namespace Momiji.Interop.Vst
         //-------------------------------------------------------------------------------------------------------
         public int numEvents;        //< number of Events in array
         public IntPtr reserved;        //< zero (Reserved for future use)
-                                       //IntPtr	events;			//VstEvent* events[2];	///< event pointer array, variable size
-                                       //-------------------------------------------------------------------------------------------------------
+                                        //IntPtr	events;			//VstEvent* events[2];	///< event pointer array, variable size
+                                        //-------------------------------------------------------------------------------------------------------
     };
 
     //-------------------------------------------------------------------------------------------------------
@@ -683,7 +681,7 @@ namespace Momiji.Interop.Vst
         public int numSamplesOutput;         //< number of outgoing samples
         public IntPtr numSamplesInputProcessed;    //< Int32* number of samples actually processed of input
         public IntPtr numSamplesOutputProcessed;   //< Int32* number of samples actually processed of output
-                                                   //-------------------------------------------------------------------------------------------------------
+                                                    //-------------------------------------------------------------------------------------------------------
     };
 
     //-------------------------------------------------------------------------------------------------------

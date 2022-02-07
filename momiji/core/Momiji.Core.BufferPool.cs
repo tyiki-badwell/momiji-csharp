@@ -1,130 +1,123 @@
 ﻿using Microsoft.Extensions.Logging;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading;
-using System.Threading.Tasks;
+using System.Diagnostics.CodeAnalysis;
 using System.Threading.Tasks.Dataflow;
 
-namespace Momiji.Core.Buffer
+namespace Momiji.Core.Buffer;
+public class BufferPool<T> : IDisposable, IReceivableSourceBlock<T>, ITargetBlock<T> where T : notnull, IDisposable
 {
-    public class BufferPool<T> : IDisposable, IReceivableSourceBlock<T>, ITargetBlock<T> where T : IDisposable
+    private ILoggerFactory LoggerFactory { get; }
+    private ILogger Logger { get; }
+
+    private bool disposed;
+    private readonly List<T> list = new();
+    private readonly BufferBlock<T> bufferBlock = new();
+
+    public Task Completion => bufferBlock.Completion;
+
+    ~BufferPool()
     {
-        private ILoggerFactory LoggerFactory { get; }
-        private ILogger Logger { get; }
+        Dispose(false);
+    }
 
-        private bool disposed;
-        private List<T> list = new();
-        private readonly BufferBlock<T> bufferBlock = new();
+    public void Dispose()
+    {
+        Dispose(true);
+        GC.SuppressFinalize(this);
+    }
 
-        public Task Completion => bufferBlock.Completion;
+    protected virtual void Dispose(bool disposing)
+    {
+        if (disposed) return;
 
-        ~BufferPool()
+        if (disposing)
         {
-            Dispose(false);
+            Logger.LogInformation($"Dispose buffer size[{list.Count}][{GenericTypeName}]");
+            list.ForEach(item => item.Dispose());
+            list.Clear();
         }
 
-        public void Dispose()
+        disposed = true;
+    }
+
+    public T Receive(CancellationToken cancellationToken)
+    {
+        if (bufferBlock.TryReceive(out var item))
         {
-            Dispose(true);
-            GC.SuppressFinalize(this);
+            return item;
         }
+        cancellationToken.ThrowIfCancellationRequested();
+        return AddBuffer();
+    }
 
-        protected virtual void Dispose(bool disposing)
+    public bool TryReceive(Predicate<T>? filter, [MaybeNullWhen(false)] out T item)
+    {
+        return bufferBlock.TryReceive(filter, out item);
+    }
+
+    public bool TryReceiveAll([MaybeNullWhen(false)] out IList<T> items)
+    {
+        return bufferBlock.TryReceiveAll(out items);
+    }
+
+    [return: MaybeNull]
+    public T ConsumeMessage(DataflowMessageHeader messageHeader, ITargetBlock<T> target, out bool messageConsumed)
+    {
+        return ((IReceivableSourceBlock<T>)bufferBlock).ConsumeMessage(messageHeader, target, out messageConsumed);
+    }
+
+    public IDisposable LinkTo(ITargetBlock<T> target, DataflowLinkOptions linkOptions)
+    {
+        return bufferBlock.LinkTo(target, linkOptions);
+    }
+
+    public void ReleaseReservation(DataflowMessageHeader messageHeader, ITargetBlock<T> target)
+    {
+        ((IReceivableSourceBlock<T>)bufferBlock).ReleaseReservation(messageHeader, target);
+    }
+
+    public bool ReserveMessage(DataflowMessageHeader messageHeader, ITargetBlock<T> target)
+    {
+        return ((IReceivableSourceBlock<T>)bufferBlock).ReserveMessage(messageHeader, target);
+    }
+
+    public void Complete()
+    {
+        bufferBlock.Complete();
+    }
+
+    public void Fault(Exception exception)
+    {
+        ((IReceivableSourceBlock<T>)bufferBlock).Fault(exception);
+    }
+
+    public DataflowMessageStatus OfferMessage(DataflowMessageHeader messageHeader, T messageValue, ISourceBlock<T>? source, bool consumeToAccept)
+    {
+        return ((ITargetBlock<T>)bufferBlock).OfferMessage(messageHeader, messageValue, source, consumeToAccept);
+    }
+
+    public delegate T Allocator();
+    private Allocator A { get; }
+    private string GenericTypeName { get; }
+
+    public BufferPool(int size, Allocator a, ILoggerFactory loggerFactory)
+    {
+        GenericTypeName = string.Join(",", GetType().GetGenericArguments().Select(type => type.Name));
+
+        LoggerFactory = loggerFactory;
+        Logger = LoggerFactory.CreateLogger<BufferPool<T>>();
+
+        A = a;
+        for (var i = 0; i < size; i++)
         {
-            if (disposed) return;
-
-            if (disposing)
-            {
-                Logger.LogInformation($"Dispose buffer size[{list.Count}][{GenericTypeName}]");
-                list.ForEach(item => item.Dispose());
-                list.Clear();
-                list = null;
-            }
-
-            disposed = true;
+            bufferBlock.Post(AddBuffer());
         }
+    }
 
-        public T Receive(CancellationToken cancellationToken)
-        {
-            var result = bufferBlock.TryReceive(out T item);
-            if (result)
-            {
-                return item;
-            }
-            cancellationToken.ThrowIfCancellationRequested();
-            return AddBuffer();
-        }
-
-        public bool TryReceive(Predicate<T> filter, out T item)
-        {
-            return bufferBlock.TryReceive(filter, out item);
-        }
-
-        public bool TryReceiveAll(out IList<T> items)
-        {
-            return bufferBlock.TryReceiveAll(out items);
-        }
-
-        public T ConsumeMessage(DataflowMessageHeader messageHeader, ITargetBlock<T> target, out bool messageConsumed)
-        {
-            return ((IReceivableSourceBlock<T>)bufferBlock).ConsumeMessage(messageHeader, target, out messageConsumed);
-        }
-
-        public IDisposable LinkTo(ITargetBlock<T> target, DataflowLinkOptions linkOptions)
-        {
-            return bufferBlock.LinkTo(target, linkOptions);
-        }
-
-        public void ReleaseReservation(DataflowMessageHeader messageHeader, ITargetBlock<T> target)
-        {
-            ((IReceivableSourceBlock<T>)bufferBlock).ReleaseReservation(messageHeader, target);
-        }
-
-        public bool ReserveMessage(DataflowMessageHeader messageHeader, ITargetBlock<T> target)
-        {
-            return ((IReceivableSourceBlock<T>)bufferBlock).ReserveMessage(messageHeader, target);
-        }
-
-        public void Complete()
-        {
-            bufferBlock.Complete();
-        }
-
-        public void Fault(Exception exception)
-        {
-            ((IReceivableSourceBlock<T>)bufferBlock).Fault(exception);
-        }
-
-        public DataflowMessageStatus OfferMessage(DataflowMessageHeader messageHeader, T messageValue, ISourceBlock<T> source, bool consumeToAccept)
-        {
-            return ((ITargetBlock<T>)bufferBlock).OfferMessage(messageHeader, messageValue, source, consumeToAccept);
-        }
-
-        public delegate T Allocator();
-        private Allocator A { get; }
-        private string GenericTypeName { get; }
-
-        public BufferPool(int size, Allocator a, ILoggerFactory loggerFactory)
-        {
-            GenericTypeName = string.Join(",", GetType().GetGenericArguments().Select(type => type.Name));
-
-            LoggerFactory = loggerFactory;
-            Logger = LoggerFactory.CreateLogger<BufferPool<T>>();
-
-            A = a;
-            for (var i = 0; i < size; i++)
-            {
-                bufferBlock.Post(AddBuffer());
-            }
-        }
-
-        private T AddBuffer()
-        {
-            var buffer = A();
-            list.Add(buffer);
-            Logger.LogInformation($"AddBuffer[{GenericTypeName}] [{list.Count}]");
-            return buffer;
-        }
+    private T AddBuffer()
+    {
+        var buffer = A();
+        list.Add(buffer);
+        Logger.LogInformation($"AddBuffer[{GenericTypeName}] [{list.Count}]");
+        return buffer;
     }
 }

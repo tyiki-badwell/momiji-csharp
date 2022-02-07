@@ -45,7 +45,7 @@ namespace Momiji.Core.Wave
                     using var test = new WaveOutShort(deviceID, channels, samplingRate, channelMask, loggerFactory, counter, pcmPool);
                     test.Execute(pcmPool.Receive(), default);
                 }
-                catch (Exception)
+                catch (WaveException)
                 {
 
                 }

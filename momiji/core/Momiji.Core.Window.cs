@@ -1,13 +1,7 @@
 ﻿using Microsoft.Extensions.Logging;
-using Microsoft.Graphics.Canvas;
 using Momiji.Interop.Buffer;
-using Momiji.Interop.Windows.Graphics.Capture;
-using System;
 using System.Collections.Concurrent;
 using System.Runtime.InteropServices;
-using System.Threading;
-using System.Threading.Tasks;
-using Windows.Graphics.Capture;
 using Gdi32 = Momiji.Interop.Gdi32.NativeMethods;
 using Kernel32 = Momiji.Interop.Kernel32.NativeMethods;
 using User32 = Momiji.Interop.User32.NativeMethods;
@@ -55,7 +49,7 @@ namespace Momiji.Core.Window
             {
                 style = cs,
                 lpfnWndProc = wndProc.FunctionPointer,
-                hInstance = Kernel32.GetModuleHandle(null),
+                hInstance = Kernel32.GetModuleHandle(default),
                 lpszClassName = Marshal.StringToHGlobalUni(nameof(NativeWindow) + Guid.NewGuid().ToString())
             };
 
@@ -105,9 +99,9 @@ namespace Momiji.Core.Window
         public delegate void OnPreCloseWindow();
         public delegate void OnPostPaint(HandleRef hWindow);
 
-        private readonly OnCreateWindow onCreateWindow;
-        private readonly OnPreCloseWindow onPreCloseWindow;
-        private readonly OnPostPaint onPostPaint;
+        private readonly OnCreateWindow? onCreateWindow;
+        private readonly OnPreCloseWindow? onPreCloseWindow;
+        private readonly OnPostPaint? onPostPaint;
 
         private HandleRef hWindow;
 
@@ -115,9 +109,9 @@ namespace Momiji.Core.Window
 
         public NativeWindow(
             ILoggerFactory loggerFactory,
-            OnCreateWindow onCreateWindow = default,
-            OnPreCloseWindow onPreCloseWindow = default,
-            OnPostPaint onPostPaint = default
+            OnCreateWindow? onCreateWindow = default,
+            OnPreCloseWindow? onPreCloseWindow = default,
+            OnPostPaint? onPostPaint = default
         )
         {
             LoggerFactory = loggerFactory;

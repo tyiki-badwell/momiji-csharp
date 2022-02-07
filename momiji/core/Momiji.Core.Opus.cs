@@ -3,165 +3,173 @@ using Momiji.Core.Timer;
 using Momiji.Core.Wave;
 using Momiji.Interop.Buffer;
 using Momiji.Interop.Opus;
-using System;
 
-namespace Momiji.Core.Opus
+namespace Momiji.Core.Opus;
+
+public class OpusException : Exception
 {
-    public class OpusException : Exception
+    public OpusException()
     {
-        public OpusException()
+    }
+
+    public OpusException(string message) : base(message)
+    {
+    }
+
+    public OpusException(string message, Exception innerException) : base(message, innerException)
+    {
+    }
+}
+
+public class OpusOutputBuffer : IDisposable
+{
+    private bool disposed;
+    internal PinnedBuffer<byte[]>? Buffer { get; private set; }
+    public BufferLog Log { get; }
+    public int Wrote { get; set; }
+
+    public OpusOutputBuffer(int size)
+    {
+        Buffer = new(new byte[size]);
+        Log = new();
+    }
+    ~OpusOutputBuffer()
+    {
+        Dispose(false);
+    }
+
+    public void Dispose()
+    {
+        Dispose(true);
+        GC.SuppressFinalize(this);
+    }
+
+    protected virtual void Dispose(bool disposing)
+    {
+        if (disposed) return;
+
+        if (disposing)
         {
         }
 
-        public OpusException(string message) : base(message)
-        {
-        }
+        Buffer?.Dispose();
+        Buffer = null;
 
-        public OpusException(string message, Exception innerException) : base(message, innerException)
+        disposed = true;
+    }
+}
+
+public class OpusEncoder : IDisposable
+{
+    private ILoggerFactory LoggerFactory { get; }
+    private ILogger Logger { get; }
+    private ElapsedTimeCounter Counter { get; }
+
+    private bool disposed;
+    private Encoder? encoder;
+
+    public OpusEncoder(
+        SamplingRate Fs,
+        Channels channels,
+        ILoggerFactory loggerFactory,
+        ElapsedTimeCounter counter
+    )
+    {
+        LoggerFactory = loggerFactory;
+        Logger = LoggerFactory.CreateLogger<OpusEncoder>();
+        Counter = counter;
+
+        Logger.LogInformation($"opus version {NativeMethods.opus_get_version_string()}");
+
+        encoder =
+            NativeMethods.opus_encoder_create(
+                Fs, channels, OpusApplicationType.Audio, out var error
+            );
+
+        if (error != OpusStatusCode.OK)
         {
+            throw new OpusException($"[opus] opus_encoder_create error:{NativeMethods.opus_strerror((int)error)}({error})");
         }
     }
 
-    public class OpusOutputBuffer : IDisposable
+    ~OpusEncoder()
     {
-        private bool disposed;
-        internal PinnedBuffer<byte[]> Buffer { get; }
-        public BufferLog Log { get; }
-        public int Wrote { get; set; }
-
-        public OpusOutputBuffer(int size)
-        {
-            Buffer = new(new byte[size]);
-            Log = new();
-        }
-        ~OpusOutputBuffer()
-        {
-            Dispose(false);
-        }
-
-        public void Dispose()
-        {
-            Dispose(true);
-            GC.SuppressFinalize(this);
-        }
-
-        protected virtual void Dispose(bool disposing)
-        {
-            if (disposed) return;
-
-            if (disposing)
-            {
-            }
-
-            Buffer?.Dispose();
-            disposed = true;
-        }
+        Dispose(false);
     }
 
-    public class OpusEncoder : IDisposable
+    public void Dispose()
     {
-        private ILoggerFactory LoggerFactory { get; }
-        private ILogger Logger { get; }
-        private ElapsedTimeCounter Counter { get; }
+        Dispose(true);
+        GC.SuppressFinalize(this);
+    }
 
-        private bool disposed;
-        private Encoder encoder;
+    protected virtual void Dispose(bool disposing)
+    {
+        if (disposed) return;
 
-        public OpusEncoder(
-            SamplingRate Fs,
-            Channels channels,
-            ILoggerFactory loggerFactory,
-            ElapsedTimeCounter counter
-        )
+        if (disposing)
         {
-            LoggerFactory = loggerFactory;
-            Logger = LoggerFactory.CreateLogger<OpusEncoder>();
-            Counter = counter;
-
-            Logger.LogInformation($"opus version {NativeMethods.opus_get_version_string()}");
-
-            encoder =
-                NativeMethods.opus_encoder_create(
-                    Fs, channels, OpusApplicationType.Audio, out var error
-                );
-
-            if (error != OpusStatusCode.OK)
-            {
-                throw new OpusException($"[opus] opus_encoder_create error:{NativeMethods.opus_strerror((int)error)}({error})");
-            }
         }
 
-        ~OpusEncoder()
+        if (encoder != null)
         {
-            Dispose(false);
+            if (
+                !encoder.IsInvalid
+                && !encoder.IsClosed
+            )
+            {
+                encoder.Close();
+            }
+            encoder = null;
         }
 
-        public void Dispose()
+        disposed = true;
+    }
+
+    public void Execute(
+        PcmBuffer<float> source,
+        OpusOutputBuffer dest
+    )
+    {
+        ArgumentNullException.ThrowIfNull(source);
+        ArgumentNullException.ThrowIfNull(dest);
+
+        if (encoder == default)
         {
-            Dispose(true);
-            GC.SuppressFinalize(this);
+            throw new InvalidOperationException("encoder is null.");
+        }
+        if (source.Buffer == default)
+        {
+            throw new InvalidOperationException("source.Buffer is null.");
+        }
+        if (dest.Buffer == default)
+        {
+            throw new InvalidOperationException("dest.Buffer is null.");
         }
 
-        protected virtual void Dispose(bool disposing)
+        dest.Log.Marge(source.Log);
+
+        dest.Log.Add("[opus] start opus_encode_float", Counter.NowTicks);
+        dest.Wrote = encoder.opus_encode_float(
+            source.Buffer.AddrOfPinnedObject,
+            source.Buffer.Target.Length / 2,
+            dest.Buffer.AddrOfPinnedObject,
+            dest.Buffer.Target.Length
+            );
+        /*
+            この式を満たさないとダメ
+            TODO 満たすように分結する仕組み要る？？？
+            if (blockSize<samplingRate/400)
+            return -1;
+            if (400*blockSize!=samplingRate   && 200*blockSize!=samplingRate   && 100*blockSize!=samplingRate   &&
+                50*blockSize!=samplingRate   &&  25*blockSize!=samplingRate   &&  50*blockSize!=3*samplingRate &&
+                50*blockSize!=4*samplingRate &&  50*blockSize!=5*samplingRate &&  50*blockSize!=6*samplingRate)
+            return -1;
+        */
+        dest.Log.Add($"[opus] end opus_encode_float {dest.Wrote}", Counter.NowTicks);
+        if (dest.Wrote < 0)
         {
-            if (disposed) return;
-
-            if (disposing)
-            {
-            }
-
-            if (encoder != null)
-            {
-                if (
-                    !encoder.IsInvalid
-                    && !encoder.IsClosed
-                )
-                {
-                    encoder.Close();
-                }
-                encoder = null;
-            }
-
-            disposed = true;
-        }
-
-        public void Execute(
-            PcmBuffer<float> source,
-            OpusOutputBuffer dest
-        )
-        {
-            if (source == default)
-            {
-                throw new ArgumentNullException(nameof(source));
-            }
-            if (dest == default)
-            {
-                throw new ArgumentNullException(nameof(dest));
-            }
-            dest.Log.Marge(source.Log);
-
-            dest.Log.Add("[opus] start opus_encode_float", Counter.NowTicks);
-            dest.Wrote = encoder.opus_encode_float(
-                source.Buffer.AddrOfPinnedObject,
-                source.Buffer.Target.Length / 2,
-                dest.Buffer.AddrOfPinnedObject,
-                dest.Buffer.Target.Length
-                );
-            /*
-             この式を満たさないとダメ
-             TODO 満たすように分結する仕組み要る？？？
-              if (blockSize<samplingRate/400)
-                return -1;
-              if (400*blockSize!=samplingRate   && 200*blockSize!=samplingRate   && 100*blockSize!=samplingRate   &&
-                  50*blockSize!=samplingRate   &&  25*blockSize!=samplingRate   &&  50*blockSize!=3*samplingRate &&
-                  50*blockSize!=4*samplingRate &&  50*blockSize!=5*samplingRate &&  50*blockSize!=6*samplingRate)
-                return -1;
-            */
-            dest.Log.Add($"[opus] end opus_encode_float {dest.Wrote}", Counter.NowTicks);
-            if (dest.Wrote < 0)
-            {
-                throw new OpusException($"[opus] opus_encode_float error:{NativeMethods.opus_strerror(dest.Wrote)}({dest.Wrote})");
-            }
+            throw new OpusException($"[opus] opus_encode_float error:{NativeMethods.opus_strerror(dest.Wrote)}({dest.Wrote})");
         }
     }
 }

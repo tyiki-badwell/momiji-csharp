@@ -1,6 +1,4 @@
-﻿using Microsoft.Extensions.Configuration;
-using Microsoft.Extensions.Logging;
-using Momiji.Core.Buffer;
+﻿using Momiji.Core.Buffer;
 using Momiji.Core.Configuration;
 using Momiji.Core.Dll;
 using Momiji.Core.FFT;
@@ -14,12 +12,7 @@ using Momiji.Core.Vst;
 using Momiji.Core.Wave;
 using Momiji.Core.WebMidi;
 using Momiji.Interop.Opus;
-using System;
-using System.Collections.Generic;
-using System.IO;
 using System.Reflection;
-using System.Threading;
-using System.Threading.Tasks;
 using System.Threading.Tasks.Dataflow;
 
 namespace mixerTest
@@ -62,9 +55,16 @@ namespace mixerTest
             StreamKey = Configuration["MIXER_STREAM_KEY"];
             IngestHostname = Configuration["MIXER_INGEST_HOSTNAME"];
 
+            var assembly = Assembly.GetExecutingAssembly();
+            var directoryName = Path.GetDirectoryName(assembly.Location);
+            if (directoryName == default)
+            {
+                throw new InvalidOperationException($"GetDirectoryName({assembly.Location}) failed.");
+            }
+
             CaInfoPath =
                 Path.Combine(
-                    Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location),
+                    directoryName,
                     "lib",
                     "cacert.pem"
                 );
@@ -253,7 +253,7 @@ namespace mixerTest
             using var h264 = new H264Encoder(Param.Width, Param.Height, Param.TargetBitrate, Param.MaxFrameRate, LoggerFactory, counter);
             var effect = vst.AddEffect(Param.EffectName);
 
-            using var ftl = new FtlIngest(StreamKey, IngestHostname, LoggerFactory, counter, audioInterval, videoInterval, Param.Connect, default, CaInfoPath);
+            using var ftl = new FtlIngest(StreamKey, IngestHostname, LoggerFactory, counter, audioInterval, videoInterval, default, CaInfoPath);
             ftl.Connect();
 
             var options = new ExecutionDataflowBlockOptions

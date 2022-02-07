@@ -28,20 +28,20 @@ namespace Momiji.Core.Timer
 
             var list = new List<(int, long, double, double)>();
 
-            using var waitableTimer = new Waiter(counter, interval, true);
+            using var waiter = new Waiter(counter, interval, true);
             counter.Reset();
 
             for (int i = 0; i < 100; i++)
             {
                 var before = counter.NowTicks - start;
-                var r = waitableTimer.Wait();
+                var r = waiter.Wait();
                 var after = counter.NowTicks - start;
                 while(--r > 1)
                 {
                     list.Add((i++, default, default, default));
                 }
 
-                list.Add((i, waitableTimer.BeforeFlames, before, after));
+                list.Add((i, waiter.ProgressedFrames, before, after));
             }
 
             foreach (var (i, laps, before, after) in list)

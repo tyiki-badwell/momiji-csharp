@@ -78,10 +78,16 @@ namespace Momiji.Core.Vst
             Dispose(false);
         }
 
-        public IEffect<T> AddEffect(string library)
+        public IEffect<T> AddEffect(string? library)
         {
+            ArgumentNullException.ThrowIfNull(library);
+            if (library.Length == 0)
+            {
+                throw new ArgumentNullException(nameof(library));
+            }
+
             var effect = new Effect<T>(library, this, LoggerFactory, Counter);
-            effectMap.Add(effect.aeffectPtr, effect);
+            effectMap.Add(effect._aeffectPtr, effect);
             effect.Open();
 
             return effect;
