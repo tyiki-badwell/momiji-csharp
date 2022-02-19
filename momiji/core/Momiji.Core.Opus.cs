@@ -1,7 +1,7 @@
 ﻿using Microsoft.Extensions.Logging;
+using Momiji.Core.Buffer;
 using Momiji.Core.Timer;
 using Momiji.Core.Wave;
-using Momiji.Interop.Buffer;
 using Momiji.Interop.Opus;
 
 namespace Momiji.Core.Opus;

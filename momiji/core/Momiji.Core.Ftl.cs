@@ -1,8 +1,8 @@
 ﻿using Microsoft.Extensions.Logging;
+using Momiji.Core.Buffer;
 using Momiji.Core.H264;
 using Momiji.Core.Opus;
 using Momiji.Core.Timer;
-using Momiji.Interop.Buffer;
 using Momiji.Interop.Ftl;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;

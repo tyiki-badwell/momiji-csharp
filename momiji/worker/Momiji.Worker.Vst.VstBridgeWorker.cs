@@ -15,7 +15,7 @@ namespace Momiji.Core.Vst.Worker;
 
 public class VstBridgeWorker : BackgroundService
 {
-    public static async void Main(string[] args)
+    public static async Task Main(string[] args)
     {
         using var host = CreateHost(args);
         await host.RunAsync().ConfigureAwait(false);

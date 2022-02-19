@@ -1,7 +1,7 @@
 ﻿using System.Diagnostics.CodeAnalysis;
 using System.Runtime.InteropServices;
 
-namespace Momiji.Interop.Buffer;
+namespace Momiji.Core.Buffer;
 
 public class BufferLog
 {
@@ -113,7 +113,7 @@ public class PinnedBuffer<T> : InternalGCHandleBuffer<T> where T : notnull
     }
 }
 
-[System.Diagnostics.CodeAnalysis.SuppressMessage("Naming", "CA1711:識別子は、不適切なサフィックスを含むことはできません", Justification = "<保留中>")]
+[SuppressMessage("Naming", "CA1711:識別子は、不適切なサフィックスを含むことはできません", Justification = "<保留中>")]
 public class PinnedDelegate<T> : InternalGCHandleBuffer<T> where T : notnull, Delegate
 {
     public PinnedDelegate(T buffer) : base(buffer, GCHandleType.Normal)

@@ -1,9 +1,9 @@
 ﻿using Microsoft.Extensions.Logging;
+using Momiji.Core.Buffer;
 using Momiji.Core.SharedMemory;
 using Momiji.Core.Timer;
 using Momiji.Core.WebMidi;
 using Momiji.Core.Window;
-using Momiji.Interop.Buffer;
 using Momiji.Interop.Vst;
 using Momiji.Interop.Vst.AudioMaster;
 using System.Runtime.CompilerServices;

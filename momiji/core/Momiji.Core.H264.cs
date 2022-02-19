@@ -1,6 +1,6 @@
 ﻿using Microsoft.Extensions.Logging;
+using Momiji.Core.Buffer;
 using Momiji.Core.Timer;
-using Momiji.Interop.Buffer;
 using Momiji.Interop.H264;
 using System.Collections.ObjectModel;
 using System.Reflection;

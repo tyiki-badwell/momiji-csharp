@@ -1,5 +1,5 @@
 ﻿using Microsoft.Extensions.Logging;
-using Momiji.Interop.Buffer;
+using Momiji.Core.Buffer;
 using System.Collections.Concurrent;
 using System.Runtime.InteropServices;
 using Gdi32 = Momiji.Interop.Gdi32.NativeMethods;
