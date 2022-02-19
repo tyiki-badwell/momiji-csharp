@@ -1,20 +1,68 @@
-using Microsoft.AspNetCore.Hosting;
-using Microsoft.Extensions.Hosting;
+using mixerTest;
+using Momiji.Core.Dll;
 
-namespace mixerTest
+var builder = WebApplication.CreateBuilder(args);
+
+// Add services to the container.
+builder.Services.AddRazorPages();
+
+builder.Services.Configure<CookiePolicyOptions>(options =>
 {
-    public static class Program
-    {
-        public static void Main(string[] args)
-        {
-            CreateHostBuilder(args).Build().Run();
-        }
+    options.CheckConsentNeeded = context => true;
+    options.MinimumSameSitePolicy = SameSiteMode.None;
+});
 
-        public static IHostBuilder CreateHostBuilder(string[] args) =>
-            Host.CreateDefaultBuilder(args)
-                .ConfigureWebHostDefaults(webBuilder =>
-                {
-                    webBuilder.UseStartup<Startup>();
-                });
-    }
+builder.Services.AddSingleton<IDllManager, DllManager>();
+builder.Services.AddSingleton<IRunner, Runner>();
+
+builder.Services.AddTransient<WebSocketMiddleware>();
+
+var app = builder.Build();
+
+// Configure the HTTP request pipeline.
+if (app.Environment.IsDevelopment())
+{
+    app.UseDeveloperExceptionPage();
 }
+else
+{
+    app.UseExceptionHandler("/Error");
+    // The default HSTS value is 30 days. You may want to change this for production scenarios, see https://aka.ms/aspnetcore-hsts.
+    app.UseHsts();
+}
+
+app.UseHttpsRedirection();
+app.UseStaticFiles();
+app.UseCookiePolicy();
+
+app.UseRouting();
+
+//app.UseAuthorization();
+
+app.MapRazorPages();
+
+app.Map("/ws", subApp =>
+{
+    subApp.UseWebSockets();
+    subApp.UseMiddleware<WebSocketMiddleware>();
+});
+
+var logger = app.Services.GetService<ILogger<Program>>();
+
+app.Lifetime.ApplicationStarted.Register(() =>
+{
+    //app.ApplicationServices.GetService<IRunner>().Start();
+    logger?.LogInformation("ApplicationStarted");
+});
+app.Lifetime.ApplicationStopping.Register(() =>
+{
+
+    logger?.LogInformation("ApplicationStopping");
+});
+app.Lifetime.ApplicationStopped.Register(() =>
+{
+    app.Services.GetService<IRunner>()?.Cancel();
+    logger?.LogInformation("ApplicationStopped");
+});
+
+app.Run();

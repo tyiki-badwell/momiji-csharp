@@ -32,7 +32,7 @@ namespace MomijiWPF
 
         private async void Button_Click_Run(object sender, RoutedEventArgs e)
         {
-            var host = VstBridgeWorker.CreateHostBuilder(Array.Empty<string>()).Build();
+            var host = VstBridgeWorker.CreateHost(Array.Empty<string>());
             list.Add(host);
 
             await host.StartAsync().ConfigureAwait(false);

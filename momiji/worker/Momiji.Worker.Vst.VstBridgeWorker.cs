@@ -9,291 +9,307 @@ using Momiji.Core.SharedMemory;
 using Momiji.Core.Timer;
 using Momiji.Core.Trans;
 using Momiji.Core.Wave;
-using System;
-using System.Collections.Generic;
-using System.Threading;
-using System.Threading.Tasks;
 using System.Threading.Tasks.Dataflow;
 
-namespace Momiji.Core.Vst.Worker
+namespace Momiji.Core.Vst.Worker;
+
+public class VstBridgeWorker : BackgroundService
 {
-    public class VstBridgeWorker : BackgroundService
+    public static async void Main(string[] args)
     {
-        public static void Main(string[] args)
+        using var host = CreateHost(args);
+        await host.RunAsync().ConfigureAwait(false);
+    }
+
+    public static IHost CreateHost(string[] args)
+    {
+        var builder = Host.CreateDefaultBuilder(args);
+
+        builder.ConfigureServices((hostContext, services) =>
         {
-            CreateHostBuilder(args).Build().Run();
+            services.AddHostedService<VstBridgeWorker>();
+            services.AddSingleton<IDllManager, DllManager>();
+            services.AddSingleton<IRunner, Runner>();
+        });
+
+        var host = builder.Build();
+
+        return host;
+    }
+
+    public override async Task StartAsync(CancellationToken cancellationToken)
+    {
+        _logger.LogInformation($"START");
+        await base.StartAsync(cancellationToken).ConfigureAwait(false);
+    }
+
+    public override async Task StopAsync(CancellationToken cancellationToken)
+    {
+        _logger.LogInformation($"STOP");
+        await base.StopAsync(cancellationToken).ConfigureAwait(false);
+    }
+
+    private readonly ILogger _logger;
+    private readonly IRunner _runner;
+
+    public VstBridgeWorker(ILogger<VstBridgeWorker> logger, IRunner runner, IHostApplicationLifetime hostApplicationLifetime)
+    {
+        _logger = logger;
+        _runner = runner;
+
+        hostApplicationLifetime?.ApplicationStarted.Register(() =>
+        {
+            logger?.LogInformation("ApplicationStarted");
+        });
+        hostApplicationLifetime?.ApplicationStopping.Register(() =>
+        {
+            logger?.LogInformation("ApplicationStopping");
+        });
+        hostApplicationLifetime?.ApplicationStopped.Register(() =>
+        {
+            logger?.LogInformation("ApplicationStopped");
+        });
+    }
+
+    protected override async Task ExecuteAsync(CancellationToken stoppingToken)
+    {
+        await _runner.StartAsync(stoppingToken).ConfigureAwait(false);
+    }
+}
+
+public interface IRunner
+{
+    Task StartAsync(CancellationToken stoppingToken);
+    void Cancel();
+
+    void OpenEditor();
+    Task CloseEditorAsync();
+
+    //void Note(MIDIMessageEvent[] midiMessage);
+    //Task AcceptWebSocket(WebSocket webSocket);
+}
+
+public class Runner : IRunner, IDisposable
+{
+    private readonly IConfiguration _configuration;
+    private readonly ILoggerFactory _loggerFactory;
+    private readonly ILogger _logger;
+    private readonly IDllManager _dllManager;
+    private readonly Param _param;
+
+    private bool _disposed;
+    private readonly object _sync = new();
+    private CancellationTokenSource? _processCancel;
+    private Task? _processTask;
+    private IEffect<float>? _effect;
+
+    public Runner(IConfiguration configuration, ILoggerFactory loggerFactory, IDllManager dllManager)
+    {
+        _configuration = configuration ?? throw new ArgumentNullException(nameof(configuration));
+        _loggerFactory = loggerFactory;
+        _logger = _loggerFactory.CreateLogger<Runner>();
+        _dllManager = dllManager;
+
+        var section = _configuration.GetSection(typeof(Param).FullName);
+        var param = section.Get<Param>();
+
+        if (param == default)
+        {
+            throw new ArgumentNullException(typeof(Param).FullName);
         }
 
-        public static IHostBuilder CreateHostBuilder(string[] args) =>
-            Host.CreateDefaultBuilder(args)
-                .ConfigureServices((hostContext, services) =>
+        _logger.LogInformation($"BufferCount:{param.BufferCount}");
+        _logger.LogInformation($"Local:{param.Local}");
+        _logger.LogInformation($"Connect:{param.Connect}");
+        _logger.LogInformation($"Width:{param.Width}");
+        _logger.LogInformation($"Height:{param.Height}");
+        _logger.LogInformation($"TargetBitrate:{param.TargetBitrate}");
+        _logger.LogInformation($"MaxFrameRate:{param.MaxFrameRate}");
+        _logger.LogInformation($"IntraFrameIntervalUs:{param.IntraFrameIntervalUs}");
+        _logger.LogInformation($"EffectName:{param.EffectName}");
+        _logger.LogInformation($"SamplingRate:{param.SamplingRate}");
+        _logger.LogInformation($"SampleLength:{param.SampleLength}");
+
+        _param = param;
+    }
+
+    public void Dispose()
+    {
+        Dispose(true);
+        GC.SuppressFinalize(this);
+    }
+
+    protected virtual void Dispose(bool disposing)
+    {
+        if (_disposed) return;
+
+        if (disposing)
+        {
+            Cancel();
+        }
+        _disposed = true;
+    }
+
+    public async Task StartAsync(CancellationToken stoppingToken)
+    {
+        if (_processCancel != null)
+        {
+            _logger.LogInformation("[worker] already started.");
+            return;
+        }
+        _processCancel = CancellationTokenSource.CreateLinkedTokenSource(stoppingToken);
+        _processTask = Run();
+        await _processTask.ConfigureAwait(false);
+    }
+
+    private async Task Run()
+    {
+        if (_processCancel == null)
+        {
+            throw new InvalidOperationException($"{nameof(_processCancel)} is null.");
+        }
+        if (_param.EffectName == null)
+        {
+            throw new InvalidOperationException($"{nameof(_param.EffectName)} is null.");
+        }
+
+        var ct = _processCancel.Token;
+
+        var taskSet = new HashSet<Task>();
+
+        var blockSize = (int)(_param.SamplingRate * _param.SampleLength);
+        var audioInterval = (long)(10_000_000.0 * _param.SampleLength);
+
+        using var buf = new IPCBuffer<float>(_param.EffectName, blockSize * 2 * _param.BufferCount, _loggerFactory);
+        //            using var vstBufferPool = new BufferPool<VstBuffer<float>>(param.BufferCount, () => new VstBuffer<float>(blockSize, 2), LoggerFactory);
+        using var vstBufferPool = new BufferPool<VstBuffer2<float>>(_param.BufferCount, () => new VstBuffer2<float>(blockSize, 2, buf), _loggerFactory);
+        using var pcmPool = new BufferPool<PcmBuffer<float>>(_param.BufferCount, () => new PcmBuffer<float>(blockSize, 2), _loggerFactory);
+        var counter = new ElapsedTimeCounter();
+        using var audioWaiter = new Waiter(counter, audioInterval, true);
+        using var vst = new AudioMaster<float>(_param.SamplingRate, blockSize, _loggerFactory, counter, _dllManager);
+        using var toPcm = new ToPcm<float>(_loggerFactory, counter);
+
+        _logger.LogInformation($"AddEffect:{_param.EffectName}");
+
+        _effect = vst.AddEffect(_param.EffectName);
+
+        using var wave = new WaveOutFloat(
+            0,
+            2,
+            _param.SamplingRate,
+            SPEAKER.FrontLeft | SPEAKER.FrontRight,
+            _loggerFactory,
+            counter,
+            pcmPool);
+
+        var options = new ExecutionDataflowBlockOptions
+        {
+            CancellationToken = ct,
+            MaxDegreeOfParallelism = 1
+        };
+
+        var audioStartBlock =
+            new TransformBlock<VstBuffer2<float>, VstBuffer2<float>>(buffer => {
+                buffer.Log.Clear();
+                var r = audioWaiter.Wait();
+                if (r > 1)
                 {
-                    services.AddHostedService<VstBridgeWorker>();
-                    services.AddSingleton<IDllManager, DllManager>();
-                    services.AddSingleton<IRunner, Runner>();
-                });
+                    _logger.LogError($"Delay {r}");
+                }
+                return buffer;
+            }, options);
+        taskSet.Add(audioStartBlock.Completion);
+        vstBufferPool.LinkTo(audioStartBlock);
 
-        public override async Task StartAsync(CancellationToken cancellationToken)
+        var vstBlock =
+            new TransformBlock<VstBuffer2<float>, PcmBuffer<float>>(buffer =>
+            {
+                //VST
+                var nowTime = counter.NowTicks / 10;
+                _effect.ProcessReplacing(nowTime, buffer);
+
+                //trans
+                var pcm = pcmPool.Receive();
+                toPcm.Execute(buffer, pcm);
+                vstBufferPool.Post(buffer);
+
+                return pcm;
+            }, options);
+        taskSet.Add(vstBlock.Completion);
+        audioStartBlock.LinkTo(vstBlock);
+
+        var waveBlock =
+            new ActionBlock<PcmBuffer<float>>(buffer =>
+            {
+                //WAVEOUT
+                wave.Execute(buffer, ct);
+            }, options);
+        taskSet.Add(waveBlock.Completion);
+        vstBlock.LinkTo(waveBlock);
+
+        while (taskSet.Count > 0)
         {
-            Logger.LogInformation($"START");
-            await base.StartAsync(cancellationToken).ConfigureAwait(false);
-        }
-
-        public override async Task StopAsync(CancellationToken cancellationToken)
-        {
-            Logger.LogInformation($"STOP");
-            await base.StopAsync(cancellationToken).ConfigureAwait(false);
-        }
-
-        private ILogger Logger { get; }
-        private IRunner Runner { get; }
-
-        public VstBridgeWorker(ILogger<VstBridgeWorker> logger, IRunner runner)
-        {
-            Logger = logger;
-            Runner = runner;
-        }
-
-        protected override async Task ExecuteAsync(CancellationToken stoppingToken)
-        {
-            await Runner.StartAsync(stoppingToken).ConfigureAwait(false);
+            var task = await Task.WhenAny(taskSet).ConfigureAwait(false);
+            taskSet.Remove(task);
+            if (task.IsFaulted)
+            {
+                _processCancel.Cancel();
+                _logger.LogError(task.Exception, "Process Exception");
+            }
         }
     }
 
-    public interface IRunner
+    public void Cancel()
     {
-        Task StartAsync(CancellationToken stoppingToken);
-        void Cancel();
-
-        void OpenEditor();
-        Task CloseEditorAsync();
-
-        //void Note(MIDIMessageEvent[] midiMessage);
-        //Task AcceptWebSocket(WebSocket webSocket);
-    }
-
-    public class Runner : IRunner, IDisposable
-    {
-        private IConfiguration Configuration { get; }
-        private ILoggerFactory LoggerFactory { get; }
-        private ILogger Logger { get; }
-        private IDllManager DllManager { get; }
-        private Param Param { get; set; }
-
-        private bool disposed;
-        private readonly object sync = new();
-        private CancellationTokenSource? processCancel;
-        private Task? processTask;
-        private IEffect<float>? effect;
-
-        public Runner(IConfiguration configuration, ILoggerFactory loggerFactory, IDllManager dllManager)
+        lock(_sync)
         {
-            Configuration = configuration ?? throw new ArgumentNullException(nameof(configuration));
-            LoggerFactory = loggerFactory;
-            Logger = LoggerFactory.CreateLogger<Runner>();
-            DllManager = dllManager;
-
-            var section = Configuration.GetSection(typeof(Param).FullName);
-            var param = section.Get<Param>();
-
-            if (param == default)
+            if (_processCancel == null)
             {
-                throw new ArgumentNullException(typeof(Param).FullName);
-            }
-
-            Logger.LogInformation($"BufferCount:{param.BufferCount}");
-            Logger.LogInformation($"Local:{param.Local}");
-            Logger.LogInformation($"Connect:{param.Connect}");
-            Logger.LogInformation($"Width:{param.Width}");
-            Logger.LogInformation($"Height:{param.Height}");
-            Logger.LogInformation($"TargetBitrate:{param.TargetBitrate}");
-            Logger.LogInformation($"MaxFrameRate:{param.MaxFrameRate}");
-            Logger.LogInformation($"IntraFrameIntervalUs:{param.IntraFrameIntervalUs}");
-            Logger.LogInformation($"EffectName:{param.EffectName}");
-            Logger.LogInformation($"SamplingRate:{param.SamplingRate}");
-            Logger.LogInformation($"SampleLength:{param.SampleLength}");
-
-            Param = param;
-        }
-
-        public void Dispose()
-        {
-            Dispose(true);
-            GC.SuppressFinalize(this);
-        }
-
-        protected virtual void Dispose(bool disposing)
-        {
-            if (disposed) return;
-
-            if (disposing)
-            {
-                Cancel();
-            }
-            disposed = true;
-        }
-
-        public async Task StartAsync(CancellationToken stoppingToken)
-        {
-            if (processCancel != null)
-            {
-                Logger.LogInformation("[worker] already started.");
+                _logger.LogInformation("[worker] already stopped.");
                 return;
             }
-            processCancel = CancellationTokenSource.CreateLinkedTokenSource(stoppingToken);
-            processTask = Run();
-            await processTask.ConfigureAwait(false);
-        }
 
-        private async Task Run()
+            try
+            {
+                _processCancel.Cancel();
+                _processTask?.Wait();
+            }
+            catch (AggregateException e)
+            {
+                _logger.LogInformation(e, "[worker] Process Cancel Exception");
+            }
+            finally
+            {
+                _processCancel.Dispose();
+                _processCancel = null;
+
+                _processTask?.Dispose();
+                _processTask = null;
+            }
+            _logger.LogInformation("[worker] stopped.");
+        }
+    }
+
+    public void OpenEditor()
+    {
+        if (_effect == default)
         {
-            if (processCancel == null)
-            {
-                throw new InvalidOperationException($"{nameof(processCancel)} is null.");
-            }
-            if (Param.EffectName == null)
-            {
-                throw new InvalidOperationException($"{nameof(Param.EffectName)} is null.");
-            }
-
-            var ct = processCancel.Token;
-
-            var taskSet = new HashSet<Task>();
-
-            var blockSize = (int)(Param.SamplingRate * Param.SampleLength);
-            var audioInterval = (long)(10_000_000.0 * Param.SampleLength);
-
-            using var buf = new IPCBuffer<float>(Param.EffectName, blockSize * 2 * Param.BufferCount, LoggerFactory);
-            //            using var vstBufferPool = new BufferPool<VstBuffer<float>>(param.BufferCount, () => new VstBuffer<float>(blockSize, 2), LoggerFactory);
-            using var vstBufferPool = new BufferPool<VstBuffer2<float>>(Param.BufferCount, () => new VstBuffer2<float>(blockSize, 2, buf), LoggerFactory);
-            using var pcmPool = new BufferPool<PcmBuffer<float>>(Param.BufferCount, () => new PcmBuffer<float>(blockSize, 2), LoggerFactory);
-            var counter = new ElapsedTimeCounter();
-            using var audioWaiter = new Waiter(counter, audioInterval, true);
-            using var vst = new AudioMaster<float>(Param.SamplingRate, blockSize, LoggerFactory, counter, DllManager);
-            using var toPcm = new ToPcm<float>(LoggerFactory, counter);
-
-            Logger.LogInformation($"AddEffect:{Param.EffectName}");
-
-            effect = vst.AddEffect(Param.EffectName);
-
-            using var wave = new WaveOutFloat(
-                0,
-                2,
-                Param.SamplingRate,
-                SPEAKER.FrontLeft | SPEAKER.FrontRight,
-                LoggerFactory,
-                counter,
-                pcmPool);
-
-            var options = new ExecutionDataflowBlockOptions
-            {
-                CancellationToken = ct,
-                MaxDegreeOfParallelism = 1
-            };
-
-            var audioStartBlock =
-                new TransformBlock<VstBuffer2<float>, VstBuffer2<float>>(buffer => {
-                    buffer.Log.Clear();
-                    var r = audioWaiter.Wait();
-                    if (r > 1)
-                    {
-                        Logger.LogError($"Delay {r}");
-                    }
-                    return buffer;
-                }, options);
-            taskSet.Add(audioStartBlock.Completion);
-            vstBufferPool.LinkTo(audioStartBlock);
-
-            var vstBlock =
-                new TransformBlock<VstBuffer2<float>, PcmBuffer<float>>(buffer =>
-                {
-                    //VST
-                    var nowTime = counter.NowTicks / 10;
-                    effect.ProcessReplacing(nowTime, buffer);
-
-                    //trans
-                    var pcm = pcmPool.Receive();
-                    toPcm.Execute(buffer, pcm);
-                    vstBufferPool.Post(buffer);
-
-                    return pcm;
-                }, options);
-            taskSet.Add(vstBlock.Completion);
-            audioStartBlock.LinkTo(vstBlock);
-
-            var waveBlock =
-                new ActionBlock<PcmBuffer<float>>(buffer =>
-                {
-                    //WAVEOUT
-                    wave.Execute(buffer, ct);
-                }, options);
-            taskSet.Add(waveBlock.Completion);
-            vstBlock.LinkTo(waveBlock);
-
-            while (taskSet.Count > 0)
-            {
-                var task = await Task.WhenAny(taskSet).ConfigureAwait(false);
-                taskSet.Remove(task);
-                if (task.IsFaulted)
-                {
-                    processCancel.Cancel();
-                    Logger.LogError(task.Exception, "Process Exception");
-                }
-            }
+            throw new InvalidOperationException($"{nameof(_effect)} is null.");
         }
-
-        public void Cancel()
+        if (_processCancel == default)
         {
-            lock(sync)
-            {
-                if (processCancel == null)
-                {
-                    Logger.LogInformation("[worker] already stopped.");
-                    return;
-                }
-
-                try
-                {
-                    processCancel.Cancel();
-                    processTask?.Wait();
-                }
-                catch (AggregateException e)
-                {
-                    Logger.LogInformation(e, "[worker] Process Cancel Exception");
-                }
-                finally
-                {
-                    processCancel.Dispose();
-                    processCancel = null;
-
-                    processTask?.Dispose();
-                    processTask = null;
-                }
-                Logger.LogInformation("[worker] stopped.");
-            }
+            throw new InvalidOperationException($"{nameof(_processCancel)} is null.");
         }
+        _effect.OpenEditor(_processCancel.Token);
+    }
 
-        public void OpenEditor()
+    public async Task CloseEditorAsync()
+    {
+        if (_effect == default)
         {
-            if (effect == default)
-            {
-                throw new InvalidOperationException($"{nameof(effect)} is null.");
-            }
-            if (processCancel == default)
-            {
-                throw new InvalidOperationException($"{nameof(processCancel)} is null.");
-            }
-            effect.OpenEditor(processCancel.Token);
+            throw new InvalidOperationException($"{nameof(_effect)} is null.");
         }
 
-        public async Task CloseEditorAsync()
-        {
-            if (effect == default)
-            {
-                throw new InvalidOperationException($"{nameof(effect)} is null.");
-            }
-
-            await effect.CloseEditorAsync().ConfigureAwait(false);
-        }
+        await _effect.CloseEditorAsync().ConfigureAwait(false);
     }
 }
