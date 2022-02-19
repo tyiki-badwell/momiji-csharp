@@ -1,16 +1,22 @@
-﻿<Window x:Class="momijiWPF.MainWindow"
+﻿<Window x:Class="MomijiWPF.MainWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
-        xmlns:local="clr-namespace:momijiWPF"
+        xmlns:local="clr-namespace:MomijiWPF"
         mc:Ignorable="d"
-        Title="MainWindow" Height="450" Width="800" Closing="Window_Closing">
-    <Grid Margin="0,0,470,279">
-        <Button Content="Run" HorizontalAlignment="Left" Margin="10,10,0,0" VerticalAlignment="Top" Height="55" Width="135" Click="Button_Click_Run"/>
-        <Button Content="Open" HorizontalAlignment="Left" Margin="10,84,0,0" VerticalAlignment="Top" Height="55" Width="135" Click="Button_Click_Open"/>
-        <Button Content="Close" HorizontalAlignment="Left" Margin="175,84,0,0" VerticalAlignment="Top" Height="55" Width="135" Click="Button_Click_Close"/>
-        <Button Content="Stop" HorizontalAlignment="Left" Margin="175,10,0,0" VerticalAlignment="Top" Height="55" Width="135" Click="Button_Click_Stop"/>
+        Title="MainWindow" Height="239" Width="324" Closing="Window_Closing">
+    <Grid HorizontalAlignment="Center" Width="324" Height="220" VerticalAlignment="Top">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="80"/>
+            <RowDefinition Height="80"/>
+            <RowDefinition Height="80*"/>
+        </Grid.RowDefinitions>
+        <Button Content="Run" HorizontalAlignment="Left" Margin="10,0,0,0" VerticalAlignment="Center" Height="54" Width="135" Click="Button_Click_Run"/>
+        <Button Content="Open" HorizontalAlignment="Left" Margin="10,10,0,0" VerticalAlignment="Top" Height="56" Width="135" Click="Button_Click_Open" Grid.Row="1"/>
+        <Button Content="Close" HorizontalAlignment="Left" Margin="175,10,0,0" VerticalAlignment="Top" Height="56" Width="135" Click="Button_Click_Close" Grid.Row="1"/>
+        <Button Content="Stop" HorizontalAlignment="Left" Margin="175,0,0,0" VerticalAlignment="Center" Height="54" Width="135" Click="Button_Click_Stop"/>
+        <Button Content="AppWindow" HorizontalAlignment="Left" Margin="10,4,0,0" VerticalAlignment="Top" Height="55" Width="135" Click="Button_Click_AppWindow" Grid.Row="2"/>
 
     </Grid>
 </Window>

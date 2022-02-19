@@ -36,16 +36,16 @@ namespace Momiji.Core.Wave
                 builder.AddConsole();
                 builder.AddDebug();
             });
-            using var lapTimer = new LapTimer();
+            var counter = new ElapsedTimeCounter();
 
             using var pcmPool = new BufferPool<PcmBuffer<short>>(1, () => new PcmBuffer<short>(blockSize, 1), loggerFactory);
             {
                 try
                 {
-                    using var test = new WaveOutShort(deviceID, channels, samplingRate, channelMask, loggerFactory, lapTimer, pcmPool);
+                    using var test = new WaveOutShort(deviceID, channels, samplingRate, channelMask, loggerFactory, counter, pcmPool);
                     test.Execute(pcmPool.Receive(), default);
                 }
-                catch (Exception)
+                catch (WaveException)
                 {
 
                 }

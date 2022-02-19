@@ -2,111 +2,98 @@
 using Momiji.Core.Timer;
 using Momiji.Core.Vst;
 using Momiji.Core.Wave;
-using System;
 
-namespace Momiji.Core.Trans
+namespace Momiji.Core.Trans;
+
+public class ToPcm<T> : IDisposable where T : struct
 {
-    public class ToPcm<T> : IDisposable where T : struct
+    private readonly ILogger _logger;
+    private readonly ElapsedTimeCounter _counter;
+
+    private bool _disposed;
+
+    public ToPcm(
+        ILoggerFactory loggerFactory,
+        ElapsedTimeCounter counter
+    )
     {
-        private ILoggerFactory LoggerFactory { get; }
-        private ILogger Logger { get; }
-        private LapTimer LapTimer { get; }
+        ArgumentNullException.ThrowIfNull(loggerFactory);
+        ArgumentNullException.ThrowIfNull(counter);
 
-        private bool disposed;
+        _logger = loggerFactory.CreateLogger<ToPcm<T>>();
+        _counter = counter;
+    }
 
-        public ToPcm(
-            ILoggerFactory loggerFactory,
-            LapTimer lapTimer
-        )
+    ~ToPcm()
+    {
+        Dispose(false);
+    }
+
+    public void Dispose()
+    {
+        Dispose(true);
+        GC.SuppressFinalize(this);
+    }
+
+    protected virtual void Dispose(bool disposing)
+    {
+        if (_disposed) return;
+
+        if (disposing)
         {
-            LoggerFactory = loggerFactory;
-            Logger = LoggerFactory.CreateLogger<ToPcm<T>>();
-            LapTimer = lapTimer;
+
         }
 
-        ~ToPcm()
+        _disposed = true;
+    }
+
+    public void Execute(
+        VstBuffer<T> source,
+        PcmBuffer<T> dest
+    )
+    {
+        ArgumentNullException.ThrowIfNull(source);
+        ArgumentNullException.ThrowIfNull(dest);
+
+        dest.Log.Marge(source.Log);
+
+        var targetIdx = 0;
+        var target = new Span<T>(dest.Buffer.Target);
+        var left = new ReadOnlySpan<T>(source.GetChannelBuffer(0));
+        var right = new ReadOnlySpan<T>(source.GetChannelBuffer(1));
+
+        dest.Log.Add("[to pcm] start", _counter.NowTicks);
+        for (var idx = 0; idx < left.Length; idx++)
         {
-            Dispose(false);
+            target[targetIdx++] = left[idx];
+            target[targetIdx++] = right[idx];
         }
+        dest.Log.Add("[to pcm] end", _counter.NowTicks);
+    }
+    public void Execute(
+        VstBuffer2<T> source,
+        PcmBuffer<T> dest
+    )
+    {
+        ArgumentNullException.ThrowIfNull(source);
+        ArgumentNullException.ThrowIfNull(dest);
 
-        public void Dispose()
+        dest.Log.Marge(source.Log);
+
+        var targetIdx = 0;
+        var target = new Span<T>(dest.Buffer.Target);
+        unsafe
         {
-            Dispose(true);
-            GC.SuppressFinalize(this);
-        }
+            var left = new ReadOnlySpan<T>(source.GetChannelBuffer(0).ToPointer(), source.BlockSize);
+            var right = new ReadOnlySpan<T>(source.GetChannelBuffer(1).ToPointer(), source.BlockSize);
 
-        protected virtual void Dispose(bool disposing)
-        {
-            if (disposed) return;
-
-            if (disposing)
-            {
-
-            }
-
-            disposed = true;
-        }
-
-        public void Execute(
-            VstBuffer<T> source,
-            PcmBuffer<T> dest
-        )
-        {
-            if (source == default)
-            {
-                throw new ArgumentNullException(nameof(source));
-            }
-            if (dest == default)
-            {
-                throw new ArgumentNullException(nameof(dest));
-            }
-
-            dest.Log.Marge(source.Log);
-
-            var targetIdx = 0;
-            var target = new Span<T>(dest.Buffer.Target);
-            var left = new ReadOnlySpan<T>(source.GetChannelBuffer(0));
-            var right = new ReadOnlySpan<T>(source.GetChannelBuffer(1));
-
-            dest.Log.Add("[to pcm] start", LapTimer.USecDouble);
+            dest.Log.Add("[to pcm] start", _counter.NowTicks);
             for (var idx = 0; idx < left.Length; idx++)
             {
                 target[targetIdx++] = left[idx];
                 target[targetIdx++] = right[idx];
             }
-            dest.Log.Add("[to pcm] end", LapTimer.USecDouble);
         }
-        public void Execute(
-            VstBuffer2<T> source,
-            PcmBuffer<T> dest
-        )
-        {
-            if (source == default)
-            {
-                throw new ArgumentNullException(nameof(source));
-            }
-            if (dest == default)
-            {
-                throw new ArgumentNullException(nameof(dest));
-            }
-
-            dest.Log.Marge(source.Log);
-
-            var targetIdx = 0;
-            var target = new Span<T>(dest.Buffer.Target);
-            unsafe
-            {
-                var left = new ReadOnlySpan<T>(source.GetChannelBuffer(0).ToPointer(), source.BlockSize);
-                var right = new ReadOnlySpan<T>(source.GetChannelBuffer(1).ToPointer(), source.BlockSize);
-
-                dest.Log.Add("[to pcm] start", LapTimer.USecDouble);
-                for (var idx = 0; idx < left.Length; idx++)
-                {
-                    target[targetIdx++] = left[idx];
-                    target[targetIdx++] = right[idx];
-                }
-            }
-            dest.Log.Add("[to pcm] end", LapTimer.USecDouble);
-        }
+        dest.Log.Add("[to pcm] end", _counter.NowTicks);
     }
 }

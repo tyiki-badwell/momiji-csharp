@@ -66,7 +66,7 @@ namespace Momiji.Core.Vst.Worker
         void Cancel();
 
         void OpenEditor();
-        Task CloseEditor();
+        Task CloseEditorAsync();
 
         //void Note(MIDIMessageEvent[] midiMessage);
         //Task AcceptWebSocket(WebSocket webSocket);
@@ -81,10 +81,10 @@ namespace Momiji.Core.Vst.Worker
         private Param Param { get; set; }
 
         private bool disposed;
-        private object sync = new();
-        private CancellationTokenSource processCancel;
-        private Task processTask;
-        private IEffect<float> effect;
+        private readonly object sync = new();
+        private CancellationTokenSource? processCancel;
+        private Task? processTask;
+        private IEffect<float>? effect;
 
         public Runner(IConfiguration configuration, ILoggerFactory loggerFactory, IDllManager dllManager)
         {
@@ -93,8 +93,14 @@ namespace Momiji.Core.Vst.Worker
             Logger = LoggerFactory.CreateLogger<Runner>();
             DllManager = dllManager;
 
-            var param = new Param();
-            Configuration.GetSection(typeof(Param).FullName).Bind(param);
+            var section = Configuration.GetSection(typeof(Param).FullName);
+            var param = section.Get<Param>();
+
+            if (param == default)
+            {
+                throw new ArgumentNullException(typeof(Param).FullName);
+            }
+
             Logger.LogInformation($"BufferCount:{param.BufferCount}");
             Logger.LogInformation($"Local:{param.Local}");
             Logger.LogInformation($"Connect:{param.Connect}");
@@ -141,21 +147,30 @@ namespace Momiji.Core.Vst.Worker
 
         private async Task Run()
         {
+            if (processCancel == null)
+            {
+                throw new InvalidOperationException($"{nameof(processCancel)} is null.");
+            }
+            if (Param.EffectName == null)
+            {
+                throw new InvalidOperationException($"{nameof(Param.EffectName)} is null.");
+            }
+
             var ct = processCancel.Token;
 
             var taskSet = new HashSet<Task>();
 
             var blockSize = (int)(Param.SamplingRate * Param.SampleLength);
-            var audioInterval = 1_000_000.0 * Param.SampleLength;
+            var audioInterval = (long)(10_000_000.0 * Param.SampleLength);
 
             using var buf = new IPCBuffer<float>(Param.EffectName, blockSize * 2 * Param.BufferCount, LoggerFactory);
             //            using var vstBufferPool = new BufferPool<VstBuffer<float>>(param.BufferCount, () => new VstBuffer<float>(blockSize, 2), LoggerFactory);
             using var vstBufferPool = new BufferPool<VstBuffer2<float>>(Param.BufferCount, () => new VstBuffer2<float>(blockSize, 2, buf), LoggerFactory);
             using var pcmPool = new BufferPool<PcmBuffer<float>>(Param.BufferCount, () => new PcmBuffer<float>(blockSize, 2), LoggerFactory);
-            using var timer = new LapTimer();
-            using var audioWaiter = new Waiter(timer, audioInterval);
-            using var vst = new AudioMaster<float>(Param.SamplingRate, blockSize, LoggerFactory, timer, DllManager);
-            using var toPcm = new ToPcm<float>(LoggerFactory, timer);
+            var counter = new ElapsedTimeCounter();
+            using var audioWaiter = new Waiter(counter, audioInterval, true);
+            using var vst = new AudioMaster<float>(Param.SamplingRate, blockSize, LoggerFactory, counter, DllManager);
+            using var toPcm = new ToPcm<float>(LoggerFactory, counter);
 
             Logger.LogInformation($"AddEffect:{Param.EffectName}");
 
@@ -167,7 +182,7 @@ namespace Momiji.Core.Vst.Worker
                 Param.SamplingRate,
                 SPEAKER.FrontLeft | SPEAKER.FrontRight,
                 LoggerFactory,
-                timer,
+                counter,
                 pcmPool);
 
             var options = new ExecutionDataflowBlockOptions
@@ -176,15 +191,24 @@ namespace Momiji.Core.Vst.Worker
                 MaxDegreeOfParallelism = 1
             };
 
-            var vstBlock =
-                //                new TransformBlock<VstBuffer<float>, PcmBuffer<float>>(async buffer =>
-                new TransformBlock<VstBuffer2<float>, PcmBuffer<float>>(async buffer =>
-                {
+            var audioStartBlock =
+                new TransformBlock<VstBuffer2<float>, VstBuffer2<float>>(buffer => {
                     buffer.Log.Clear();
-                    await audioWaiter.Wait(ct).ConfigureAwait(false);
+                    var r = audioWaiter.Wait();
+                    if (r > 1)
+                    {
+                        Logger.LogError($"Delay {r}");
+                    }
+                    return buffer;
+                }, options);
+            taskSet.Add(audioStartBlock.Completion);
+            vstBufferPool.LinkTo(audioStartBlock);
+
+            var vstBlock =
+                new TransformBlock<VstBuffer2<float>, PcmBuffer<float>>(buffer =>
+                {
                     //VST
-                    var nowTime = timer.USecDouble;
-                    //    effect.ProcessEvent(nowTime, MidiEventInput);
+                    var nowTime = counter.NowTicks / 10;
                     effect.ProcessReplacing(nowTime, buffer);
 
                     //trans
@@ -195,7 +219,7 @@ namespace Momiji.Core.Vst.Worker
                     return pcm;
                 }, options);
             taskSet.Add(vstBlock.Completion);
-            vstBufferPool.LinkTo(vstBlock);
+            audioStartBlock.LinkTo(vstBlock);
 
             var waveBlock =
                 new ActionBlock<PcmBuffer<float>>(buffer =>
@@ -231,7 +255,7 @@ namespace Momiji.Core.Vst.Worker
                 try
                 {
                     processCancel.Cancel();
-                    processTask.Wait();
+                    processTask?.Wait();
                 }
                 catch (AggregateException e)
                 {
@@ -251,12 +275,25 @@ namespace Momiji.Core.Vst.Worker
 
         public void OpenEditor()
         {
+            if (effect == default)
+            {
+                throw new InvalidOperationException($"{nameof(effect)} is null.");
+            }
+            if (processCancel == default)
+            {
+                throw new InvalidOperationException($"{nameof(processCancel)} is null.");
+            }
             effect.OpenEditor(processCancel.Token);
         }
 
-        public async Task CloseEditor()
+        public async Task CloseEditorAsync()
         {
-            await effect.CloseEditor().ConfigureAwait(false);
+            if (effect == default)
+            {
+                throw new InvalidOperationException($"{nameof(effect)} is null.");
+            }
+
+            await effect.CloseEditorAsync().ConfigureAwait(false);
         }
     }
 }

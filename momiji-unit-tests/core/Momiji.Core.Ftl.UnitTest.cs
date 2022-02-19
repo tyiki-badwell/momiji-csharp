@@ -24,7 +24,6 @@ namespace Momiji.Core.Ftl
             var configuration =
                 new ConfigurationBuilder()
                 .AddJsonFile("appsettings.json")
-                .AddUserSecrets<FtlUnitTest>()
                 .Build();
             var streamKey = configuration["MIXER_STREAM_KEY"];
             var ingestHostname = configuration["MIXER_INGEST_HOSTNAME"];
@@ -38,7 +37,7 @@ namespace Momiji.Core.Ftl
                 builder.AddConsole();
                 builder.AddDebug();
             });
-            using var lapTimer = new LapTimer();
+            var counter = new ElapsedTimeCounter();
             using var dllManager = new DllManager(configuration, loggerFactory);
 
             //using var ftl = new FtlIngest(streamKey, ingestHostname, loggerFactory, timer, 1000, 1000, true, mixerApiClientId);

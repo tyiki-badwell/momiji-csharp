@@ -1,323 +1,104 @@
-﻿using System;
+﻿using Microsoft.Win32.SafeHandles;
 using System.Runtime.InteropServices;
 
-namespace Momiji.Interop.Kernel32
+namespace Momiji.Interop.Kernel32;
+
+internal static class Libraries
 {
-    internal static class Libraries
+    public const string Kernel32 = "kernel32.dll";
+}
+
+internal static class NativeMethods
+{
+    [DllImport(Libraries.Kernel32, CallingConvention = CallingConvention.Winapi, CharSet = CharSet.Unicode, SetLastError = true)]
+    [DefaultDllImportSearchPaths(DllImportSearchPath.System32)]
+    internal static extern bool SetDllDirectory(
+        [In] string lpPathName
+    );
+
+    [DllImport(Libraries.Kernel32, CallingConvention = CallingConvention.Winapi, CharSet = CharSet.Unicode, SetLastError = true)]
+    [DefaultDllImportSearchPaths(DllImportSearchPath.System32)]
+    internal static extern IntPtr GetModuleHandle(
+        [In] string? lpModuleName
+    );
+
+    [DllImport(Libraries.Kernel32, CallingConvention = CallingConvention.Winapi, CharSet = CharSet.Unicode, SetLastError = true)]
+    [DefaultDllImportSearchPaths(DllImportSearchPath.System32)]
+    internal static extern WaitableTimer CreateWaitableTimer(
+        [In, Optional] IntPtr lpTimerAttributes,
+        [In][MarshalAs(UnmanagedType.Bool)] bool bManualReset,
+        [In, Optional] IntPtr lpTimerName
+    );
+
+    [DllImport(Libraries.Kernel32, CallingConvention = CallingConvention.Winapi, CharSet = CharSet.Unicode, SetLastError = true)]
+    [DefaultDllImportSearchPaths(DllImportSearchPath.System32)]
+    internal static extern WaitableTimer CreateWaitableTimerEx(
+        [In, Optional] IntPtr lpTimerAttributes,
+        [In, Optional] IntPtr lpTimerName,
+        [In] WaitableTimer.FLAGS dwFlags,
+        [In] WaitableTimer.ACCESSES dwDesiredAccess
+    );
+
+    [DllImport(Libraries.Kernel32, CallingConvention = CallingConvention.Winapi, SetLastError = true)]
+    [DefaultDllImportSearchPaths(DllImportSearchPath.System32)]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    internal static extern bool SetWaitableTimerEx(
+        [In] this WaitableTimer hTimer,
+        [In] ref long lpDueTime,
+        [In] int lPeriod,
+        [In, Optional] IntPtr pfnCompletionRoutine,
+        [In, Optional] IntPtr lpArgToCompletionRoutine,
+        [In, Optional] IntPtr WakeContext,
+        [In] uint TolerableDelay
+    );
+
+    [DllImport(Libraries.Kernel32, CallingConvention = CallingConvention.Winapi, SetLastError = true)]
+    [DefaultDllImportSearchPaths(DllImportSearchPath.System32)]
+    internal static extern int WaitForSingleObject(
+        [In] this WaitableTimer hTimer,
+        [In] uint dwMilliseconds
+    );
+
+    [DllImport(Libraries.Kernel32, CallingConvention = CallingConvention.Winapi, SetLastError = true)]
+    [DefaultDllImportSearchPaths(DllImportSearchPath.System32)]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    internal static extern bool CloseHandle(
+        [In] IntPtr hObject
+    );
+}
+
+internal sealed class WaitableTimer : SafeHandleZeroOrMinusOneIsInvalid
+{
+    [Flags]
+    public enum FLAGS : uint
     {
-        public const string Kernel32 = "kernel32.dll";
-        public const string User32 = "user32.dll";
-        public const string Gdi32 = "gdi32.dll";
+        MANUAL_RESET = 0x00000001,
+        HIGH_RESOLUTION = 0x00000002,
     }
 
-    internal static class NativeMethods
+    [Flags]
+    public enum ACCESSES : long
     {
-        [DllImport(Libraries.Kernel32, CallingConvention = CallingConvention.Cdecl, CharSet = CharSet.Unicode, SetLastError = true)]
-        [DefaultDllImportSearchPaths(DllImportSearchPath.System32)]
-        internal static extern bool SetDllDirectory(
-            [In] string lpPathName
-        );
+        DELETE = 0x00010000L,
+        READ_CONTROL = 0x00020000L,
+        SYNCHRONIZE = 0x00100000L,
+        WRITE_DAC = 0x00040000L,
+        WRITE_OWNER = 0x00080000L,
+        TIMER_ALL_ACCESS = 0x1F0003,
+        TIMER_MODIFY_STATE = 0x0002,
+        TIMER_QUERY_STATE = 0x0001,
 
-        [DllImport(Libraries.Kernel32, CallingConvention = CallingConvention.Cdecl, CharSet = CharSet.Unicode, SetLastError = true)]
-        [DefaultDllImportSearchPaths(DllImportSearchPath.System32)]
-        internal static extern IntPtr GetModuleHandle(
-            [In] string lpModuleName
-        );
-
-
-        [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Unicode)]
-        public struct WNDCLASS
-        {
-            [Flags]
-            public enum CS : uint
-            {
-                VREDRAW = 0x0001,
-                HREDRAW = 0x0002,
-                DBLCLKS = 0x0008,
-                DROPSHADOW = 0x00020000,
-                SAVEBITS = 0x0800
-            }
-
-            public CS style;
-            public IntPtr lpfnWndProc;
-            public int cbClsExtra;
-            public int cbWndExtra;
-            public IntPtr hInstance;
-            public IntPtr hIcon;
-            public IntPtr hCursor;
-            public IntPtr hbrBackground;
-            public IntPtr lpszMenuName;
-            public IntPtr lpszClassName;
-        }
-
-        public delegate IntPtr WNDPROC(IntPtr hWnd, int msg, IntPtr wParam, IntPtr lParam);
-
-        [DllImport(Libraries.User32, CallingConvention = CallingConvention.Cdecl, CharSet = CharSet.Unicode, SetLastError = true)]
-        [DefaultDllImportSearchPaths(DllImportSearchPath.System32)]
-        internal static extern ushort RegisterClass(
-            [In] ref WNDCLASS lpWndClass
-        );
-
-        [DllImport(Libraries.User32, CallingConvention = CallingConvention.Cdecl, CharSet = CharSet.Unicode, SetLastError = true)]
-        [DefaultDllImportSearchPaths(DllImportSearchPath.System32)]
-        [return: MarshalAs(UnmanagedType.Bool)]
-        internal static extern bool UnregisterClass(
-            [In] IntPtr lpClassName,
-            [In] IntPtr hInstance
-        );
-
-        [DllImport(Libraries.User32, CallingConvention = CallingConvention.Cdecl, CharSet = CharSet.Unicode, SetLastError = true)]
-        [DefaultDllImportSearchPaths(DllImportSearchPath.System32)]
-        [return: MarshalAs(UnmanagedType.Bool)]
-        internal static extern bool IsGUIThread(
-            [In] bool bConvert
-        );
-
-        [DllImport(Libraries.User32, CallingConvention = CallingConvention.Cdecl, CharSet = CharSet.Unicode, SetLastError = true)]
-        [DefaultDllImportSearchPaths(DllImportSearchPath.System32)]
-        internal static extern IntPtr DefWindowProc(
-            [In] IntPtr hWnd,
-            [In] int msg,
-            [In] IntPtr wParam,
-            [In] IntPtr lParam
-        );
-
-
-        [DllImport(Libraries.User32, CallingConvention = CallingConvention.Cdecl, CharSet = CharSet.Unicode, SetLastError = true)]
-        [DefaultDllImportSearchPaths(DllImportSearchPath.System32)]
-        internal static extern IntPtr CreateWindowEx(
-            [In] int dwExStyle,
-            [In] IntPtr lpszClassName,
-            [In] IntPtr lpszWindowName,
-            [In] int style,
-            [In] int x,
-            [In] int y,
-            [In] int width,
-            [In] int height,
-            [In] IntPtr hwndParent,
-            [In] IntPtr hMenu,
-            [In] IntPtr hInst,
-            [In] IntPtr pvParam
-        );
-
-        [DllImport(Libraries.User32, CallingConvention = CallingConvention.Cdecl, CharSet = CharSet.Unicode, SetLastError = true)]
-        [DefaultDllImportSearchPaths(DllImportSearchPath.System32)]
-        [return: MarshalAs(UnmanagedType.Bool)]
-        internal static extern bool DestroyWindow(
-            [In] HandleRef hwnd
-        );
-
-        [StructLayout(LayoutKind.Sequential)]
-        internal struct MSG
-        {
-            public IntPtr hwnd;
-            public int message;
-            public IntPtr wParam;
-            public IntPtr lParam;
-            public int time;
-            public int pt_x;
-            public int pt_y;
-        }
-
-        [DllImport(Libraries.User32, CallingConvention = CallingConvention.Cdecl, ExactSpelling = true, SetLastError = true)]
-        [DefaultDllImportSearchPaths(DllImportSearchPath.System32)]
-        [return: MarshalAs(UnmanagedType.Bool)]
-        internal static extern bool IsWindowUnicode(
-            [In] HandleRef hwnd
-        );
-
-        [DllImport(Libraries.User32, CallingConvention = CallingConvention.Cdecl, ExactSpelling = true, SetLastError = true)]
-        [DefaultDllImportSearchPaths(DllImportSearchPath.System32)]
-        internal static extern uint MsgWaitForMultipleObjects(
-            [In] uint nCount,
-            [In] IntPtr pHandles,
-            [In][MarshalAs(UnmanagedType.Bool)] bool fWaitAll,
-            [In] uint dwMilliseconds,
-            [In] uint dwWakeMask
-        );
-
-        [DllImport(Libraries.User32, CallingConvention = CallingConvention.Cdecl, ExactSpelling = true, SetLastError = true)]
-        [DefaultDllImportSearchPaths(DllImportSearchPath.System32)]
-        internal static extern int GetMessageA(
-            [In, Out] ref MSG msg,
-            [In] IntPtr hwnd,
-            [In] int nMsgFilterMin,
-            [In] int nMsgFilterMax
-        );
-
-        [DllImport(Libraries.User32, CallingConvention = CallingConvention.Cdecl, ExactSpelling = true, SetLastError = true)]
-        [DefaultDllImportSearchPaths(DllImportSearchPath.System32)]
-        internal static extern int GetMessageW(
-            [In] ref MSG msg,
-            [In] IntPtr hwnd,
-            [In] int nMsgFilterMin,
-            [In] int nMsgFilterMax
-        );
-
-        [DllImport(Libraries.User32, CallingConvention = CallingConvention.Cdecl, CharSet = CharSet.Unicode, SetLastError = true)]
-        [DefaultDllImportSearchPaths(DllImportSearchPath.System32)]
-        [return: MarshalAs(UnmanagedType.Bool)]
-        internal static extern bool PeekMessage(
-            [In, Out] ref MSG msg,
-            [In] IntPtr hwnd,
-            [In] int nMsgFilterMin,
-            [In] int nMsgFilterMax,
-            [In] int wRemoveMsg
-        );
-
-        [DllImport(Libraries.User32, CallingConvention = CallingConvention.Cdecl, ExactSpelling = true, SetLastError = true)]
-        [DefaultDllImportSearchPaths(DllImportSearchPath.System32)]
-        [return: MarshalAs(UnmanagedType.Bool)]
-        internal static extern bool TranslateMessage(
-            [In, Out] ref MSG msg
-        );
-
-        [DllImport(Libraries.User32, CallingConvention = CallingConvention.Cdecl, ExactSpelling = true, SetLastError = true)]
-        [DefaultDllImportSearchPaths(DllImportSearchPath.System32)]
-        internal static extern IntPtr DispatchMessageA(
-            [In] ref MSG msg
-        );
-
-        [DllImport(Libraries.User32, CallingConvention = CallingConvention.Cdecl, ExactSpelling = true, SetLastError = true)]
-        [DefaultDllImportSearchPaths(DllImportSearchPath.System32)]
-        internal static extern IntPtr DispatchMessageW(
-            [In] ref MSG msg
-        );
-
-        [DllImport(Libraries.User32, CallingConvention = CallingConvention.Cdecl, ExactSpelling = true, SetLastError = true)]
-        [DefaultDllImportSearchPaths(DllImportSearchPath.System32)]
-        [return: MarshalAs(UnmanagedType.Bool)]
-        internal static extern bool SendNotifyMessageA(
-            [In] HandleRef hWnd,
-            [In] int nMsg,
-            [In] IntPtr wParam,
-            [In] IntPtr lParam
-        );
-
-        [DllImport(Libraries.User32, CallingConvention = CallingConvention.Cdecl, ExactSpelling = true, SetLastError = true)]
-        [DefaultDllImportSearchPaths(DllImportSearchPath.System32)]
-        [return: MarshalAs(UnmanagedType.Bool)]
-        internal static extern bool SendNotifyMessageW(
-            [In] HandleRef hWnd,
-            [In] int nMsg,
-            [In] IntPtr wParam,
-            [In] IntPtr lParam
-        );
-
-        [DllImport(Libraries.User32, CallingConvention = CallingConvention.Cdecl, ExactSpelling = true, SetLastError = true)]
-        [DefaultDllImportSearchPaths(DllImportSearchPath.System32)]
-        internal static extern void PostQuitMessage(
-            [In] int nExitCode
-        );
-
-
-        [DllImport(Libraries.User32, CallingConvention = CallingConvention.Cdecl, ExactSpelling = true, SetLastError = true)]
-        [DefaultDllImportSearchPaths(DllImportSearchPath.System32)]
-        [return: MarshalAs(UnmanagedType.Bool)]
-        internal static extern bool MoveWindow(
-            [In] HandleRef hWnd,
-            [In] int X,
-            [In] int Y,
-            [In] int nWidth,
-            [In] int nHeight,
-            [In][MarshalAs(UnmanagedType.Bool)] bool bRepaint
-        );
-
-        [DllImport(Libraries.User32, CallingConvention = CallingConvention.Cdecl, ExactSpelling = true, SetLastError = true)]
-        [DefaultDllImportSearchPaths(DllImportSearchPath.System32)]
-        [return: MarshalAs(UnmanagedType.Bool)]
-        internal static extern bool ShowWindow(
-            [In] HandleRef hWnd,
-            [In] int nCmdShow
-        );
-
-        [DllImport(Libraries.User32, CallingConvention = CallingConvention.Cdecl, ExactSpelling = true, SetLastError = true)]
-        [DefaultDllImportSearchPaths(DllImportSearchPath.System32)]
-        internal static extern bool PrintWindow(
-            [In] HandleRef hWnd,
-            [In] HandleRef hDC,
-            [In] int flags
-        );
-
-        [DllImport(Libraries.User32, CallingConvention = CallingConvention.Cdecl, ExactSpelling = true, SetLastError = true)]
-        [DefaultDllImportSearchPaths(DllImportSearchPath.System32)]
-        internal static extern IntPtr GetDC(
-            [In] HandleRef hWnd
-        );
-
-        [DllImport(Libraries.User32, CallingConvention = CallingConvention.Cdecl, ExactSpelling = true, SetLastError = true)]
-        [DefaultDllImportSearchPaths(DllImportSearchPath.System32)]
-        internal static extern int ReleaseDC(
-            [In] HandleRef hWnd,
-            [In] HandleRef hDC
-        );
-
-        [StructLayout(LayoutKind.Sequential)]
-        internal struct RECT
-        {
-            public long left;
-            public long top;
-            public long right;
-            public long bottom;
-        };
-        
-        [DllImport(Libraries.User32, CallingConvention = CallingConvention.Cdecl, ExactSpelling = true, SetLastError = true)]
-        [DefaultDllImportSearchPaths(DllImportSearchPath.System32)]
-        [return: MarshalAs(UnmanagedType.Bool)]
-        internal static extern bool GetClientRect(
-            [In] HandleRef hWnd,
-            [In] ref RECT lpRect
-        );
-
-        [DllImport(Libraries.Gdi32, CallingConvention = CallingConvention.Cdecl, ExactSpelling = true, SetLastError = true)]
-        [DefaultDllImportSearchPaths(DllImportSearchPath.System32)]
-        internal static extern IntPtr CreateCompatibleDC(
-            [In] HandleRef hdc
-        );
-
-        [DllImport(Libraries.Gdi32, CallingConvention = CallingConvention.Cdecl, ExactSpelling = true, SetLastError = true)]
-        [DefaultDllImportSearchPaths(DllImportSearchPath.System32)]
-        [return: MarshalAs(UnmanagedType.Bool)]
-        internal static extern bool DeleteDC(
-            [In] HandleRef hdc
-        );
-
-        [DllImport(Libraries.Gdi32, CallingConvention = CallingConvention.Cdecl, ExactSpelling = true, SetLastError = true)]
-        [DefaultDllImportSearchPaths(DllImportSearchPath.System32)]
-        internal static extern IntPtr CreateCompatibleBitmap(
-            [In] HandleRef hdc,
-            [In] int cx,
-            [In] int cy
-        );
-
-        [DllImport(Libraries.Gdi32, CallingConvention = CallingConvention.Cdecl, ExactSpelling = true, SetLastError = true)]
-        [DefaultDllImportSearchPaths(DllImportSearchPath.System32)]
-        [return: MarshalAs(UnmanagedType.Bool)]
-        internal static extern bool DeleteObject(
-            [In] HandleRef ho
-        );
-
-        [DllImport(Libraries.Gdi32, CallingConvention = CallingConvention.Cdecl, ExactSpelling = true, SetLastError = true)]
-        [DefaultDllImportSearchPaths(DllImportSearchPath.System32)]
-        internal static extern IntPtr SelectObject(
-            [In] HandleRef hdc,
-            [In] HandleRef h
-        );
-
-
-        [DllImport(Libraries.Gdi32, CallingConvention = CallingConvention.Cdecl, ExactSpelling = true, SetLastError = true)]
-        [DefaultDllImportSearchPaths(DllImportSearchPath.System32)]
-        [return: MarshalAs(UnmanagedType.Bool)]
-        internal static extern bool BitBlt(
-            [In] HandleRef hdc,
-            [In] int x,
-            [In] int y,
-            [In] int cx,
-            [In] int cy,
-            [In] HandleRef hdcSrc,
-            [In] int x1,
-            [In] int y1,
-            [In] uint rop
-        );
     }
+
+    public WaitableTimer() : base(true)
+    {
+    }
+
+    protected override bool ReleaseHandle()
+    {
+        var result = NativeMethods.CloseHandle(handle);
+        return result;
+    }
+
+
 }

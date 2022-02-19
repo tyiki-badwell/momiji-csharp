@@ -1,0 +1,28 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net6.0-windows10.0.19041.0</TargetFramework>
+    <Platforms>x86;x64</Platforms>
+	<Nullable>enable</Nullable>
+	<ImplicitUsings>enable</ImplicitUsings>
+  </PropertyGroup>
+
+  <!-- CsWinRT properties -->
+  <PropertyGroup>
+    <CsWinRTComponent>true</CsWinRTComponent>
+	<CsWinRTWindowsMetadata>10.0.19041.0</CsWinRTWindowsMetadata>
+    <CsWinRTEnableLogging>true</CsWinRTEnableLogging>
+  </PropertyGroup>  
+  
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Windows.CsWinRT" Version="1.4.1" />
+  </ItemGroup>
+
+  <!-- NuGet package generation properties -->
+  <PropertyGroup>
+    <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
+    <Version>1.0.0</Version>
+    <PackageOutputPath>$(OutDir)\nuget</PackageOutputPath>
+  </PropertyGroup>
+
+</Project>

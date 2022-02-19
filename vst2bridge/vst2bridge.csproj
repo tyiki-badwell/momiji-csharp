@@ -2,17 +2,19 @@
 
   <PropertyGroup>
     <OutputType>Exe</OutputType>
-    <TargetFramework>net5.0-windows</TargetFramework>
+    <TargetFramework>net6.0-windows10.0.19041.0</TargetFramework>
     <Platforms>x86;x64</Platforms>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
     <AnalysisMode>AllEnabledByDefault</AnalysisMode>
 
     <AssemblyName Condition=" '$(Platform)' == 'x86' ">$(AssemblyName)32</AssemblyName>
     <AssemblyName Condition=" '$(Platform)' == 'x64' ">$(AssemblyName)64</AssemblyName>
+	<Nullable>enable</Nullable>
+	<ImplicitUsings>enable</ImplicitUsings>
   </PropertyGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\momiji\momiji.csproj" />
+    <ProjectReference Include="..\momiji\Momiji.csproj" />
   </ItemGroup>
 
 </Project>

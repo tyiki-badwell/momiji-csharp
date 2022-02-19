@@ -39,16 +39,16 @@ namespace Momiji.Core.Vst
             var logger = loggerFactory.CreateLogger<VstUnitTest>();
 
             using var dllManager = new DllManager(configuration, loggerFactory);
-            using var lapTimer = new LapTimer();
+            var counter = new ElapsedTimeCounter();
 
             var blockSize = 2880;
 
             var midiEventInput = new BufferBlock<MIDIMessageEvent2>();
             using var buffer = new VstBuffer<double>(blockSize, 2);
 
-            using var vst = new AudioMaster<double>(48000, blockSize, loggerFactory, lapTimer, dllManager);
+            using var vst = new AudioMaster<double>(48000, blockSize, loggerFactory, counter, dllManager);
             var effect = vst.AddEffect("Dexed.dll");
-
+            var effect2 = vst.AddEffect("Synth1 VST.dll");
 
             //var aeffect = effect.GetAEffect();
             //for (int i = 0; i < 1/*aeffect.numParams*/; i++)
@@ -61,7 +61,7 @@ namespace Momiji.Core.Vst
             //}
 
             {
-                var nowTime = lapTimer.USecDouble;
+                var nowTime = counter.NowTicks / 10;
                 midiEventInput.Post(new MIDIMessageEvent2()
                 {
                     midiMessageEvent = {
@@ -89,7 +89,7 @@ namespace Momiji.Core.Vst
             }
 
             {
-                var nowTime = lapTimer.USecDouble;
+                var nowTime = counter.NowTicks / 10;
                 midiEventInput.Post(new MIDIMessageEvent2()
                 {
                     midiMessageEvent = {
@@ -105,7 +105,7 @@ namespace Momiji.Core.Vst
                 effect.ProcessReplacing(nowTime, buffer);
             }
             {
-                var nowTime = lapTimer.USecDouble;
+                var nowTime = counter.NowTicks / 10;
                 midiEventInput.Post(new MIDIMessageEvent2()
                 {
                     midiMessageEvent = {
@@ -121,7 +121,7 @@ namespace Momiji.Core.Vst
                 effect.ProcessReplacing(nowTime, buffer);
             }
             {
-                var nowTime = lapTimer.USecDouble;
+                var nowTime = counter.NowTicks / 10;
                 midiEventInput.Post(new MIDIMessageEvent2()
                 {
                     midiMessageEvent = {
@@ -137,5 +137,69 @@ namespace Momiji.Core.Vst
                 effect.ProcessReplacing(nowTime, buffer);
             }
         }
+
+        [Fact]
+        public void Test2()
+        {
+            var configuration =
+                new ConfigurationBuilder()
+                .AddJsonFile("appsettings.json")
+                .Build();
+
+            using var loggerFactory = LoggerFactory.Create(builder =>
+            {
+                builder.AddFilter("Momiji", LogLevel.Debug);
+                builder.AddFilter("Microsoft", LogLevel.Warning);
+                builder.AddFilter("System", LogLevel.Warning);
+                builder.AddConsole();
+                builder.AddDebug();
+            });
+            var logger = loggerFactory.CreateLogger<VstUnitTest>();
+
+            using var dllManager = new DllManager(configuration, loggerFactory);
+            var counter = new ElapsedTimeCounter();
+
+            var blockSize = 2880;
+
+            using var vst = new AudioMaster<float>(48000, blockSize, loggerFactory, counter, dllManager);
+            using var processCancel = new CancellationTokenSource();
+
+            var effect = vst.AddEffect("Synth1 VST.dll");
+            effect.OpenEditor(processCancel.Token);
+            processCancel.Cancel();
+            effect.CloseEditorAsync().Wait();
+
+        }
+
+        [Fact]
+        public void Test3()
+        {
+            var configuration =
+                new ConfigurationBuilder()
+                .AddJsonFile("appsettings.json")
+                .Build();
+
+            using var loggerFactory = LoggerFactory.Create(builder =>
+            {
+                builder.AddFilter("Momiji", LogLevel.Debug);
+                builder.AddFilter("Microsoft", LogLevel.Warning);
+                builder.AddFilter("System", LogLevel.Warning);
+                builder.AddConsole();
+                builder.AddDebug();
+            });
+            var logger = loggerFactory.CreateLogger<VstUnitTest>();
+
+            using var dllManager = new DllManager(configuration, loggerFactory);
+            var counter = new ElapsedTimeCounter();
+
+            var blockSize = 2880;
+
+            using var vst = new AudioMaster<float>(48000, blockSize, loggerFactory, counter, dllManager);
+
+            var effect = vst.AddEffect("Synth1 VST.dll");
+
+            vst.RemoveEffect(effect);
+        }
+
     }
 }

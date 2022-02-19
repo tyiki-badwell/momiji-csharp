@@ -1,6 +1,4 @@
-﻿using Microsoft.Extensions.Configuration;
-using Microsoft.Extensions.Logging;
-using Momiji.Core.Buffer;
+﻿using Momiji.Core.Buffer;
 using Momiji.Core.Configuration;
 using Momiji.Core.Dll;
 using Momiji.Core.FFT;
@@ -14,13 +12,8 @@ using Momiji.Core.Vst;
 using Momiji.Core.Wave;
 using Momiji.Core.WebMidi;
 using Momiji.Interop.Opus;
-using System;
-using System.Collections.Generic;
-using System.IO;
 using System.Reflection;
 using System.Runtime.InteropServices;
-using System.Threading;
-using System.Threading.Tasks;
 using System.Threading.Tasks.Dataflow;
 using Windows.Media.Audio;
 using Windows.Media.MediaProperties;
@@ -66,9 +59,16 @@ namespace mixerTest
             StreamKey = Configuration["MIXER_STREAM_KEY"];
             IngestHostname = Configuration["MIXER_INGEST_HOSTNAME"];
 
+            var assembly = Assembly.GetExecutingAssembly();
+            var directoryName = Path.GetDirectoryName(assembly.Location);
+            if (directoryName == default)
+            {
+                throw new InvalidOperationException($"GetDirectoryName({assembly.Location}) failed.");
+            }
+
             CaInfoPath =
                 Path.Combine(
-                    Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location),
+                    directoryName,
                     "lib",
                     "cacert.pem"
                 );
@@ -94,14 +94,14 @@ namespace mixerTest
             var blockSize = (int)(Param.SamplingRate * Param.SampleLength);
             Logger.LogInformation($"[loop3] blockSize {blockSize}");
 
-            var audioInterval = 1_000_000.0 * Param.SampleLength;
+            var audioInterval = (long)(10_000_000.0 * Param.SampleLength);
             Logger.LogInformation($"[loop3] audioInterval {audioInterval}");
-            var videoInterval = 1_000_000.0 / Param.MaxFrameRate;
+            var videoInterval = (long)(10_000_000.0 / Param.MaxFrameRate);
             Logger.LogInformation($"[loop3] videoInterval {videoInterval}");
 
-            using var lapTimer = new LapTimer();
-            using var audioWaiter = new Waiter(lapTimer, audioInterval);
-            using var videoWaiter = new Waiter(lapTimer, videoInterval);
+            var counter = new ElapsedTimeCounter();
+            using var audioWaiter = new Waiter(counter, audioInterval);
+            using var videoWaiter = new Waiter(counter, videoInterval);
             using var buf = new IPCBuffer<float>(Param.EffectName, blockSize * 2 * Param.BufferCount, LoggerFactory);
             using var vstBufferPool = new BufferPool<VstBuffer2<float>>(Param.BufferCount, () => new VstBuffer2<float>(blockSize, 2, buf), LoggerFactory);
             using var pcmPool = new BufferPool<PcmBuffer<float>>(Param.BufferCount, () => new PcmBuffer<float>(blockSize, 2), LoggerFactory);
@@ -109,14 +109,14 @@ namespace mixerTest
             using var pcmDrowPool = new BufferPool<PcmBuffer<float>>(Param.BufferCount, () => new PcmBuffer<float>(blockSize, 2), LoggerFactory);
             using var bmpPool = new BufferPool<H264InputBuffer>(Param.BufferCount, () => new H264InputBuffer(Param.Width, Param.Height), LoggerFactory);
             using var videoPool = new BufferPool<H264OutputBuffer>(Param.BufferCount, () => new H264OutputBuffer(200000), LoggerFactory);
-            using var vst = new AudioMaster<float>(Param.SamplingRate, blockSize, LoggerFactory, lapTimer, DllManager);
-            using var toPcm = new ToPcm<float>(LoggerFactory, lapTimer);
-            using var opus = new OpusEncoder(SamplingRate.Sampling48000, Channels.Stereo, LoggerFactory, lapTimer);
-            using var fft = new FFTEncoder(Param.Width, Param.Height, Param.MaxFrameRate, LoggerFactory, lapTimer);
-            using var h264 = new H264Encoder(Param.Width, Param.Height, Param.TargetBitrate, Param.MaxFrameRate, LoggerFactory, lapTimer);
+            using var vst = new AudioMaster<float>(Param.SamplingRate, blockSize, LoggerFactory, counter, DllManager);
+            using var toPcm = new ToPcm<float>(LoggerFactory, counter);
+            using var opus = new OpusEncoder(SamplingRate.Sampling48000, Channels.Stereo, LoggerFactory, counter);
+            using var fft = new FFTEncoder(Param.Width, Param.Height, Param.MaxFrameRate, LoggerFactory, counter);
+            using var h264 = new H264Encoder(Param.Width, Param.Height, Param.TargetBitrate, Param.MaxFrameRate, LoggerFactory, counter);
             var effect = vst.AddEffect(Param.EffectName);
 
-            using var ftl = new FtlIngest(StreamKey, IngestHostname, LoggerFactory, lapTimer, audioInterval, videoInterval, Param.Connect, default, CaInfoPath);
+            using var ftl = new FtlIngest(StreamKey, IngestHostname, LoggerFactory, counter, audioInterval, videoInterval, default, CaInfoPath);
             ftl.Connect();
 
             var options = new ExecutionDataflowBlockOptions
@@ -132,17 +132,17 @@ namespace mixerTest
                         var pcmTask = pcmPool.ReceiveAsync(ct);
 
                         buffer.Log.Clear();
-                        await audioWaiter.Wait(ct).ConfigureAwait(false);
+                        audioWaiter.Wait();
 
-                        buffer.Log.Add("[audio] start", lapTimer.USecDouble);
+                        buffer.Log.Add("[audio] start", counter.NowTicks);
 
                         //VST
-                        var nowTime = lapTimer.USecDouble;
+                        var nowTime = counter.NowTicks / 10;
                         effect.ProcessEvent(nowTime, MidiEventInput);
                         effect.ProcessReplacing(nowTime, buffer);
 
                         //trans
-                        var pcm = pcmTask.Result;
+                        var pcm = await pcmTask.ConfigureAwait(false);
                         toPcm.Execute(buffer, pcm);
                         vstBufferPool.Post(buffer);
 
@@ -154,9 +154,9 @@ namespace mixerTest
                 var opusBlock =
                     new TransformBlock<PcmBuffer<float>, OpusOutputBuffer>(buffer =>
                     {
-                        buffer.Log.Add("[audio] opus input get", lapTimer.USecDouble);
+                        buffer.Log.Add("[audio] opus input get", counter.NowTicks);
                         var audio = audioPool.Receive(ct);
-                        buffer.Log.Add("[audio] ftl output get", lapTimer.USecDouble);
+                        buffer.Log.Add("[audio] ftl output get", counter.NowTicks);
                         opus.Execute(buffer, audio);
 
                         pcmDrowPool.Post(buffer);
@@ -170,7 +170,7 @@ namespace mixerTest
                     new ActionBlock<OpusOutputBuffer>(buffer =>
                     {
                         //FTL
-                        buffer.Log.Add("[audio] ftl input get", lapTimer.USecDouble);
+                        buffer.Log.Add("[audio] ftl input get", counter.NowTicks);
                         ftl.Execute(buffer);
                         audioPool.Post(buffer);
                     }, options);
@@ -197,12 +197,12 @@ namespace mixerTest
                 pcmDrowPool.LinkTo(pcmDataStoreBlock);
 
                 var fftBlock =
-                    new TransformBlock<H264InputBuffer, H264InputBuffer>(async buffer =>
+                    new TransformBlock<H264InputBuffer, H264InputBuffer>(buffer =>
                     {
                         buffer.Log.Clear();
 
-                        await videoWaiter.Wait(ct).ConfigureAwait(false);
-                        buffer.Log.Add("[video] start", lapTimer.USecDouble);
+                        videoWaiter.Wait();
+                        buffer.Log.Add("[video] start", counter.NowTicks);
 
                         //FFT
                         fft.Execute(buffer);
@@ -217,9 +217,9 @@ namespace mixerTest
                     new TransformBlock<H264InputBuffer, H264OutputBuffer>(buffer =>
                     {
                         //H264
-                        buffer.Log.Add("[video] h264 input get", lapTimer.USecDouble);
+                        buffer.Log.Add("[video] h264 input get", counter.NowTicks);
                         var video = videoPool.Receive(ct);
-                        buffer.Log.Add("[video] ftl output get", lapTimer.USecDouble);
+                        buffer.Log.Add("[video] ftl output get", counter.NowTicks);
                         var insertIntraFrame = (intraFrameCount <= 0);
                         h264.Execute(buffer, video, insertIntraFrame);
                         bmpPool.Post(buffer);
@@ -237,7 +237,7 @@ namespace mixerTest
                     new ActionBlock<H264OutputBuffer>(buffer =>
                     {
                         //FTL
-                        buffer.Log.Add("[video] ftl input get", lapTimer.USecDouble);
+                        buffer.Log.Add("[video] ftl input get", counter.NowTicks);
                         ftl.Execute(buffer);
                         videoPool.Post(buffer);
                     }, options);
@@ -275,7 +275,7 @@ namespace mixerTest
             var devices = await Windows.Devices.Enumeration.DeviceInformation.FindAllAsync(Windows.Media.Devices.MediaDevice.GetAudioRenderSelector());
 
 
-            AudioGraph audioGraph = null;
+            AudioGraph audioGraph;
             {
                 var settings = new AudioGraphSettings(Windows.Media.Render.AudioRenderCategory.Media)
                 {
@@ -289,24 +289,24 @@ namespace mixerTest
                 var result = await AudioGraph.CreateAsync(settings);
                 if (result.Status != AudioGraphCreationStatus.Success)
                 {
-                    throw new Exception("create failed.", result.ExtendedError);
+                    throw new InvalidOperationException("create failed.", result.ExtendedError);
                 }
                 audioGraph = result.Graph;
             }
             Logger.LogInformation($"[loop3] audioGraph.SamplesPerQuantum {audioGraph.SamplesPerQuantum}");
             Logger.LogInformation($"[loop3] audioGraph.LatencyInSamples {audioGraph.LatencyInSamples}");
 
-            AudioDeviceOutputNode outNode = null;
+            AudioDeviceOutputNode outNode;
             {
                 var result = await audioGraph.CreateDeviceOutputNodeAsync();
                 if (result.Status != AudioDeviceNodeCreationStatus.Success)
                 {
-                    throw new Exception("create failed.", result.ExtendedError);
+                    throw new InvalidOperationException("create failed.", result.ExtendedError);
                 }
                 outNode = result.DeviceOutputNode;
             }
 
-            AudioFrameInputNode inNode = null;
+            AudioFrameInputNode inNode;
             {
                 var prop = AudioEncodingProperties.CreatePcm((uint)Param.SamplingRate, 2, sizeof(float) * 8);
                 inNode = audioGraph.CreateFrameInputNode(prop);
@@ -349,15 +349,15 @@ namespace mixerTest
             //audioGraph.Start();
 
             var blockSize = (int)(Param.SamplingRate * Param.SampleLength);
-            var audioInterval = 1_000_000.0 * Param.SampleLength;
+            var audioInterval = (long)(10_000_000.0 * Param.SampleLength);
 
             using var buf = new IPCBuffer<float>(Param.EffectName, blockSize * 2 * Param.BufferCount, LoggerFactory);
             using var vstBufferPool = new BufferPool<VstBuffer2<float>>(Param.BufferCount, () => new VstBuffer2<float>(blockSize, 2, buf), LoggerFactory);
             using var pcmPool = new BufferPool<PcmBuffer<float>>(Param.BufferCount, () => new PcmBuffer<float>(blockSize, 2), LoggerFactory);
-            using var lapTimer = new LapTimer();
-            using var audioWaiter = new Waiter(lapTimer, audioInterval);
-            using var vst = new AudioMaster<float>(Param.SamplingRate, blockSize, LoggerFactory, lapTimer, DllManager);
-            using var toPcm = new ToPcm<float>(LoggerFactory, lapTimer);
+            var counter = new ElapsedTimeCounter();
+            using var audioWaiter = new Waiter(counter, audioInterval);
+            using var vst = new AudioMaster<float>(Param.SamplingRate, blockSize, LoggerFactory, counter, DllManager);
+            using var toPcm = new ToPcm<float>(LoggerFactory, counter);
             var effect = vst.AddEffect(Param.EffectName);
 
             using var wave = new WaveOutFloat(
@@ -366,7 +366,7 @@ namespace mixerTest
                 Param.SamplingRate,
                 SPEAKER.FrontLeft | SPEAKER.FrontRight,
                 LoggerFactory,
-                lapTimer,
+                counter,
                 pcmPool);
 
             var options = new ExecutionDataflowBlockOptions
@@ -381,14 +381,14 @@ namespace mixerTest
                     var pcmTask = pcmPool.ReceiveAsync(ct);
 
                     buffer.Log.Clear();
-                    await audioWaiter.Wait(ct).ConfigureAwait(false);
+                    audioWaiter.Wait();
                     //VST
-                    var nowTime = lapTimer.USecDouble;
+                    var nowTime = counter.NowTicks / 10;
                     effect.ProcessEvent(nowTime, MidiEventInput);
                     effect.ProcessReplacing(nowTime, buffer);
 
                     //trans
-                    var pcm = pcmTask.Result;
+                    var pcm = await pcmTask.ConfigureAwait(false);
                     toPcm.Execute(buffer, pcm);
                     vstBufferPool.Post(buffer);
                     return pcm;
