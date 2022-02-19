@@ -7,7 +7,6 @@ namespace Momiji.Core.Trans;
 
 public class ToPcm<T> : IDisposable where T : struct
 {
-    private readonly ILoggerFactory _loggerFactory;
     private readonly ILogger _logger;
     private readonly ElapsedTimeCounter _counter;
 
@@ -18,8 +17,10 @@ public class ToPcm<T> : IDisposable where T : struct
         ElapsedTimeCounter counter
     )
     {
-        _loggerFactory = loggerFactory;
-        _logger = _loggerFactory.CreateLogger<ToPcm<T>>();
+        ArgumentNullException.ThrowIfNull(loggerFactory);
+        ArgumentNullException.ThrowIfNull(counter);
+
+        _logger = loggerFactory.CreateLogger<ToPcm<T>>();
         _counter = counter;
     }
 

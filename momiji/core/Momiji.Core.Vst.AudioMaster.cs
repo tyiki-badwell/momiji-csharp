@@ -4,28 +4,26 @@ using Momiji.Core.SharedMemory;
 using Momiji.Core.Timer;
 using Momiji.Interop.Vst;
 using Momiji.Interop.Vst.AudioMaster;
-using System;
 using System.Collections.Concurrent;
-using System.Collections.Generic;
 
 namespace Momiji.Core.Vst
 {
     public class AudioMaster<T> : IDisposable where T : struct
     {
-        private ILoggerFactory LoggerFactory { get; }
-        private ILogger Logger { get; }
-        private ElapsedTimeCounter Counter { get; }
+        private readonly ILoggerFactory _loggerFactory;
+        private readonly ILogger _logger;
+        private readonly ElapsedTimeCounter _counter;
         internal IDllManager DllManager { get; }
 
-        private bool disposed;
-        private readonly IDictionary<IntPtr, Effect<T>> effectMap = new ConcurrentDictionary<IntPtr, Effect<T>>();
+        private bool _disposed;
+        internal IDictionary<IntPtr, Effect<T>> EffectMap { get; } = new ConcurrentDictionary<IntPtr, Effect<T>>();
 
-        private readonly IPCBuffer<VstHostParam> param;
+        private readonly IPCBuffer<VstHostParam> _param;
 
         public int SamplingRate {
             get
             {
-                var p = param.AsSpan(0, 1);
+                var p = _param.AsSpan(0, 1);
                 return p[0].samplingRate;
             }
         }
@@ -33,7 +31,7 @@ namespace Momiji.Core.Vst
         {
             get
             {
-                var p = param.AsSpan(0, 1);
+                var p = _param.AsSpan(0, 1);
                 return p[0].blockSize;
             }
         }
@@ -46,13 +44,13 @@ namespace Momiji.Core.Vst
             IDllManager dllManager
         )
         {
-            LoggerFactory = loggerFactory;
-            Logger = LoggerFactory.CreateLogger<AudioMaster<T>>();
-            Counter = counter;
+            _loggerFactory = loggerFactory;
+            _logger = _loggerFactory.CreateLogger<AudioMaster<T>>();
+            _counter = counter;
             DllManager = dllManager;
 
-            param = new("vstTimeInfo", 1, LoggerFactory);
-            var p = param.AsSpan(0, 1);
+            _param = new("vstTimeInfo", 1, _loggerFactory);
+            var p = _param.AsSpan(0, 1);
             p[0].vstTimeInfo.samplePos = 0.0;
             p[0].vstTimeInfo.sampleRate = samplingRate;
             p[0].vstTimeInfo.nanoSeconds = 0.0;
@@ -86,11 +84,13 @@ namespace Momiji.Core.Vst
                 throw new ArgumentNullException(nameof(library));
             }
 
-            var effect = new Effect<T>(library, this, LoggerFactory, Counter);
-            effectMap.Add(effect._aeffectPtr, effect);
-            effect.Open();
+            return new Effect<T>(library, this, _loggerFactory, _counter);
+        }
 
-            return effect;
+        public void RemoveEffect(IEffect<T> effect)
+        {
+            var e = effect as Effect<T>;
+            e?.Dispose();
         }
 
         public void Dispose()
@@ -101,21 +101,23 @@ namespace Momiji.Core.Vst
 
         protected virtual void Dispose(bool disposing)
         {
-            if (disposed) return;
+            if (_disposed) return;
 
             if (disposing)
             {
-                Logger.LogInformation($"[vst host] stop [{effectMap.Count}]");
-                foreach (var (ptr, effect) in effectMap)
+                _logger.LogInformation($"[vst host] stop : opened effect [{EffectMap.Count}]");
+                foreach (var (ptr, effect) in EffectMap)
                 {
-                    Logger.LogInformation($"[vst] try stop [{ptr}]");
+                    _logger.LogInformation($"[vst] try stop [{ptr}]");
                     effect.Dispose();
                 }
-                effectMap.Clear();
-                param.Dispose();
+                _logger.LogInformation($"[vst host] left [{EffectMap.Count}]");
+
+                EffectMap.Clear();
+                _param.Dispose();
             }
 
-            disposed = true;
+            _disposed = true;
         }
 
         internal IntPtr AudioMasterCallBackProc(
@@ -147,9 +149,9 @@ namespace Momiji.Core.Vst
                     }
                 case Opcodes.audioMasterGetTime:
                     {
-                        var p = param.AsSpan(0, 1);
-                        p[0].vstTimeInfo.nanoSeconds = Counter.NowTicks * 100;
-                        return param.GetIntPtr(0);
+                        var p = _param.AsSpan(0, 1);
+                        p[0].vstTimeInfo.nanoSeconds = _counter.NowTicks * 100;
+                        return _param.GetIntPtr(0);
                     }
                 case Opcodes.audioMasterGetSampleRate:
                     {
@@ -161,7 +163,7 @@ namespace Momiji.Core.Vst
                     }
                 case Opcodes.audioMasterGetCurrentProcessLevel:
                     {
-                        var p = param.AsSpan(0, 1);
+                        var p = _param.AsSpan(0, 1);
                         return new IntPtr((int)p[0].vstProcessLevels);
                     }
 

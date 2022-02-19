@@ -25,9 +25,9 @@ public class H264Exception : Exception
 
 public class H264InputBuffer : IDisposable
 {
-    private bool disposed;
+    private bool _disposed;
     internal PinnedBuffer<SSourcePicture>? SSourcePictureBuffer { get; private set; }
-    private PinnedBuffer<byte[]>? dataBuffer;
+    private PinnedBuffer<byte[]>? _dataBuffer;
 
     public BufferLog Log { get; }
 
@@ -37,7 +37,7 @@ public class H264InputBuffer : IDisposable
         Log = new();
 
         var frameSize = picWidth * picHeight * 3 / 2;
-        dataBuffer = new(new byte[frameSize]);
+        _dataBuffer = new(new byte[frameSize]);
 
         var target = SSourcePictureBuffer.Target;
         target.iColorFormat = EVideoFormatType.videoFormatI420;
@@ -45,7 +45,7 @@ public class H264InputBuffer : IDisposable
         target.iStride1 = picWidth >> 1;
         target.iStride2 = picWidth >> 1;
         target.iStride3 = 0;
-        target.pData0 = dataBuffer.AddrOfPinnedObject;
+        target.pData0 = _dataBuffer.AddrOfPinnedObject;
         target.pData1 = target.pData0 + (picWidth * picHeight);
         target.pData2 = target.pData1 + (picWidth * picHeight >> 2);
         target.pData3 = IntPtr.Zero;
@@ -66,7 +66,7 @@ public class H264InputBuffer : IDisposable
 
     protected virtual void Dispose(bool disposing)
     {
-        if (disposed)
+        if (_disposed)
         {
             return;
         }
@@ -75,18 +75,18 @@ public class H264InputBuffer : IDisposable
         {
         }
 
-        dataBuffer?.Dispose();
-        dataBuffer = null;
+        _dataBuffer?.Dispose();
+        _dataBuffer = null;
         SSourcePictureBuffer?.Dispose();
         SSourcePictureBuffer = null;
 
-        disposed = true;
+        _disposed = true;
     }
 }
 
 public class H264OutputBuffer : IDisposable
 {
-    private bool disposed;
+    private bool _disposed;
     internal PinnedBuffer<byte[]>? Buffer { get; private set; }
 
     public BufferLog Log { get; }
@@ -112,7 +112,7 @@ public class H264OutputBuffer : IDisposable
 
     protected virtual void Dispose(bool disposing)
     {
-        if (disposed)
+        if (_disposed)
         {
             return;
         }
@@ -124,7 +124,7 @@ public class H264OutputBuffer : IDisposable
         Buffer?.Dispose();
         Buffer = null;
 
-        disposed = true;
+        _disposed = true;
     }
 }
 
@@ -137,7 +137,7 @@ public class SFrameBSInfoBuffer : PinnedBuffer<SFrameBSInfo>
 
 static public class SFrameBSInfoBufferExtensions
 {
-    private static readonly List<FieldInfo> layerInfoList = InitializeLayerInfoList();
+    private static readonly List<FieldInfo> _layerInfoList = InitializeLayerInfoList();
 
     static List<FieldInfo> InitializeLayerInfoList()
     {
@@ -157,7 +157,7 @@ static public class SFrameBSInfoBufferExtensions
     public static SLayerBSInfo SLayerInfo(this SFrameBSInfoBuffer self, int index)
     {
         ArgumentNullException.ThrowIfNull(self);
-        var value = layerInfoList[index].GetValue(self.Target);
+        var value = _layerInfoList[index].GetValue(self.Target);
         if (value == null)
         {
             throw new H264Exception("SLayerInfo failed.");
@@ -168,18 +168,17 @@ static public class SFrameBSInfoBufferExtensions
 
 public class H264Encoder : IDisposable
 {
-    private ILoggerFactory LoggerFactory { get; }
-    private ILogger Logger { get; }
-    private ElapsedTimeCounter Counter { get; }
+    private readonly ILogger _logger;
+    private readonly ElapsedTimeCounter _counter;
 
-    private bool disposed;
-    private SVCEncoder? encoder;
-    private SFrameBSInfoBuffer? sFrameBSInfoBuffer;
+    private bool _disposed;
+    private SVCEncoder? _encoder;
+    private SFrameBSInfoBuffer? _sFrameBSInfoBuffer;
 
-    private int PicWidth { get; }
-    private int PicHeight { get; }
-    private int TargetBitrate { get; }
-    private float MaxFrameRate { get; }
+    private int _picWidth;
+    private int _picHeight;
+    private int _targetBitrate;
+    private float _maxFrameRate;
 
     private readonly ISVCEncoderVtbl.InitializeProc Initialize;
     private readonly ISVCEncoderVtbl.GetDefaultParamsProc GetDefaultParams;
@@ -199,18 +198,20 @@ public class H264Encoder : IDisposable
         ElapsedTimeCounter counter
     )
     {
-        LoggerFactory = loggerFactory;
-        Logger = LoggerFactory.CreateLogger<H264Encoder>();
-        Counter = counter;
+        ArgumentNullException.ThrowIfNull(loggerFactory);
+        ArgumentNullException.ThrowIfNull(counter);
 
-        PicWidth = picWidth;
-        PicHeight = picHeight;
-        TargetBitrate = targetBitrate;
-        MaxFrameRate = maxFrameRate;
+        _logger = loggerFactory.CreateLogger<H264Encoder>();
+        _counter = counter;
+
+        _picWidth = picWidth;
+        _picHeight = picHeight;
+        _targetBitrate = targetBitrate;
+        _maxFrameRate = maxFrameRate;
 
         {
             NativeMethods.WelsGetCodecVersionEx(out var version);
-            Logger.LogInformation($"[h264] version {version.uMajor}.{version.uMinor}.{version.uReserved}.{version.uRevision}");
+            _logger.LogInformation($"[h264] version {version.uMajor}.{version.uMinor}.{version.uReserved}.{version.uRevision}");
         }
 
         {
@@ -219,10 +220,10 @@ public class H264Encoder : IDisposable
             {
                 throw new H264Exception($"WelsCreateSVCEncoder failed {result}");
             }
-            encoder = handle;
+            _encoder = handle;
         }
 
-        var temp = Marshal.PtrToStructure<IntPtr>(encoder.DangerousGetHandle());
+        var temp = Marshal.PtrToStructure<IntPtr>(_encoder.DangerousGetHandle());
         var vtbl = Marshal.PtrToStructure<ISVCEncoderVtbl>(temp);
         //if (vtbl.Initialize != IntPtr.Zero)
         {
@@ -268,13 +269,13 @@ public class H264Encoder : IDisposable
         using (var param = new PinnedBuffer<SEncParamBase>(new SEncParamBase()))
         {
             param.Target.iUsageType = EUsageType.CAMERA_VIDEO_REAL_TIME;
-            param.Target.iPicWidth = PicWidth;
-            param.Target.iPicHeight = PicHeight;
-            param.Target.iTargetBitrate = TargetBitrate;
+            param.Target.iPicWidth = _picWidth;
+            param.Target.iPicHeight = _picHeight;
+            param.Target.iTargetBitrate = _targetBitrate;
             param.Target.iRCMode = RC_MODES.RC_QUALITY_MODE;
-            param.Target.fMaxFrameRate = MaxFrameRate;
+            param.Target.fMaxFrameRate = _maxFrameRate;
 
-            var result = Initialize(encoder, param.AddrOfPinnedObject);
+            var result = Initialize(_encoder, param.AddrOfPinnedObject);
             if (result != 0)
             {
                 throw new H264Exception($"WelsCreateSVCEncoder Initialize failed {result}");
@@ -284,14 +285,14 @@ public class H264Encoder : IDisposable
         //using (var param = new PinnedBuffer<WELS_LOG>(WELS_LOG.WELS_LOG_WARNING))
         using (var param = new PinnedBuffer<int>(1 << 1))
         {
-            SetOption(encoder, ENCODER_OPTION.ENCODER_OPTION_TRACE_LEVEL, param.AddrOfPinnedObject);
+            SetOption(_encoder, ENCODER_OPTION.ENCODER_OPTION_TRACE_LEVEL, param.AddrOfPinnedObject);
         }
 
         /*
         welsTraceCallback = new PinnedDelegate<WelsTraceCallback>(TraceCallBack);
         SetOption(Encoder, ENCODER_OPTION.ENCODER_OPTION_TRACE_CALLBACK, welsTraceCallback.FunctionPointer);
         */
-        sFrameBSInfoBuffer = new SFrameBSInfoBuffer();
+        _sFrameBSInfoBuffer = new SFrameBSInfoBuffer();
     }
 
     ~H264Encoder()
@@ -307,32 +308,32 @@ public class H264Encoder : IDisposable
 
     protected virtual void Dispose(bool disposing)
     {
-        if (disposed) return;
+        if (_disposed) return;
 
         if (disposing)
         {
         }
 
-        Logger.LogInformation("[h264] stop");
+        _logger.LogInformation("[h264] stop");
 
-        if (encoder != null)
+        if (_encoder != null)
         {
             if (
-                !encoder.IsInvalid
-                && !encoder.IsClosed
+                !_encoder.IsInvalid
+                && !_encoder.IsClosed
             )
             {
-                Uninitialize(encoder);
-                encoder.Close();
+                Uninitialize(_encoder);
+                _encoder.Close();
             }
 
-            encoder = null;
+            _encoder = null;
         }
 
-        sFrameBSInfoBuffer?.Dispose();
-        sFrameBSInfoBuffer = null;
+        _sFrameBSInfoBuffer?.Dispose();
+        _sFrameBSInfoBuffer = null;
 
-        disposed = true;
+        _disposed = true;
     }
 
     public void Execute(
@@ -343,11 +344,11 @@ public class H264Encoder : IDisposable
     {
         ArgumentNullException.ThrowIfNull(source);
         ArgumentNullException.ThrowIfNull(dest);
-        if (encoder == default)
+        if (_encoder == default)
         {
             throw new InvalidOperationException("encoder is null.");
         }
-        if (sFrameBSInfoBuffer == default)
+        if (_sFrameBSInfoBuffer == default)
         {
             throw new InvalidOperationException("sFrameBSInfoBuffer is null.");
         }
@@ -362,8 +363,8 @@ public class H264Encoder : IDisposable
 
         if (insertIntraFrame)
         {
-            source.Log.Add("[h264] ForceIntraFrame", Counter.NowTicks);
-            var result = ForceIntraFrame(encoder, true);
+            source.Log.Add("[h264] ForceIntraFrame", _counter.NowTicks);
+            var result = ForceIntraFrame(_encoder, true);
             if (result != 0)
             {
                 throw new H264Exception($"WelsCreateSVCEncoder ForceIntraFrame failed {result}");
@@ -371,31 +372,31 @@ public class H264Encoder : IDisposable
         }
 
         {
-            source.Log.Add("[h264] start EncodeFrame", Counter.NowTicks);
-            source.SSourcePictureBuffer.Target.uiTimeStamp = Counter.NowTicks / 10000;
-            var result = EncodeFrame(encoder, source.SSourcePictureBuffer.AddrOfPinnedObject, sFrameBSInfoBuffer.AddrOfPinnedObject);
+            source.Log.Add("[h264] start EncodeFrame", _counter.NowTicks);
+            source.SSourcePictureBuffer.Target.uiTimeStamp = _counter.NowTicks / 10000;
+            var result = EncodeFrame(_encoder, source.SSourcePictureBuffer.AddrOfPinnedObject, _sFrameBSInfoBuffer.AddrOfPinnedObject);
             if (result != 0)
             {
                 throw new H264Exception($"WelsCreateSVCEncoder EncodeFrame failed {result}");
             }
-            source.Log.Add("[h264] end EncodeFrame", Counter.NowTicks);
+            source.Log.Add("[h264] end EncodeFrame", _counter.NowTicks);
         }
 
         dest.Log.Marge(source.Log);
         dest.LayerNuls.Clear();
-        dest.Log.Add("[h264] start copy frame", Counter.NowTicks);
+        dest.Log.Add("[h264] start copy frame", _counter.NowTicks);
         CopyMemory(
             dest.Buffer.AddrOfPinnedObject,
             dest.Buffer.Target.Length,
-            sFrameBSInfoBuffer.Target.sLayerInfo000.pBsBuf,
-            sFrameBSInfoBuffer.Target.iFrameSizeInBytes
+            _sFrameBSInfoBuffer.Target.sLayerInfo000.pBsBuf,
+            _sFrameBSInfoBuffer.Target.iFrameSizeInBytes
         );
 
         var sizeOfInt32 = Marshal.SizeOf<int>();
         var offset = 0;
-        for (var idx = 0; idx < sFrameBSInfoBuffer.Target.iLayerNum; idx++)
+        for (var idx = 0; idx < _sFrameBSInfoBuffer.Target.iLayerNum; idx++)
         {
-            var layer = sFrameBSInfoBuffer.SLayerInfo(idx);
+            var layer = _sFrameBSInfoBuffer.SLayerInfo(idx);
             var nuls = new Collection<(int offset, int length)>();
             dest.LayerNuls.Add(nuls);
 
@@ -407,7 +408,7 @@ public class H264Encoder : IDisposable
                 offset += length;
             }
         }
-        dest.Log.Add("[h264] end copy frame", Counter.NowTicks);
+        dest.Log.Add("[h264] end copy frame", _counter.NowTicks);
     }
 
     private unsafe static void CopyMemory(

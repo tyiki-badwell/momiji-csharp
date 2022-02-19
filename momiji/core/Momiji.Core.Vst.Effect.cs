@@ -174,7 +174,7 @@ internal class Effect<T> : IEffect<T>, IDisposable where T : struct
 
     private bool _disposed;
 
-    internal readonly IntPtr _aeffectPtr;
+    private readonly IntPtr _aeffectPtr;
 
     private NativeWindow? _window;
     private Task? _windowTask;
@@ -216,7 +216,7 @@ internal class Effect<T> : IEffect<T>, IDisposable where T : struct
 
         _audioMaster = audioMaster;
 
-        //TODO その場で作っても問題ないか？
+        //TODO IPCBufferにする
         _events = new(new byte[SIZE_OF_VSTEVENTS + (SIZE_OF_INTPTR * COUNT_OF_EVENTS)]);
         _eventList = new(new byte[SIZE_OF_VSTMIDIEVENT * COUNT_OF_EVENTS]);
 
@@ -312,12 +312,41 @@ internal class Effect<T> : IEffect<T>, IDisposable where T : struct
             }
         }
 
+        Open();
+
         _beforeTime = _counter.NowTicks;
+
+        _audioMaster.EffectMap.Add(_aeffectPtr, this);
     }
 
     ~Effect()
     {
         Dispose(false);
+    }
+
+    public void Dispose()
+    {
+        Dispose(true);
+        GC.SuppressFinalize(this);
+    }
+
+    protected virtual void Dispose(bool disposing)
+    {
+        if (_disposed) return;
+
+        if (disposing)
+        {
+            _logger.LogInformation("[vst] stop");
+
+            CloseAsync().Wait();
+            _audioMaster.EffectMap.Remove(_aeffectPtr);
+
+            _audioMasterCallBack?.Dispose();
+            _events?.Dispose();
+            _eventList?.Dispose();
+        }
+
+        _disposed = true;
     }
 
     internal ref AEffect GetAEffect()
@@ -571,7 +600,7 @@ internal class Effect<T> : IEffect<T>, IDisposable where T : struct
             );
         }
     }
-    internal void Open()
+    private void Open()
     {
         var aeffect = GetAEffect();
         if (!aeffect.flags.HasFlag(AEffect.VstAEffectFlags.effFlagsIsSynth))
@@ -781,7 +810,7 @@ internal class Effect<T> : IEffect<T>, IDisposable where T : struct
         _logger.LogInformation("[vst] Editor Closed");
     }
 
-    private async Task Close()
+    private async Task CloseAsync()
     {
         await CloseEditorAsync().ConfigureAwait(false);
 
@@ -811,27 +840,4 @@ internal class Effect<T> : IEffect<T>, IDisposable where T : struct
         );
     }
 
-    public void Dispose()
-    {
-        Dispose(true);
-        GC.SuppressFinalize(this);
-    }
-
-    protected virtual void Dispose(bool disposing)
-    {
-        if (_disposed) return;
-
-        if (disposing)
-        {
-            _logger.LogInformation("[vst] stop");
-
-            Close().Wait();
-
-            _audioMasterCallBack?.Dispose();
-            _events?.Dispose();
-            _eventList?.Dispose();
-        }
-
-        _disposed = true;
-    }
 }

@@ -24,7 +24,6 @@ namespace Momiji.Core.Ftl
             var configuration =
                 new ConfigurationBuilder()
                 .AddJsonFile("appsettings.json")
-                .AddUserSecrets<FtlUnitTest>()
                 .Build();
             var streamKey = configuration["MIXER_STREAM_KEY"];
             var ingestHostname = configuration["MIXER_INGEST_HOSTNAME"];

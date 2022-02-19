@@ -23,10 +23,10 @@ public class OpusException : Exception
 
 public class OpusOutputBuffer : IDisposable
 {
-    private bool disposed;
+    private bool _disposed;
     internal PinnedBuffer<byte[]>? Buffer { get; private set; }
     public BufferLog Log { get; }
-    public int Wrote { get; set; }
+    public int Wrote { get; internal set; }
 
     public OpusOutputBuffer(int size)
     {
@@ -46,7 +46,7 @@ public class OpusOutputBuffer : IDisposable
 
     protected virtual void Dispose(bool disposing)
     {
-        if (disposed) return;
+        if (_disposed) return;
 
         if (disposing)
         {
@@ -55,18 +55,17 @@ public class OpusOutputBuffer : IDisposable
         Buffer?.Dispose();
         Buffer = null;
 
-        disposed = true;
+        _disposed = true;
     }
 }
 
 public class OpusEncoder : IDisposable
 {
-    private ILoggerFactory LoggerFactory { get; }
-    private ILogger Logger { get; }
-    private ElapsedTimeCounter Counter { get; }
+    private readonly ILogger _logger;
+    private readonly ElapsedTimeCounter _counter;
 
-    private bool disposed;
-    private Encoder? encoder;
+    private bool _disposed;
+    private Encoder? _encoder;
 
     public OpusEncoder(
         SamplingRate Fs,
@@ -75,13 +74,15 @@ public class OpusEncoder : IDisposable
         ElapsedTimeCounter counter
     )
     {
-        LoggerFactory = loggerFactory;
-        Logger = LoggerFactory.CreateLogger<OpusEncoder>();
-        Counter = counter;
+        ArgumentNullException.ThrowIfNull(loggerFactory);
+        ArgumentNullException.ThrowIfNull(counter);
 
-        Logger.LogInformation($"opus version {NativeMethods.opus_get_version_string()}");
+        _logger = loggerFactory.CreateLogger<OpusEncoder>();
+        _counter = counter;
 
-        encoder =
+        _logger.LogInformation($"opus version {NativeMethods.opus_get_version_string()}");
+
+        _encoder =
             NativeMethods.opus_encoder_create(
                 Fs, channels, OpusApplicationType.Audio, out var error
             );
@@ -105,25 +106,25 @@ public class OpusEncoder : IDisposable
 
     protected virtual void Dispose(bool disposing)
     {
-        if (disposed) return;
+        if (_disposed) return;
 
         if (disposing)
         {
         }
 
-        if (encoder != null)
+        if (_encoder != null)
         {
             if (
-                !encoder.IsInvalid
-                && !encoder.IsClosed
+                !_encoder.IsInvalid
+                && !_encoder.IsClosed
             )
             {
-                encoder.Close();
+                _encoder.Close();
             }
-            encoder = null;
+            _encoder = null;
         }
 
-        disposed = true;
+        _disposed = true;
     }
 
     public void Execute(
@@ -134,7 +135,7 @@ public class OpusEncoder : IDisposable
         ArgumentNullException.ThrowIfNull(source);
         ArgumentNullException.ThrowIfNull(dest);
 
-        if (encoder == default)
+        if (_encoder == default)
         {
             throw new InvalidOperationException("encoder is null.");
         }
@@ -149,8 +150,8 @@ public class OpusEncoder : IDisposable
 
         dest.Log.Marge(source.Log);
 
-        dest.Log.Add("[opus] start opus_encode_float", Counter.NowTicks);
-        dest.Wrote = encoder.opus_encode_float(
+        dest.Log.Add("[opus] start opus_encode_float", _counter.NowTicks);
+        dest.Wrote = _encoder.opus_encode_float(
             source.Buffer.AddrOfPinnedObject,
             source.Buffer.Target.Length / 2,
             dest.Buffer.AddrOfPinnedObject,
@@ -166,7 +167,7 @@ public class OpusEncoder : IDisposable
                 50*blockSize!=4*samplingRate &&  50*blockSize!=5*samplingRate &&  50*blockSize!=6*samplingRate)
             return -1;
         */
-        dest.Log.Add($"[opus] end opus_encode_float {dest.Wrote}", Counter.NowTicks);
+        dest.Log.Add($"[opus] end opus_encode_float {dest.Wrote}", _counter.NowTicks);
         if (dest.Wrote < 0)
         {
             throw new OpusException($"[opus] opus_encode_float error:{NativeMethods.opus_strerror(dest.Wrote)}({dest.Wrote})");

@@ -52,7 +52,7 @@ public class BufferLog
 
 public abstract class InternalGCHandleBuffer<T> : IDisposable where T : notnull
 {
-    private bool disposed;
+    private bool _disposed;
     protected GCHandle Handle { get; }
 
     protected InternalGCHandleBuffer([DisallowNull]T buffer, GCHandleType handleType)
@@ -74,14 +74,14 @@ public abstract class InternalGCHandleBuffer<T> : IDisposable where T : notnull
 
     protected virtual void Dispose(bool disposing)
     {
-        if (disposed) return;
+        if (_disposed) return;
 
         if (Handle.IsAllocated)
         {
             Handle.Free();
         }
 
-        disposed = true;
+        _disposed = true;
     }
 }
 

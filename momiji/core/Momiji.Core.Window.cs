@@ -145,15 +145,6 @@ namespace Momiji.Core.Window
                     tcs.SetException(new WindowException("thread error", e));
                     Logger.LogInformation(e, "[window] exception");
                 }
-#pragma warning disable CA1031 // 一般的な例外の種類はキャッチしません
-#pragma warning disable CS1058 // 前の catch 句は、すべての例外を既にキャッチしています
-                catch
-#pragma warning restore CS1058 // 前の catch 句は、すべての例外を既にキャッチしています
-#pragma warning restore CA1031 // 一般的な例外の種類はキャッチしません
-                {
-                    tcs.SetException(new WindowException("thread error"));
-                    Logger.LogInformation("[window] exception");
-                }
             })
             {
                 IsBackground = false
@@ -608,6 +599,8 @@ namespace Momiji.Core.Window
 
         public void Close()
         {
+            Logger.LogInformation($"[window] Close {hWindow.Handle:X}");
+
             var IsWindowUnicode = User32.IsWindowUnicode(hWindow);
             var _ = IsWindowUnicode
                         ? User32.SendNotifyMessageW(hWindow, 0x0010, IntPtr.Zero, IntPtr.Zero)

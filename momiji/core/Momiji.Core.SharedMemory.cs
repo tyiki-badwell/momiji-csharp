@@ -1,4 +1,5 @@
 ﻿using Microsoft.Extensions.Logging;
+using System.Diagnostics.CodeAnalysis;
 using System.IO.MemoryMappedFiles;
 using System.Runtime.InteropServices;
 
@@ -98,7 +99,7 @@ public class IPCBuffer<T> : IDisposable where T : notnull
             throw new InvalidOperationException("va is null.");
         }
 
-        var size = Marshal.SizeOf<T>() * count;
+        var size = SIZE_OF_T * count;
         if (_va.Capacity < _allocatedOffset + size)
         {
             throw new SharedMemoryException($"over capacity[{_va.Capacity}] allocatedOffset[{_allocatedOffset}] size[{size}]");
