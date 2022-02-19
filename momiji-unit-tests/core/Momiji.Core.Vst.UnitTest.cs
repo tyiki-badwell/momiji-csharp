@@ -196,7 +196,7 @@ namespace Momiji.Core.Vst
 
             using var vst = new AudioMaster<float>(48000, blockSize, loggerFactory, counter, dllManager);
 
-            var effect = vst.AddEffect("magical8bitPlug3.dll");
+            var effect = vst.AddEffect("Synth1 VST.dll");
 
             vst.RemoveEffect(effect);
         }
