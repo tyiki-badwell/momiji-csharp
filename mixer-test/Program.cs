@@ -15,8 +15,6 @@ builder.Services.Configure<CookiePolicyOptions>(options =>
 builder.Services.AddSingleton<IDllManager, DllManager>();
 builder.Services.AddSingleton<IRunner, Runner>();
 
-builder.Services.AddTransient<WebSocketMiddleware>();
-
 var app = builder.Build();
 
 // Configure the HTTP request pipeline.
@@ -44,7 +42,7 @@ app.MapRazorPages();
 app.Map("/ws", subApp =>
 {
     subApp.UseWebSockets();
-    subApp.UseMiddleware<WebSocketMiddleware>();
+    subApp.UseWebSocketToRunner();
 });
 
 var logger = app.Services.GetService<ILogger<Program>>();

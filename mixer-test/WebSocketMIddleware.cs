@@ -1,66 +1,63 @@
-﻿using Microsoft.AspNetCore.Http;
-using Microsoft.Extensions.Configuration;
-using Microsoft.Extensions.Logging;
-using System;
-using System.Net.WebSockets;
-using System.Threading.Tasks;
+﻿using System.Net.WebSockets;
 
-namespace mixerTest
+namespace mixerTest;
+
+public class WebSocketToRunnerMiddleware
 {
-    public class WebSocketMiddleware
-        : IMiddleware
+    private readonly RequestDelegate _next;
+    private readonly IConfiguration _configuration;
+    private readonly ILogger _logger;
+    private readonly IRunner _runner;
+
+    public WebSocketToRunnerMiddleware(IConfiguration configuration, ILoggerFactory loggerFactory, IRunner runner, RequestDelegate next)
     {
-        private IConfiguration Configuration { get; }
-        private ILoggerFactory LoggerFactory { get; }
-        private ILogger Logger { get; }
-        private IRunner Runner { get; }
+        _configuration = configuration ?? throw new ArgumentNullException(nameof(configuration));
+        _logger = loggerFactory.CreateLogger<WebSocketToRunnerMiddleware>();
+        _runner = runner;
+        _next = next;
+    }
 
-        public WebSocketMiddleware(IConfiguration configuration, ILoggerFactory loggerFactory, IRunner runner)
+    public async Task InvokeAsync(HttpContext context)
+    {
+        if (context == default)
         {
-            Configuration = configuration ?? throw new ArgumentNullException(nameof(configuration));
-            LoggerFactory = loggerFactory;
-            Logger = LoggerFactory.CreateLogger<WebSocketMiddleware>();
-            Runner = runner;
+            throw new ArgumentNullException(nameof(context));
         }
 
-        public async Task InvokeAsync(HttpContext context, RequestDelegate next)
+        if (context.WebSockets.IsWebSocketRequest)
         {
-            if (context == default)
+            _logger.LogInformation("[middleware web socket] start.");
+            using var webSocket = await context.WebSockets.AcceptWebSocketAsync().ConfigureAwait(false);
+            try
             {
-                throw new ArgumentNullException(nameof(context));
+                await _runner.AcceptWebSocket(webSocket).ConfigureAwait(false);
             }
-            if (next == default)
+            catch (OperationCanceledException)
             {
-                throw new ArgumentNullException(nameof(next));
+                _logger.LogInformation("[middleware web socket] operation canceled.");
             }
-
-            Logger.LogInformation("[middleware web socket] start.");
-
-            if (context.WebSockets.IsWebSocketRequest)
+            catch (Exception e)
             {
-                using var webSocket = await context.WebSockets.AcceptWebSocketAsync().ConfigureAwait(false);
-                try
-                {
-                    await Runner.AcceptWebSocket(webSocket).ConfigureAwait(false);
-                }
-                catch (OperationCanceledException)
-                {
-                    Logger.LogInformation("[middleware web socket] operation canceled.");
-                }
-                catch (Exception e)
-                {
-                    Logger.LogInformation(e, "[middleware web socket] exception");
-                    throw;
-                }
-
-                if (webSocket.State != WebSocketState.Open)
-                {
-                    //openでないときにnextを動かすとエラーになるのでここで終わる
-                    return;
-                }
+                _logger.LogInformation(e, "[middleware web socket] exception");
+                throw;
             }
-            //TODO 正しい終わらせ方
-            await next(context).ConfigureAwait(false);
+            _logger.LogInformation("[middleware web socket] end.");
+
+            if (webSocket.State != WebSocketState.Open)
+            {
+                //openでないときにnextを動かすとエラーになるのでここで終わる
+                return;
+            }
         }
+        //TODO 正しい終わらせ方
+        await _next(context).ConfigureAwait(false);
+    }
+}
+
+public static class WebSocketToRunnerMiddlewareExtensions
+{
+    public static IApplicationBuilder UseWebSocketToRunner(this IApplicationBuilder builder)
+    {
+        return builder.UseMiddleware<WebSocketToRunnerMiddleware>();
     }
 }
