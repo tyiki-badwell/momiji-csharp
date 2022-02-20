@@ -113,7 +113,6 @@ public class PinnedBuffer<T> : InternalGCHandleBuffer<T> where T : notnull
     }
 }
 
-[SuppressMessage("Naming", "CA1711:識別子は、不適切なサフィックスを含むことはできません", Justification = "<保留中>")]
 public class PinnedDelegate<T> : InternalGCHandleBuffer<T> where T : notnull, Delegate
 {
     public PinnedDelegate(T buffer) : base(buffer, GCHandleType.Normal)

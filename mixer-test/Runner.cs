@@ -50,7 +50,7 @@ public class Runner : IRunner, IDisposable
     //private readonly IDictionary<WebSocket, int> webSocketPool = new ConcurrentDictionary<WebSocket, int>();
 
     private readonly BroadcastBlock<string> _wsBroadcaster = new(null);
-    private CancellationTokenSource _wsProcessCancel = new();
+    private readonly CancellationTokenSource _wsProcessCancel = new();
 
     //private BufferBlock<OpusOutputBuffer> audioOutput = new BufferBlock<OpusOutputBuffer>();
     //private BufferBlock<H264OutputBuffer> videoOutput = new BufferBlock<H264OutputBuffer>();

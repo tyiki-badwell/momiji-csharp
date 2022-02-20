@@ -2,14 +2,9 @@
 
   <PropertyGroup>
     <TargetFramework>net6.0-windows10.0.19041.0</TargetFramework>
-    <AspNetCoreHostingModel>InProcess</AspNetCoreHostingModel>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
     <UserSecretsId>bfad0b40-89a2-4a23-929b-1d26eaf7a254</UserSecretsId>
     <Platforms>AnyCPU;x86;x64</Platforms>
-    <PackageRequireLicenseAcceptance>false</PackageRequireLicenseAcceptance>
-    <GeneratePackageOnBuild>false</GeneratePackageOnBuild>
-    <AnalysisMode>AllEnabledByDefault</AnalysisMode>
-    <AutoGenerateBindingRedirects>false</AutoGenerateBindingRedirects>
 	<Nullable>enable</Nullable>
 	<ImplicitUsings>enable</ImplicitUsings>
   </PropertyGroup>

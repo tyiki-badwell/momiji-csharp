@@ -371,9 +371,7 @@ public class WaveOut<T> : IDisposable where T : struct
 
     private PcmBuffer<T> Unprepare(IntPtr headerPtr)
     {
-#pragma warning disable CA2000 // スコープを失う前にオブジェクトを破棄
         if (!_headerBusyPool.Remove(headerPtr, out var header))
-#pragma warning restore CA2000 // スコープを失う前にオブジェクトを破棄
         {
             throw new InvalidOperationException("headerBusyPool.Remove failed.");
         }

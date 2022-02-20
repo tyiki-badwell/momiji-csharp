@@ -1,12 +1,5 @@
 ﻿using System.Runtime.InteropServices;
 
-#pragma warning disable CA1707 // 識別子はアンダースコアを含むことはできません
-#pragma warning disable CA1815 // equals および operator equals を値型でオーバーライドします
-#pragma warning disable CA1712 // 列挙値の前に型名を付けないでください
-#pragma warning disable CA1711 // 識別子は、不適切なサフィックスを含むことはできません
-#pragma warning disable CA1008 // 列挙型は 0 値を含んでいなければなりません
-#pragma warning disable CA1700 // 列挙型値に 'Reserved' という名前を指定しません
-
 namespace Momiji.Interop.H264;
 
 /**
@@ -686,7 +679,6 @@ internal static class NativeMethods
     //int WelsCreateSVCEncoder(ISVCEncoder** ppEncoder);
     [DllImport(Libraries.OpenH264, CallingConvention = CallingConvention.Cdecl)]
     [DefaultDllImportSearchPaths(DllImportSearchPath.UserDirectories | DllImportSearchPath.UseDllDirectoryForDependencies)]
-    [System.Diagnostics.CodeAnalysis.SuppressMessage("Security", "CA5393:安全でない DllImportSearchPath 値を使用しない", Justification = "<保留中>")]
     internal static extern int WelsCreateSVCEncoder(
         [Out] out SVCEncoder ppEncoder
     );
@@ -698,7 +690,6 @@ internal static class NativeMethods
     //void WelsDestroySVCEncoder(ISVCEncoder* pEncoder);
     [DllImport(Libraries.OpenH264, CallingConvention = CallingConvention.Cdecl)]
     [DefaultDllImportSearchPaths(DllImportSearchPath.UserDirectories | DllImportSearchPath.UseDllDirectoryForDependencies)]
-    [System.Diagnostics.CodeAnalysis.SuppressMessage("Security", "CA5393:安全でない DllImportSearchPath 値を使用しない", Justification = "<保留中>")]
     internal static extern void WelsDestroySVCEncoder(
         [In] IntPtr pEncoder
     );
@@ -736,15 +727,7 @@ internal static class NativeMethods
     */
     [DllImport(Libraries.OpenH264, CallingConvention = CallingConvention.Cdecl)]
     [DefaultDllImportSearchPaths(DllImportSearchPath.UserDirectories | DllImportSearchPath.UseDllDirectoryForDependencies)]
-    [System.Diagnostics.CodeAnalysis.SuppressMessage("Security", "CA5393:安全でない DllImportSearchPath 値を使用しない", Justification = "<保留中>")]
     internal static extern void WelsGetCodecVersionEx(
         [Out] out OpenH264Version pVersion
     );
 }
-
-#pragma warning restore CA1700 // 列挙型値に 'Reserved' という名前を指定しません
-#pragma warning restore CA1008 // 列挙型は 0 値を含んでいなければなりません
-#pragma warning restore CA1711 // 識別子は、不適切なサフィックスを含むことはできません
-#pragma warning restore CA1712 // 列挙値の前に型名を付けないでください
-#pragma warning restore CA1815 // equals および operator equals を値型でオーバーライドします
-#pragma warning restore CA1707 // 識別子はアンダースコアを含むことはできません

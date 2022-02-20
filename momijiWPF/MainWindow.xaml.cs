@@ -96,7 +96,7 @@ namespace MomijiWPF
 
         private AudioGraph? audioGraph;
         private double audioWaveTheta;
-        private ElapsedTimeCounter counter = new();
+        private readonly ElapsedTimeCounter counter = new();
         private double before;
 
         private async void Button_Click_AppWindow(object sender, RoutedEventArgs e)

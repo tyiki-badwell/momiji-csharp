@@ -138,9 +138,7 @@ public class NativeWindow
                 tcs.SetResult();
                 Logger.LogInformation($"[window] normal end");
             }
-#pragma warning disable CA1031 // 一般的な例外の種類はキャッチしません
             catch (Exception e)
-#pragma warning restore CA1031 // 一般的な例外の種類はキャッチしません
             {
                 tcs.SetException(new WindowException("thread error", e));
                 Logger.LogInformation(e, "[window] exception");
@@ -381,9 +379,7 @@ public class NativeWindow
                 {
                     onPreCloseWindow?.Invoke();
                 }
-#pragma warning disable CA1031 // 一般的な例外の種類はキャッチしません
                 catch (Exception e)
-#pragma warning restore CA1031 // 一般的な例外の種類はキャッチしません
                 {
                     Logger.LogError(e, "[window] onPreCloseWindow error");
                 }
@@ -486,9 +482,7 @@ public class NativeWindow
         {
             onPostPaint?.Invoke(new HandleRef(this, hwnd));
         }
-#pragma warning disable CA1031 // 一般的な例外の種類はキャッチしません
         catch (Exception e)
-#pragma warning restore CA1031 // 一般的な例外の種類はキャッチしません
         {
             Logger.LogError(e, "[window] onPostPaint error");
         }

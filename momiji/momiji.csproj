@@ -3,13 +3,8 @@
   <PropertyGroup>
     <TargetFramework>net6.0-windows10.0.19041.0</TargetFramework>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
-    <!--UseWindowsForms>true</UseWindowsForms-->
-    <!--UseWPF>true</UseWPF-->
     <OutputType>Library</OutputType>
-    <GeneratePackageOnBuild>false</GeneratePackageOnBuild>
     <Platforms>AnyCPU;x86;x64</Platforms>
-    <AnalysisMode>AllEnabledByDefault</AnalysisMode>
-    <AutoGenerateBindingRedirects>false</AutoGenerateBindingRedirects>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
   </PropertyGroup>

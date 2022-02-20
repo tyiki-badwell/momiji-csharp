@@ -400,9 +400,7 @@ internal class Effect<T> : IEffect<T>, IDisposable where T : struct
                 opt
             );
         }
-#pragma warning disable CA1031 // 一般的な例外の種類はキャッチしません
         catch (Exception e)
-#pragma warning restore CA1031 // 一般的な例外の種類はキャッチしません
         {
             _logger.LogError(e, $"[vst] DispatcherProc Exception({opcode},{index},{value},{ptr},{opt})");
             return IntPtr.Zero;
@@ -464,9 +462,7 @@ internal class Effect<T> : IEffect<T>, IDisposable where T : struct
             source.Log.Add("[vst] end processReplacing", _counter.NowTicks);
             _beforeTime = nowTime;
         }
-#pragma warning disable CA1031 // 一般的な例外の種類はキャッチしません
         catch (Exception e)
-#pragma warning restore CA1031 // 一般的な例外の種類はキャッチしません
         {
             _logger.LogError(e, $"[vst] ProcessProc Exception");
         }
@@ -500,9 +496,7 @@ internal class Effect<T> : IEffect<T>, IDisposable where T : struct
             source.Log.Add("[vst] end processReplacing", _counter.NowTicks);
             _beforeTime = nowTime;
         }
-#pragma warning disable CA1031 // 一般的な例外の種類はキャッチしません
         catch (Exception e)
-#pragma warning restore CA1031 // 一般的な例外の種類はキャッチしません
         {
             _logger.LogError(e, $"[vst] ProcessProc Exception");
         }

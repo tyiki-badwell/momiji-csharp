@@ -1,8 +1,5 @@
 ﻿using System.Runtime.InteropServices;
 
-#pragma warning disable CA1707 // 識別子はアンダースコアを含むことはできません
-#pragma warning disable CA1815 // equals および operator equals を値型でオーバーライドします
-
 namespace Momiji.Interop.Ftl;
 
 public enum Status : int
@@ -167,13 +164,11 @@ internal static class NativeMethods
     //FTL_API ftl_status_t ftl_init();
     [DllImport(Libraries.Ftl, CallingConvention = CallingConvention.Cdecl)]
     [DefaultDllImportSearchPaths(DllImportSearchPath.UserDirectories | DllImportSearchPath.UseDllDirectoryForDependencies)]
-    [System.Diagnostics.CodeAnalysis.SuppressMessage("Security", "CA5393:安全でない DllImportSearchPath 値を使用しない", Justification = "<保留中>")]
     internal static extern Status ftl_init();
 
     //FTL_API ftl_status_t ftl_ingest_create(ftl_handle_t* ftl_handle, ftl_ingest_params_t*params);
     [DllImport(Libraries.Ftl, CallingConvention = CallingConvention.Cdecl)]
     [DefaultDllImportSearchPaths(DllImportSearchPath.UserDirectories | DllImportSearchPath.UseDllDirectoryForDependencies)]
-    [System.Diagnostics.CodeAnalysis.SuppressMessage("Security", "CA5393:安全でない DllImportSearchPath 値を使用しない", Justification = "<保留中>")]
     internal static extern Status ftl_ingest_create(
         [In] IntPtr ftl_handle,
         [In] ref IngestParams _params
@@ -182,7 +177,6 @@ internal static class NativeMethods
     //FTL_API ftl_status_t ftl_ingest_connect(ftl_handle_t* ftl_handle);
     [DllImport(Libraries.Ftl, CallingConvention = CallingConvention.Cdecl)]
     [DefaultDllImportSearchPaths(DllImportSearchPath.UserDirectories | DllImportSearchPath.UseDllDirectoryForDependencies)]
-    [System.Diagnostics.CodeAnalysis.SuppressMessage("Security", "CA5393:安全でない DllImportSearchPath 値を使用しない", Justification = "<保留中>")]
     internal static extern Status ftl_ingest_connect(
         [In] IntPtr ftl_handle
     );
@@ -190,7 +184,6 @@ internal static class NativeMethods
     //FTL_API int ftl_ingest_speed_test(ftl_handle_t* ftl_handle, int speed_kbps, int duration_ms);
     [DllImport(Libraries.Ftl, CallingConvention = CallingConvention.Cdecl)]
     [DefaultDllImportSearchPaths(DllImportSearchPath.UserDirectories | DllImportSearchPath.UseDllDirectoryForDependencies)]
-    [System.Diagnostics.CodeAnalysis.SuppressMessage("Security", "CA5393:安全でない DllImportSearchPath 値を使用しない", Justification = "<保留中>")]
     internal static extern Status ftl_ingest_speed_test(
         [In] IntPtr ftl_handle,
         [In] int speed_kbps,
@@ -202,7 +195,6 @@ internal static class NativeMethods
     //FTL_API int ftl_ingest_send_media_dts(ftl_handle_t* ftl_handle, ftl_media_type_t media_type, int64_t dts_usec, uint8_t* data, int32_t len, int end_of_frame);
     [DllImport(Libraries.Ftl, CallingConvention = CallingConvention.Cdecl)]
     [DefaultDllImportSearchPaths(DllImportSearchPath.UserDirectories | DllImportSearchPath.UseDllDirectoryForDependencies)]
-    [System.Diagnostics.CodeAnalysis.SuppressMessage("Security", "CA5393:安全でない DllImportSearchPath 値を使用しない", Justification = "<保留中>")]
     internal static extern int ftl_ingest_send_media_dts(
         [In] IntPtr ftl_handle,
         [In] MediaType media_type,
@@ -215,7 +207,6 @@ internal static class NativeMethods
     //FTL_API ftl_status_t ftl_ingest_get_status(ftl_handle_t* ftl_handle, ftl_status_msg_t* msg, int ms_timeout);
     [DllImport(Libraries.Ftl, CallingConvention = CallingConvention.Cdecl)]
     [DefaultDllImportSearchPaths(DllImportSearchPath.UserDirectories | DllImportSearchPath.UseDllDirectoryForDependencies)]
-    [System.Diagnostics.CodeAnalysis.SuppressMessage("Security", "CA5393:安全でない DllImportSearchPath 値を使用しない", Justification = "<保留中>")]
     internal static extern Status ftl_ingest_get_status(
         [In] IntPtr ftl_handle,
         [In] IntPtr msg,
@@ -227,7 +218,6 @@ internal static class NativeMethods
     //FTL_API ftl_status_t ftl_ingest_disconnect(ftl_handle_t* ftl_handle);
     [DllImport(Libraries.Ftl, CallingConvention = CallingConvention.Cdecl)]
     [DefaultDllImportSearchPaths(DllImportSearchPath.UserDirectories | DllImportSearchPath.UseDllDirectoryForDependencies)]
-    [System.Diagnostics.CodeAnalysis.SuppressMessage("Security", "CA5393:安全でない DllImportSearchPath 値を使用しない", Justification = "<保留中>")]
     internal static extern Status ftl_ingest_disconnect(
         [In] IntPtr ftl_handle
     );
@@ -235,7 +225,6 @@ internal static class NativeMethods
     //FTL_API ftl_status_t ftl_ingest_destroy(ftl_handle_t* ftl_handle);
     [DllImport(Libraries.Ftl, CallingConvention = CallingConvention.Cdecl)]
     [DefaultDllImportSearchPaths(DllImportSearchPath.UserDirectories | DllImportSearchPath.UseDllDirectoryForDependencies)]
-    [System.Diagnostics.CodeAnalysis.SuppressMessage("Security", "CA5393:安全でない DllImportSearchPath 値を使用しない", Justification = "<保留中>")]
     internal static extern Status ftl_ingest_destroy(
         [In] IntPtr ftl_handle
     );
@@ -354,7 +343,3 @@ typedef struct {
     }
     speed_test_t;
 */
-
-
-#pragma warning restore CA1815 // equals および operator equals を値型でオーバーライドします
-#pragma warning restore CA1707 // 識別子はアンダースコアを含むことはできません

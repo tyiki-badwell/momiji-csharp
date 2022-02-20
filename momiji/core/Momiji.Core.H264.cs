@@ -175,10 +175,10 @@ public class H264Encoder : IDisposable
     private SVCEncoder? _encoder;
     private SFrameBSInfoBuffer? _sFrameBSInfoBuffer;
 
-    private int _picWidth;
-    private int _picHeight;
-    private int _targetBitrate;
-    private float _maxFrameRate;
+    private readonly int _picWidth;
+    private readonly int _picHeight;
+    private readonly int _targetBitrate;
+    private readonly float _maxFrameRate;
 
     private readonly ISVCEncoderVtbl.InitializeProc Initialize;
     private readonly ISVCEncoderVtbl.GetDefaultParamsProc GetDefaultParams;
