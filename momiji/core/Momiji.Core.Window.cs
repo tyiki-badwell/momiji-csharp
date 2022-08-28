@@ -1,7 +1,11 @@
 ﻿using Microsoft.Extensions.Logging;
 using Momiji.Core.Buffer;
+using Momiji.Interop.Windows.Graphics.Capture;
 using System.Collections.Concurrent;
 using System.Runtime.InteropServices;
+using Windows.Graphics.Capture;
+using Windows.Graphics.DirectX.Direct3D11;
+using WinRT;
 using Gdi32 = Momiji.Interop.Gdi32.NativeMethods;
 using Kernel32 = Momiji.Interop.Kernel32.NativeMethods;
 using User32 = Momiji.Interop.User32.NativeMethods;
@@ -125,7 +129,12 @@ public class NativeWindow
     public async Task RunAsync(CancellationToken cancellationToken)
     {
         using var wndProc = new PinnedDelegate<User32.WNDPROC>(new(WndProc));
-        using var windowClass = new WindowClass(LoggerFactory, wndProc);
+        using var windowClass = 
+            new WindowClass(
+                LoggerFactory, 
+                wndProc,
+                User32.WNDCLASS.CS.OWNDC
+            );
 
         var tcs = new TaskCompletionSource(TaskCreationOptions.AttachedToParent);
 
@@ -193,6 +202,7 @@ public class NativeWindow
         Logger.LogInformation($"[window] CreateWindowEx {hWindow.Handle:X} {Marshal.GetLastWin32Error()}");
         if (hWindow.Handle == IntPtr.Zero)
         {
+            hWindow = default;
             throw new WindowException("CreateWindowEx failed");
         }
 
@@ -229,7 +239,28 @@ public class NativeWindow
             Logger.LogInformation("[window] GraphicsCaptureItem closed");
         };
 
-        using var canvas = new CanvasDevice();
+        unsafe
+        {
+
+            Windows.Win32.Graphics.Direct3D11.ID3D11Device* d;
+
+            Windows.Win32.PInvoke.D3D11CreateDevice(
+                null,
+                Windows.Win32.Graphics.Direct3D.D3D_DRIVER_TYPE.D3D_DRIVER_TYPE_HARDWARE,
+                null,
+                Windows.Win32.Graphics.Direct3D11.D3D11_CREATE_DEVICE_FLAG.D3D11_CREATE_DEVICE_BGRA_SUPPORT,
+                null,
+                11,
+                &d,
+                null,
+                null
+                );
+            Windows.Win32.PInvoke.CreateDirect3D11DeviceFromDXGIDevice(null, a.ObjRef);
+        }
+
+        IInspectable a;
+
+        IDirect3DDevice canvas;
 
         using var pool =
             Direct3D11CaptureFramePool.Create(
@@ -439,7 +470,7 @@ public class NativeWindow
 
     private IntPtr SubWndProc(IntPtr hwnd, uint msg, IntPtr wParam, IntPtr lParam)
     {
-        //Logger.LogInformation($"[window] SubWndProc[{hwnd:X} {msg:X} {wParam:X} {lParam:X} current {Thread.CurrentThread.ManagedThreadId:X}");
+        Logger.LogInformation($"[window] SubWndProc[{hwnd:X} {msg:X} {wParam:X} {lParam:X} current {Thread.CurrentThread.ManagedThreadId:X}");
 
         var handleRef = new HandleRef(this, hwnd);
         var isWindowUnicode = (lParam != IntPtr.Zero) && User32.IsWindowUnicode(handleRef);
@@ -460,10 +491,10 @@ public class NativeWindow
                         ;
         }
 
-/*            switch (msg)
+        switch (msg)
         {
             case 0x000F://WM_PAINT
-                //Logger.LogInformation($"[window] SubWndProc WM_PAINT[{hwnd:X} {msg:X} {wParam:X} {lParam:X} current {Thread.CurrentThread.ManagedThreadId:X}");
+                Logger.LogInformation($"[window] SubWndProc WM_PAINT[{hwnd:X} {msg:X} {wParam:X} {lParam:X} current {Thread.CurrentThread.ManagedThreadId:X}");
                 try
                 {
                     onPostPaint?.Invoke(new HandleRef(this, hwnd));
@@ -477,7 +508,7 @@ public class NativeWindow
             default:
                 break;
         }
-*/
+/*
         try
         {
             onPostPaint?.Invoke(new HandleRef(this, hwnd));
@@ -486,7 +517,7 @@ public class NativeWindow
         {
             Logger.LogError(e, "[window] onPostPaint error");
         }
-
+*/
         return result;
     }
 

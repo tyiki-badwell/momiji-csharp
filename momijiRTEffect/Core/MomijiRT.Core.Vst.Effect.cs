@@ -7,7 +7,7 @@ using Windows.Media.Effects;
 using Windows.Media.MediaProperties;
 using WinRT;
 
-namespace MomijiRT.Core.Vst
+namespace MomijiRTEffect.Core.Vst
 {
     [ComImport]
     [Guid("5B0D3235-4DBA-4D44-865E-8F1D0E4FD04D")]
@@ -68,7 +68,7 @@ namespace MomijiRT.Core.Vst
         private double audioWaveTheta = 0;
         public void ProcessFrame(ProcessAudioFrameContext context)
         {
-
+            /*
             Debug.Print($"ProcessFrame context.InputFrame.RelativeTime {context.InputFrame.RelativeTime}");
             Debug.Print($"ProcessFrame context.InputFrame.SystemRelativeTime {context.InputFrame.SystemRelativeTime}");
             Debug.Print($"ProcessFrame context.InputFrame.Duration {context.InputFrame.Duration}");
@@ -84,7 +84,7 @@ namespace MomijiRT.Core.Vst
             Debug.Print($"ProcessFrame context.OutputFrame.Type {context.OutputFrame.Type}");
             Debug.Print($"ProcessFrame context.OutputFrame.IsDiscontinuous {context.OutputFrame.IsDiscontinuous}");
             Debug.Print($"ProcessFrame context.OutputFrame.IsReadOnly {context.OutputFrame.IsReadOnly}");
-
+            */
 
             using var inBuffer = context.InputFrame.LockBuffer(Windows.Media.AudioBufferAccessMode.Read);
             using var outBuffer = context.OutputFrame.LockBuffer(Windows.Media.AudioBufferAccessMode.Write);

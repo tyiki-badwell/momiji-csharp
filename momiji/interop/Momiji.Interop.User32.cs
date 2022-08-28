@@ -16,11 +16,19 @@ internal static class NativeMethods
         public enum CS : uint
         {
             NONE    = 0,
-            VREDRAW = 0x0001,
-            HREDRAW = 0x0002,
-            DBLCLKS = 0x0008,
-            DROPSHADOW = 0x00020000,
-            SAVEBITS = 0x0800
+            VREDRAW = 0x00000001,
+            HREDRAW = 0x00000002,
+            DBLCLKS = 0x00000008,
+            OWNDC = 0x00000020,
+            CLASSDC = 0x00000040,
+            PARENTDC = 0x00000080,
+            NOCLOSE = 0x00000200,
+            SAVEBITS = 0x00000800,
+            BYTEALIGNCLIENT = 0x00001000,
+            BYTEALIGNWINDOW = 0x00002000,
+            GLOBALCLASS = 0x00004000,
+            IME = 0x00010000,
+            DROPSHADOW = 0x00020000
         }
 
         public CS style;
@@ -35,6 +43,7 @@ internal static class NativeMethods
         public IntPtr lpszClassName;
     }
 
+    [UnmanagedFunctionPointer(CallingConvention.Winapi, CharSet = CharSet.Ansi, SetLastError = false)]
     public delegate IntPtr WNDPROC(IntPtr hWnd, uint msg, IntPtr wParam, IntPtr lParam);
 
     [DllImport(Libraries.User32, CallingConvention = CallingConvention.Winapi, ExactSpelling = true, SetLastError = true)]

@@ -2,6 +2,7 @@
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 using Momiji.Core.Buffer;
 using Momiji.Core.Configuration;
 using Momiji.Core.Dll;
@@ -25,11 +26,15 @@ public class VstBridgeWorker : BackgroundService
     {
         var builder = Host.CreateDefaultBuilder(args);
 
+        builder.UseContentRoot(AppContext.BaseDirectory);
+
         builder.ConfigureServices((hostContext, services) =>
         {
             services.AddHostedService<VstBridgeWorker>();
             services.AddSingleton<IDllManager, DllManager>();
             services.AddSingleton<IRunner, Runner>();
+
+            services.Configure<Param>(hostContext.Configuration.GetSection(typeof(Param).FullName));
         });
 
         var host = builder.Build();
@@ -37,13 +42,13 @@ public class VstBridgeWorker : BackgroundService
         return host;
     }
 
-    public override async Task StartAsync(CancellationToken cancellationToken)
+    public async override Task StartAsync(CancellationToken cancellationToken)
     {
         _logger.LogInformation($"START");
         await base.StartAsync(cancellationToken).ConfigureAwait(false);
     }
 
-    public override async Task StopAsync(CancellationToken cancellationToken)
+    public async override Task StopAsync(CancellationToken cancellationToken)
     {
         _logger.LogInformation($"STOP");
         await base.StopAsync(cancellationToken).ConfigureAwait(false);
@@ -71,7 +76,7 @@ public class VstBridgeWorker : BackgroundService
         });
     }
 
-    protected override async Task ExecuteAsync(CancellationToken stoppingToken)
+    protected async override Task ExecuteAsync(CancellationToken stoppingToken)
     {
         await _runner.StartAsync(stoppingToken).ConfigureAwait(false);
     }
@@ -91,7 +96,7 @@ public interface IRunner
 
 public class Runner : IRunner, IDisposable
 {
-    private readonly IConfiguration _configuration;
+    //private readonly IConfiguration _configuration;
     private readonly ILoggerFactory _loggerFactory;
     private readonly ILogger _logger;
     private readonly IDllManager _dllManager;
@@ -103,34 +108,30 @@ public class Runner : IRunner, IDisposable
     private Task? _processTask;
     private IEffect<float>? _effect;
 
-    public Runner(IConfiguration configuration, ILoggerFactory loggerFactory, IDllManager dllManager)
+    public Runner(ILoggerFactory loggerFactory, IDllManager dllManager, IOptions<Param> param)
     {
-        _configuration = configuration ?? throw new ArgumentNullException(nameof(configuration));
         _loggerFactory = loggerFactory;
         _logger = _loggerFactory.CreateLogger<Runner>();
         _dllManager = dllManager;
-
-        var section = _configuration.GetSection(typeof(Param).FullName);
-        var param = section.Get<Param>();
 
         if (param == default)
         {
             throw new ArgumentNullException(typeof(Param).FullName);
         }
 
-        _logger.LogInformation($"BufferCount:{param.BufferCount}");
-        _logger.LogInformation($"Local:{param.Local}");
-        _logger.LogInformation($"Connect:{param.Connect}");
-        _logger.LogInformation($"Width:{param.Width}");
-        _logger.LogInformation($"Height:{param.Height}");
-        _logger.LogInformation($"TargetBitrate:{param.TargetBitrate}");
-        _logger.LogInformation($"MaxFrameRate:{param.MaxFrameRate}");
-        _logger.LogInformation($"IntraFrameIntervalUs:{param.IntraFrameIntervalUs}");
-        _logger.LogInformation($"EffectName:{param.EffectName}");
-        _logger.LogInformation($"SamplingRate:{param.SamplingRate}");
-        _logger.LogInformation($"SampleLength:{param.SampleLength}");
+        _param = param.Value;
 
-        _param = param;
+        _logger.LogInformation($"BufferCount:{_param.BufferCount}");
+        _logger.LogInformation($"Local:{_param.Local}");
+        _logger.LogInformation($"Connect:{_param.Connect}");
+        _logger.LogInformation($"Width:{_param.Width}");
+        _logger.LogInformation($"Height:{_param.Height}");
+        _logger.LogInformation($"TargetBitrate:{_param.TargetBitrate}");
+        _logger.LogInformation($"MaxFrameRate:{_param.MaxFrameRate}");
+        _logger.LogInformation($"IntraFrameIntervalUs:{_param.IntraFrameIntervalUs}");
+        _logger.LogInformation($"EffectName:{_param.EffectName}");
+        _logger.LogInformation($"SamplingRate:{_param.SamplingRate}");
+        _logger.LogInformation($"SampleLength:{_param.SampleLength}");
     }
 
     public void Dispose()

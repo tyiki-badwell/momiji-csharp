@@ -1,0 +1,6 @@
+﻿D3D11CreateDevice
+CreateDirect3D11DeviceFromDXGIDevice
+
+//ID2D1Factory6
+//D2D1CreateFactory
+//SHCreateStreamOnFileEx

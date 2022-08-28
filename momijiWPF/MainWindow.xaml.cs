@@ -1,7 +1,7 @@
 ﻿using Microsoft.Extensions.Hosting;
 using Momiji.Core.Timer;
 using Momiji.Core.Vst.Worker;
-using MomijiRT.Core.Vst;
+using MomijiRTEffect.Core.Vst;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
@@ -98,6 +98,8 @@ namespace MomijiWPF
         private double audioWaveTheta;
         private readonly ElapsedTimeCounter counter = new();
         private double before;
+
+        private AudioEffectDefinition? effect;
 
         private async void Button_Click_AppWindow(object sender, RoutedEventArgs e)
         {
@@ -213,7 +215,7 @@ namespace MomijiWPF
                 inNode.QuantumStarted += (AudioFrameInputNode sender, FrameInputNodeQuantumStartedEventArgs args) =>
                 {
                     var now = counter.NowTicks;
-                 //   Debug.Print($"LAP {now - before}");
+                    //Debug.Print($"LAP {now - before}");
                     before = now;
 
                     //Debug.Print($"args.RequiredSamples {args.RequiredSamples}");
@@ -228,7 +230,7 @@ namespace MomijiWPF
                     //TODO 別でメモリ管理する
                     var frame = new Windows.Media.AudioFrame(bufferSize);
                     
-
+                    /*
                     using (var buffer = frame.LockBuffer(Windows.Media.AudioBufferAccessMode.Write))
                     using (var reference = buffer.CreateReference())
                     {
@@ -251,7 +253,7 @@ namespace MomijiWPF
                             }
                         }
                     }
-
+                    */
                     
                     sender.AddFrame(frame);
                 };
@@ -282,15 +284,15 @@ namespace MomijiWPF
                 var subNode = audioGraph.CreateSubmixNode();
                 subNode.Stop();
 
-                var a = new AudioEffectDefinition(typeof(Effect).FullName);
+                effect = new AudioEffectDefinition(typeof(Effect).FullName);
 
-                subNode.EffectDefinitions.Add(a);
+                subNode.EffectDefinitions.Add(effect);
 
                 inNode.AddOutgoingConnection(subNode, 1.0);
                 
                 subNode.AddOutgoingConnection(outNode, 1.0);
 
-                subNode.EnableEffectsByDefinition(a);
+                subNode.EnableEffectsByDefinition(effect);
 
                 subNode.Start();
 
