@@ -1,12 +1,10 @@
 ﻿using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.UI.Xaml;
-
 using MomijiDriver.Activation;
 using MomijiDriver.Contracts.Services;
 using MomijiDriver.Core.Contracts.Services;
 using MomijiDriver.Core.Services;
-using MomijiDriver.Helpers;
 using MomijiDriver.Models;
 using MomijiDriver.Services;
 using MomijiDriver.ViewModels;

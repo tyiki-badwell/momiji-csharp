@@ -1,10 +1,14 @@
-﻿{
-    "profiles": {
-      "MomijiDriver (Package)": {
-        "commandName": "MsixPackage"
-      },
-      "MomijiDriver (Unpackaged)": {
-        "commandName": "Project"
-      }
+{
+  "profiles": {
+    "MomijiDriver (Package)": {
+      "commandName": "MsixPackage",
+      "nativeDebugging": true,
+      "hotReloadEnabled": false
+    },
+    "MomijiDriver (Unpackaged)": {
+      "commandName": "Project",
+      "nativeDebugging": true,
+      "hotReloadEnabled": false
     }
+  }
 }
