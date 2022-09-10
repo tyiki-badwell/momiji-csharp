@@ -10,6 +10,7 @@ using Momiji.Core.SharedMemory;
 using Momiji.Core.Timer;
 using Momiji.Core.Trans;
 using Momiji.Core.Wave;
+using Momiji.Core.Window;
 using System.Threading.Tasks.Dataflow;
 
 namespace Momiji.Core.Vst.Worker;
@@ -33,6 +34,7 @@ public class VstBridgeWorker : BackgroundService
             services.AddHostedService<VstBridgeWorker>();
             services.AddSingleton<IDllManager, DllManager>();
             services.AddSingleton<IRunner, Runner>();
+            services.AddSingleton<IWindowManager, WindowManager>();
 
             services.Configure<Param>(hostContext.Configuration.GetSection(typeof(Param).FullName));
         });
@@ -56,11 +58,18 @@ public class VstBridgeWorker : BackgroundService
 
     private readonly ILogger _logger;
     private readonly IRunner _runner;
+    private readonly IWindowManager _windowManager;
 
-    public VstBridgeWorker(ILogger<VstBridgeWorker> logger, IRunner runner, IHostApplicationLifetime hostApplicationLifetime)
+    public VstBridgeWorker(
+        ILogger<VstBridgeWorker> logger, 
+        IRunner runner, 
+        IWindowManager windowManager, 
+        IHostApplicationLifetime hostApplicationLifetime
+    )
     {
         _logger = logger;
         _runner = runner;
+        _windowManager = windowManager;
 
         hostApplicationLifetime?.ApplicationStarted.Register(() =>
         {
@@ -78,7 +87,13 @@ public class VstBridgeWorker : BackgroundService
 
     protected async override Task ExecuteAsync(CancellationToken stoppingToken)
     {
-        await _runner.StartAsync(stoppingToken).ConfigureAwait(false);
+        var taskSet = new List<Task>
+        {
+            _runner.StartAsync(stoppingToken),
+            _windowManager.StartAsync(stoppingToken)
+        };
+
+        await Task.WhenAll(taskSet);
     }
 }
 

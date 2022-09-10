@@ -27,6 +27,246 @@ public class WindowException : Exception
     }
 }
 
+public interface IWindowManager
+{
+    Task StartAsync(CancellationToken stoppingToken);
+    void Cancel();
+
+    void CloseAll();
+}
+
+public class WindowManager : IDisposable, IWindowManager
+{
+    private readonly ILoggerFactory _loggerFactory;
+    private readonly ILogger _logger;
+    private bool _disposed;
+
+    private readonly object _sync = new();
+    private CancellationTokenSource? _processCancel;
+    private Task? _processTask;
+
+    public WindowManager(
+        ILoggerFactory loggerFactory
+    )
+    {
+        _loggerFactory = loggerFactory;
+        _logger = _loggerFactory.CreateLogger<WindowManager>();
+    }
+    ~WindowManager()
+    {
+        Dispose(false);
+    }
+
+    public void Dispose()
+    {
+        Dispose(true);
+        GC.SuppressFinalize(this);
+    }
+
+    protected virtual void Dispose(bool disposing)
+    {
+        if (_disposed) return;
+
+        if (disposing)
+        {
+            _logger.LogInformation($"[window manager] disposing");
+            Cancel();
+        }
+
+        _disposed = true;
+    }
+
+    public void Cancel()
+    {
+        lock (_sync)
+        {
+            if (_processCancel == null)
+            {
+                _logger.LogInformation("[window manager] already stopped.");
+                return;
+            }
+
+            try
+            {
+                _processCancel.Cancel();
+                _processTask?.Wait();
+            }
+            catch (AggregateException e)
+            {
+                _logger.LogInformation(e, "[window manager] Process Cancel Exception");
+            }
+            finally
+            {
+                _processCancel.Dispose();
+                _processCancel = null;
+
+                _processTask?.Dispose();
+                _processTask = null;
+            }
+            _logger.LogInformation("[window manager] stopped.");
+        }
+    }
+
+    public void CloseAll()
+    {
+    
+    }
+
+    public async Task StartAsync(CancellationToken stoppingToken)
+    {
+        if (_processCancel != null)
+        {
+            _logger.LogInformation("[window manager] already started.");
+            return;
+        }
+        _processCancel = CancellationTokenSource.CreateLinkedTokenSource(stoppingToken);
+        _processTask = Run();
+        await _processTask.ConfigureAwait(false);
+    }
+
+    private async Task Run()
+    {
+        var tcs = new TaskCompletionSource(TaskCreationOptions.AttachedToParent);
+        var thread = new Thread(() =>
+        {
+            try
+            {
+                MessageLoop();
+                tcs.SetResult();
+                _logger.LogInformation($"[window manager] normal end");
+            }
+            catch (Exception e)
+            {
+                tcs.SetException(new WindowException("thread error", e));
+                _logger.LogInformation(e, "[window manager] exception");
+            }
+        })
+        {
+            IsBackground = false
+        };
+
+        thread.SetApartmentState(ApartmentState.STA);
+        _logger.LogInformation($"[window manager] GetApartmentState {thread.GetApartmentState()}");
+        thread.Start();
+
+        await tcs.Task.ConfigureAwait(false);
+
+        _logger.LogInformation($"[window manager] end");
+    }
+
+    private void MessageLoop()
+    {
+        if (_processCancel == null)
+        {
+            throw new InvalidOperationException($"{nameof(_processCancel)} is null.");
+        }
+
+        var msg = new User32.MSG();
+        using var msgPin = new PinnedBuffer<User32.MSG>(msg);
+        var forceCancel = false;
+
+        var ct = _processCancel.Token;
+
+        while (true)
+        {
+            //Logger.LogInformation($"[window] MessageLoop createThreadId {window.CreateThreadId:X} current {Thread.CurrentThread.ManagedThreadId:X}");
+            if (forceCancel)
+            {
+                _logger.LogInformation("[window manager] force canceled");
+                break;
+            }
+
+            if (ct.IsCancellationRequested)
+            {
+                _logger.LogInformation("[window manager] canceled");
+                CloseAll();
+
+                // １秒以内にクローズされなければ、ループを終わらせる
+                var _ =
+                    Task.Delay(1000, CancellationToken.None)
+                    .ContinueWith(
+                        (task) => { forceCancel = true; },
+                        TaskScheduler.Default
+                    );
+            }
+
+            {
+                //Logger.LogInformation($"[window] PeekMessage current {Thread.CurrentThread.ManagedThreadId:X}");
+                if (!User32.PeekMessageW(
+                        ref msg,
+                        IntPtr.Zero,
+                        0,
+                        0,
+                        0 // NOREMOVE
+                ))
+                {
+                    var res =
+                        User32.MsgWaitForMultipleObjects(
+                            0,
+                            IntPtr.Zero,
+                            false,
+                            1000,
+                            0x04FF //QS_ALLINPUT
+                        );
+                    if (res == 258) // WAIT_TIMEOUT
+                    {
+                        //Logger.LogError($"[window] MsgWaitForMultipleObjects timeout.");
+                        continue;
+                    }
+                    else if (res == 0) // WAIT_OBJECT_0
+                    {
+                        //Logger.LogError($"[window] MsgWaitForMultipleObjects have message.");
+                        continue;
+                    }
+
+                    throw new WindowException($"MsgWaitForMultipleObjects failed {Marshal.GetLastWin32Error()}");
+                }
+            }
+            //Logger.LogInformation($"[window] MSG {msg.hwnd:X} {msg.message:X} {msg.wParam:X} {msg.lParam:X} {msg.time} {msg.pt_x} {msg.pt_y}");
+
+            var IsWindowUnicode = (msg.hwnd != IntPtr.Zero) && User32.IsWindowUnicode(new HandleRef(this, msg.hwnd));
+            //Logger.LogInformation($"[window] IsWindowUnicode {IsWindowUnicode}");
+
+            {
+                _logger.LogInformation("[window] GetMessage");
+                var ret = IsWindowUnicode
+                            ? User32.GetMessageW(ref msg, IntPtr.Zero, 0, 0)
+                            : User32.GetMessageA(ref msg, IntPtr.Zero, 0, 0)
+                            ;
+                _logger.LogInformation($"[window] GetMessage {ret} {msg.hwnd:X} {msg.message:X} {msg.wParam:X} {msg.lParam:X} {msg.time} {msg.pt_x} {msg.pt_y}");
+
+                if (ret == -1)
+                {
+                    _logger.LogError($"[window manager] GetMessage failed {Marshal.GetLastWin32Error()}");
+                    break;
+                }
+                else if (ret == 0)
+                {
+                    _logger.LogInformation($"[window manager] GetMessage Quit {msg.message:X}");
+                    break;
+                }
+            }
+
+            {
+                _logger.LogInformation("[window manager] TranslateMessage");
+                var ret = User32.TranslateMessage(ref msg);
+                _logger.LogInformation($"[window manager] TranslateMessage {ret} {Marshal.GetLastWin32Error()}");
+            }
+
+            {
+                _logger.LogInformation("[window manager] DispatchMessage");
+                var ret = IsWindowUnicode
+                            ? User32.DispatchMessageW(ref msg)
+                            : User32.DispatchMessageA(ref msg)
+                            ;
+                _logger.LogInformation($"[window manager] DispatchMessage {ret} {Marshal.GetLastWin32Error()}");
+            }
+        }
+    }
+}
+
+
+
 internal class WindowClass : IDisposable
 {
     private ILoggerFactory LoggerFactory { get; }
