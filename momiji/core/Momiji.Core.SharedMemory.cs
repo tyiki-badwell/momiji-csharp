@@ -87,7 +87,7 @@ public class IPCBuffer<T> : IDisposable where T : notnull
     {
         unsafe
         {
-            byte* ptr = GetPtr();
+            var ptr = GetPtr();
             return new Span<T>((ptr + (SIZE_OF_T * offset)), length);
         }
     }
@@ -115,7 +115,7 @@ public class IPCBuffer<T> : IDisposable where T : notnull
     {
         unsafe
         {
-            byte* ptr = GetPtr();
+            var ptr = GetPtr();
             return new IntPtr(ptr) + offset;
         }
     }

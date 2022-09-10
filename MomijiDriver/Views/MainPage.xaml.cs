@@ -20,25 +20,25 @@ public sealed partial class MainPage : Page
     private async void Run_Click(object sender, Microsoft.UI.Xaml.RoutedEventArgs e)
     {
         var m = App.MainWindow as MainWindow;
-        await m.RunAsync();
+        if (m != default) await m.RunAsync();
     }
 
     private async void Stop_Click(object sender, Microsoft.UI.Xaml.RoutedEventArgs e)
     {
         var m = App.MainWindow as MainWindow;
-        await m.StopAsync();
+        if (m != default) await m.StopAsync();
     }
 
     private void Open_Click(object sender, Microsoft.UI.Xaml.RoutedEventArgs e)
     {
         var m = App.MainWindow as MainWindow;
-        m.Open();
+        if (m != default) m.Open();
     }
 
     private async void Close_Click(object sender, Microsoft.UI.Xaml.RoutedEventArgs e)
     {
         var m = App.MainWindow as MainWindow;
-        await m.CloseAsync();
+        if (m != default) await m.CloseAsync();
     }
 
 }

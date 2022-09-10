@@ -36,9 +36,9 @@ internal class WindowClass : IDisposable
 
     private User32.WNDCLASS windowClass;
 
-    internal IntPtr ClassName { get { return windowClass.lpszClassName; } }
+    internal IntPtr ClassName => windowClass.lpszClassName;
 
-    internal IntPtr HInstance { get { return windowClass.hInstance; } }
+    internal IntPtr HInstance => windowClass.hInstance;
 
     internal WindowClass(
         ILoggerFactory loggerFactory,
@@ -207,8 +207,8 @@ public class NativeWindow
         }
 
         //RECTを受け取る
-        int width = 100;
-        int height = 100;
+        var width = 100;
+        var height = 100;
         onCreateWindow?.Invoke(hWindow, ref width, ref height);
 
         User32.MoveWindow(
@@ -393,7 +393,7 @@ public class NativeWindow
     {
         var handleRef = new HandleRef(this, hwnd);
         var isWindowUnicode = (lParam != IntPtr.Zero) && User32.IsWindowUnicode(handleRef);
-        Logger.LogInformation($"[window] WndProc[{hwnd:X} {msg:X} {wParam:X} {lParam:X} current {Environment.CurrentManagedThreadId:X}");
+//        Logger.LogInformation($"[window] WndProc[{hwnd:X} {msg:X} {wParam:X} {lParam:X} current {Environment.CurrentManagedThreadId:X}");
 
         switch (msg)
         {
@@ -470,7 +470,7 @@ public class NativeWindow
 
     private IntPtr SubWndProc(IntPtr hwnd, uint msg, IntPtr wParam, IntPtr lParam)
     {
-        Logger.LogInformation($"[window] SubWndProc[{hwnd:X} {msg:X} {wParam:X} {lParam:X} current {Thread.CurrentThread.ManagedThreadId:X}");
+//        Logger.LogInformation($"[window] SubWndProc[{hwnd:X} {msg:X} {wParam:X} {lParam:X} current {Thread.CurrentThread.ManagedThreadId:X}");
 
         var handleRef = new HandleRef(this, hwnd);
         var isWindowUnicode = (lParam != IntPtr.Zero) && User32.IsWindowUnicode(handleRef);
@@ -494,7 +494,7 @@ public class NativeWindow
         switch (msg)
         {
             case 0x000F://WM_PAINT
-                Logger.LogInformation($"[window] SubWndProc WM_PAINT[{hwnd:X} {msg:X} {wParam:X} {lParam:X} current {Thread.CurrentThread.ManagedThreadId:X}");
+//                Logger.LogInformation($"[window] SubWndProc WM_PAINT[{hwnd:X} {msg:X} {wParam:X} {lParam:X} current {Thread.CurrentThread.ManagedThreadId:X}");
                 try
                 {
                     onPostPaint?.Invoke(new HandleRef(this, hwnd));
