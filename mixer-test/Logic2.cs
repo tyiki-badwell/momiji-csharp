@@ -11,6 +11,7 @@ using Momiji.Core.Trans;
 using Momiji.Core.Vst;
 using Momiji.Core.Wave;
 using Momiji.Core.WebMidi;
+using Momiji.Core.Window;
 using Momiji.Interop.Opus;
 using System.Reflection;
 using System.Threading.Tasks.Dataflow;
@@ -23,6 +24,7 @@ public class Logic2 : ILogic
     private ILoggerFactory LoggerFactory { get; }
     private ILogger Logger { get; }
     private IDllManager DllManager { get; }
+    private IWindowManager WindowManager { get; }
     private string StreamKey { get; }
     private string IngestHostname { get; }
     private string CaInfoPath { get; }
@@ -39,6 +41,7 @@ public class Logic2 : ILogic
         IConfiguration configuration,
         ILoggerFactory loggerFactory,
         IDllManager dllManager,
+        IWindowManager windowManager,
         Param param,
         BufferBlock<MIDIMessageEvent2> midiEventInput,
         BufferBlock<MIDIMessageEvent2> midiEventOutput,
@@ -49,6 +52,7 @@ public class Logic2 : ILogic
         LoggerFactory = loggerFactory;
         Logger = LoggerFactory.CreateLogger<Runner>();
         DllManager = dllManager;
+        WindowManager = windowManager;
         Param = param;
         ProcessCancel = processCancel;
         MidiEventInput = midiEventInput;
@@ -107,7 +111,7 @@ public class Logic2 : ILogic
         using var pcmDrowPool = new BufferPool<PcmBuffer<float>>(Param.BufferCount, () => new PcmBuffer<float>(blockSize, 2), LoggerFactory);
         using var bmpPool = new BufferPool<H264InputBuffer>(Param.BufferCount, () => new H264InputBuffer(Param.Width, Param.Height), LoggerFactory);
         using var videoPool = new BufferPool<H264OutputBuffer>(Param.BufferCount, () => new H264OutputBuffer(200000), LoggerFactory);
-        using var vst = new AudioMaster<float>(Param.SamplingRate, blockSize, LoggerFactory, counter, DllManager);
+        using var vst = new AudioMaster<float>(Param.SamplingRate, blockSize, LoggerFactory, counter, DllManager, WindowManager);
         using var toPcm = new ToPcm<float>(LoggerFactory, counter);
         using var opus = new OpusEncoder(SamplingRate.Sampling48000, Channels.Stereo, LoggerFactory, counter);
         using var fft = new FFTEncoder(Param.Width, Param.Height, Param.MaxFrameRate, LoggerFactory, counter);
@@ -282,7 +286,7 @@ public class Logic2 : ILogic
         using var pcmPool = new BufferPool<PcmBuffer<float>>(Param.BufferCount, () => new PcmBuffer<float>(blockSize, 2), LoggerFactory);
         var counter = new ElapsedTimeCounter();
         using var audioWaiter = new Waiter(counter, audioInterval);
-        using var vst = new AudioMaster<float>(Param.SamplingRate, blockSize, LoggerFactory, counter, DllManager);
+        using var vst = new AudioMaster<float>(Param.SamplingRate, blockSize, LoggerFactory, counter, DllManager, WindowManager);
         using var toPcm = new ToPcm<float>(LoggerFactory, counter);
         
         effect = vst.AddEffect(Param.EffectName);
@@ -359,6 +363,6 @@ public class Logic2 : ILogic
 
     public void CloseEditor()
     {
-        effect?.CloseEditorAsync().Wait();
+        effect?.CloseEditor();
     }
 }

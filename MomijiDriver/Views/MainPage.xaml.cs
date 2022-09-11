@@ -32,13 +32,13 @@ public sealed partial class MainPage : Page
     private void Open_Click(object sender, Microsoft.UI.Xaml.RoutedEventArgs e)
     {
         var m = App.MainWindow as MainWindow;
-        if (m != default) m.Open();
+        if (m != default) m.OpenEditor();
     }
 
-    private async void Close_Click(object sender, Microsoft.UI.Xaml.RoutedEventArgs e)
+    private void Close_Click(object sender, Microsoft.UI.Xaml.RoutedEventArgs e)
     {
         var m = App.MainWindow as MainWindow;
-        if (m != default) await m.CloseAsync();
+        if (m != default) m.CloseEditor();
     }
 
 }

@@ -42,7 +42,7 @@ public sealed partial class MainWindow : WindowEx
         list.Clear();
     }
 
-    public void Open()
+    public void OpenEditor()
     {
         foreach (var host in list)
         {
@@ -51,14 +51,12 @@ public sealed partial class MainWindow : WindowEx
             {
                 continue;
             }
-
             worker.OpenEditor();
         }
     }
 
-    public async Task CloseAsync()
+    public void CloseEditor()
     {
-        var taskSet = new HashSet<Task>();
         foreach (var host in list)
         {
             var worker = (IRunner?)host.Services.GetService(typeof(IRunner));
@@ -66,10 +64,8 @@ public sealed partial class MainWindow : WindowEx
             {
                 continue;
             }
-
-            taskSet.Add(worker.CloseEditorAsync());
+            worker.CloseEditor();
         }
-        await Task.WhenAll(taskSet).ConfigureAwait(false);
     }
 
     private void WindowEx_Activated(object sender, Microsoft.UI.Xaml.WindowActivatedEventArgs args)

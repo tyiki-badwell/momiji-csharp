@@ -1,10 +1,11 @@
-﻿using Microsoft.Extensions.Logging;
+﻿using System.Collections.Concurrent;
+using Microsoft.Extensions.Logging;
 using Momiji.Core.Dll;
 using Momiji.Core.SharedMemory;
 using Momiji.Core.Timer;
+using Momiji.Core.Window;
 using Momiji.Interop.Vst;
 using Momiji.Interop.Vst.AudioMaster;
-using System.Collections.Concurrent;
 
 namespace Momiji.Core.Vst;
 
@@ -14,6 +15,7 @@ public class AudioMaster<T> : IDisposable where T : struct
     private readonly ILogger _logger;
     private readonly ElapsedTimeCounter _counter;
     internal IDllManager DllManager { get; }
+    internal IWindowManager WindowManager { get; }
 
     private bool _disposed;
     internal IDictionary<IntPtr, Effect<T>> EffectMap { get; } = new ConcurrentDictionary<IntPtr, Effect<T>>();
@@ -41,13 +43,15 @@ public class AudioMaster<T> : IDisposable where T : struct
         int blockSize,
         ILoggerFactory loggerFactory,
         ElapsedTimeCounter counter,
-        IDllManager dllManager
+        IDllManager dllManager,
+        IWindowManager windowManager
     )
     {
         _loggerFactory = loggerFactory;
         _logger = _loggerFactory.CreateLogger<AudioMaster<T>>();
         _counter = counter;
         DllManager = dllManager;
+        WindowManager = windowManager;
 
         _param = new("vstTimeInfo", 1, _loggerFactory);
         var p = _param.AsSpan(0, 1);

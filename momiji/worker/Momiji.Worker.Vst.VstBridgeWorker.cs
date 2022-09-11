@@ -103,7 +103,7 @@ public interface IRunner
     void Cancel();
 
     void OpenEditor();
-    Task CloseEditorAsync();
+    void CloseEditor();
 
     //void Note(MIDIMessageEvent[] midiMessage);
     //Task AcceptWebSocket(WebSocket webSocket);
@@ -115,6 +115,7 @@ public class Runner : IRunner, IDisposable
     private readonly ILoggerFactory _loggerFactory;
     private readonly ILogger _logger;
     private readonly IDllManager _dllManager;
+    private readonly IWindowManager _windowManager;
     private readonly Param _param;
 
     private bool _disposed;
@@ -123,11 +124,12 @@ public class Runner : IRunner, IDisposable
     private Task? _processTask;
     private IEffect<float>? _effect;
 
-    public Runner(ILoggerFactory loggerFactory, IDllManager dllManager, IOptions<Param> param)
+    public Runner(ILoggerFactory loggerFactory, IDllManager dllManager, IWindowManager windowManager, IOptions<Param> param)
     {
         _loggerFactory = loggerFactory;
         _logger = _loggerFactory.CreateLogger<Runner>();
         _dllManager = dllManager;
+        _windowManager = windowManager;
 
         if (param == default)
         {
@@ -202,7 +204,7 @@ public class Runner : IRunner, IDisposable
         using var pcmPool = new BufferPool<PcmBuffer<float>>(_param.BufferCount, () => new PcmBuffer<float>(blockSize, 2), _loggerFactory);
         var counter = new ElapsedTimeCounter();
         using var audioWaiter = new Waiter(counter, audioInterval, true);
-        using var vst = new AudioMaster<float>(_param.SamplingRate, blockSize, _loggerFactory, counter, _dllManager);
+        using var vst = new AudioMaster<float>(_param.SamplingRate, blockSize, _loggerFactory, counter, _dllManager, _windowManager);
         using var toPcm = new ToPcm<float>(_loggerFactory, counter);
 
         _logger.LogInformation($"AddEffect:{_param.EffectName}");
@@ -319,13 +321,13 @@ public class Runner : IRunner, IDisposable
         _effect.OpenEditor(_processCancel.Token);
     }
 
-    public async Task CloseEditorAsync()
+    public void CloseEditor()
     {
         if (_effect == default)
         {
             throw new InvalidOperationException($"{nameof(_effect)} is null.");
         }
 
-        await _effect.CloseEditorAsync().ConfigureAwait(false);
+        _effect.CloseEditor();
     }
 }

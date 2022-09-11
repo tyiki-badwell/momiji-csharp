@@ -1,4 +1,7 @@
-﻿using Microsoft.Extensions.Logging;
+﻿using System.Runtime.CompilerServices;
+using System.Runtime.InteropServices;
+using System.Threading.Tasks.Dataflow;
+using Microsoft.Extensions.Logging;
 using Momiji.Core.Buffer;
 using Momiji.Core.SharedMemory;
 using Momiji.Core.Timer;
@@ -6,9 +9,6 @@ using Momiji.Core.WebMidi;
 using Momiji.Core.Window;
 using Momiji.Interop.Vst;
 using Momiji.Interop.Vst.AudioMaster;
-using System.Runtime.CompilerServices;
-using System.Runtime.InteropServices;
-using System.Threading.Tasks.Dataflow;
 
 namespace Momiji.Core.Vst;
 
@@ -163,7 +163,7 @@ public interface IEffect<T> where T : struct
         ITargetBlock<MIDIMessageEvent2>? midiEventOutput = null
     );
     void OpenEditor(CancellationToken cancellationToken);
-    Task CloseEditorAsync();
+    void CloseEditor();
 }
 
 internal class Effect<T> : IEffect<T>, IDisposable where T : struct
@@ -176,8 +176,7 @@ internal class Effect<T> : IEffect<T>, IDisposable where T : struct
 
     private readonly IntPtr _aeffectPtr;
 
-    private NativeWindow? _window;
-    private Task? _windowTask;
+    private IWindow? _window;
 
     //private Bitmap bitmap;
     internal ERect EditorRect { get; private set; }
@@ -338,7 +337,7 @@ internal class Effect<T> : IEffect<T>, IDisposable where T : struct
         {
             _logger.LogInformation("[vst] stop");
 
-            CloseAsync().Wait();
+            Close();
             _audioMaster.EffectMap.Remove(_aeffectPtr);
 
             _audioMasterCallBack?.Dispose();
@@ -672,20 +671,13 @@ internal class Effect<T> : IEffect<T>, IDisposable where T : struct
             return;
         }
 
-        _window = new NativeWindow(_loggerFactory, OnCreateWindow, OnPreCloseWindow, OnPostPaint);
-
-        _windowTask = _window.RunAsync(cancellationToken);
+        _audioMaster.WindowManager.CreateWindow(OnCreateWindow, OnPreCloseWindow, OnPostPaint);
         _logger.LogInformation("[vst] Editor Open");
-        _ = _windowTask.ContinueWith((task) =>
-        {
-            _logger.LogInformation("[vst] Editor End");
-            _window = default;
-            _windowTask = default;
-        }, TaskScheduler.Default).ConfigureAwait(false);
     }
 
-    private void OnCreateWindow(HandleRef hWindow, ref int width, ref int height)
+    private void OnCreateWindow(IWindow window, ref int width, ref int height)
     {
+        _window = window;
         {
             _logger.LogInformation($"[vst] open call back current {Environment.CurrentManagedThreadId:X}");
 
@@ -694,7 +686,7 @@ internal class Effect<T> : IEffect<T>, IDisposable where T : struct
                     AEffect.Opcodes.effEditOpen,
                     default,
                     default,
-                    hWindow.Handle,
+                    window.HandleRef.Handle,
                     default
                 );
             if (result == IntPtr.Zero)
@@ -731,6 +723,8 @@ internal class Effect<T> : IEffect<T>, IDisposable where T : struct
 
     private void OnPreCloseWindow()
     {
+        _window = default;
+
         _logger.LogInformation($"[vst] close call back current {Environment.CurrentManagedThreadId:X}");
 
         {
@@ -772,7 +766,7 @@ internal class Effect<T> : IEffect<T>, IDisposable where T : struct
         */
     }
 
-    public async Task CloseEditorAsync()
+    public void CloseEditor()
     {
         var aeffect = GetAEffect();
         if (!aeffect.flags.HasFlag(AEffect.VstAEffectFlags.effFlagsHasEditor))
@@ -788,25 +782,12 @@ internal class Effect<T> : IEffect<T>, IDisposable where T : struct
 
         _window.Close();
 
-        if (_windowTask == default)
-        {
-            return;
-        }
-
-        try
-        {
-            await _windowTask.ConfigureAwait(false);
-        }
-        catch (WindowException e)
-        {
-            _logger.LogError(e, "[vst] Editor error");
-        }
         _logger.LogInformation("[vst] Editor Closed");
     }
 
-    private async Task CloseAsync()
+    private void Close()
     {
-        await CloseEditorAsync().ConfigureAwait(false);
+        CloseEditor();
 
         //stop
         Dispatcher(

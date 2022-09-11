@@ -2,6 +2,7 @@
 using Momiji.Core.Dll;
 using Momiji.Core.Timer;
 using Momiji.Core.WebMidi;
+using Momiji.Core.Window;
 using System.Net.WebSockets;
 using System.Text;
 using System.Text.Json;
@@ -33,6 +34,7 @@ public class Runner : IRunner, IDisposable
     private ILoggerFactory LoggerFactory { get; }
     private ILogger Logger { get; }
     private IDllManager DllManager { get; }
+    private IWindowManager WindowManager { get; }
     private Param Param { get; set; }
 
     private bool _disposed;
@@ -55,12 +57,13 @@ public class Runner : IRunner, IDisposable
     //private BufferBlock<OpusOutputBuffer> audioOutput = new BufferBlock<OpusOutputBuffer>();
     //private BufferBlock<H264OutputBuffer> videoOutput = new BufferBlock<H264OutputBuffer>();
 
-    public Runner(IConfiguration configuration, ILoggerFactory loggerFactory, IDllManager dllManager)
+    public Runner(IConfiguration configuration, ILoggerFactory loggerFactory, IDllManager dllManager, IWindowManager windowManager)
     {
         Configuration = configuration ?? throw new ArgumentNullException(nameof(configuration));
         LoggerFactory = loggerFactory;
         Logger = LoggerFactory.CreateLogger<Runner>();
         DllManager = dllManager;
+        WindowManager = windowManager;
 
         var param = new Param();
         Configuration.GetSection(typeof(Param).FullName).Bind(param);
@@ -121,8 +124,10 @@ public class Runner : IRunner, IDisposable
 
             try
             {
+                var windowManagerTask = WindowManager.StartAsync(_processCancel.Token);
+
                 //logic = new Logic1(Configuration, LoggerFactory, DllManager, Param, midiEventInput, midiEventOutput, processCancel);
-                _logic = new Logic2(Configuration, LoggerFactory, DllManager, Param, _midiEventInput, _midiEventOutput, _processCancel);
+                _logic = new Logic2(Configuration, LoggerFactory, DllManager, WindowManager, Param, _midiEventInput, _midiEventOutput, _processCancel);
                 //logic = new Logic4(Configuration, LoggerFactory, DllManager, Param, midiEventInput, midiEventOutput, processCancel);
 
                 _processTask = _logic.RunAsync().ContinueWith((task) => { Cancel(); }, TaskScheduler.Default);

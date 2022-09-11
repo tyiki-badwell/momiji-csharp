@@ -1,5 +1,6 @@
 using mixerTest;
 using Momiji.Core.Dll;
+using Momiji.Core.Window;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -13,6 +14,7 @@ builder.Services.Configure<CookiePolicyOptions>(options =>
 });
 
 builder.Services.AddSingleton<IDllManager, DllManager>();
+builder.Services.AddSingleton<IWindowManager, WindowManager>();
 builder.Services.AddSingleton<IRunner, Runner>();
 
 var app = builder.Build();
