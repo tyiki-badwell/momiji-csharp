@@ -146,7 +146,7 @@ public class WindowManager : IDisposable, IWindowManager
     {
         _queue.Enqueue(() => {
             var window = 
-                new NativeWindow2(
+                new NativeWindow(
                     _loggerFactory, 
                     _windowClass, 
                     onCreateWindow, 
@@ -158,7 +158,7 @@ public class WindowManager : IDisposable, IWindowManager
         });
     }
 
-    private void CloseWindow(NativeWindow2 window)
+    private void CloseWindow(NativeWindow window)
     {
         _queue.Enqueue(() => {
             window.Close();
@@ -368,7 +368,7 @@ public class WindowManager : IDisposable, IWindowManager
             }
 
             //ウインドウに流す
-            var nativeWindow = window as NativeWindow2;
+            var nativeWindow = window as NativeWindow;
             if (nativeWindow != default)
             {
                 var result = nativeWindow.WndProc(handleRef, msg, wParam, lParam, out var handled);
@@ -454,7 +454,7 @@ internal class WindowClass : IDisposable
     }
 }
 
-internal class NativeWindow2 : IWindow
+internal class NativeWindow : IWindow
 {
     private readonly ILoggerFactory _loggerFactory;
     private readonly ILogger _logger;
@@ -466,7 +466,7 @@ internal class NativeWindow2 : IWindow
     public HandleRef HandleRef => _hWindow;
 
     private readonly ConcurrentDictionary<IntPtr, (IntPtr, PinnedDelegate<User32.WNDPROC>)> _oldWndProcMap = new();
-    internal NativeWindow2(
+    internal NativeWindow(
         ILoggerFactory loggerFactory,
         WindowClass windowClass,
         IWindowManager.OnCreateWindow? onCreateWindow = default,
@@ -475,7 +475,7 @@ internal class NativeWindow2 : IWindow
     )
     {
         _loggerFactory = loggerFactory;
-        _logger = _loggerFactory.CreateLogger<NativeWindow2>();
+        _logger = _loggerFactory.CreateLogger<NativeWindow>();
 
         _onPreCloseWindow = onPreCloseWindow;
         _onPostPaint = onPostPaint;
