@@ -358,7 +358,7 @@ public class Logic2 : ILogic
 
     public void OpenEditor()
     {
-        effect?.OpenEditor(ProcessCancel.Token);
+        effect?.OpenEditor();
     }
 
     public void CloseEditor()

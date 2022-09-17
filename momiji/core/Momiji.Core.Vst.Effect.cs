@@ -162,7 +162,7 @@ public interface IEffect<T> where T : struct
         IReceivableSourceBlock<MIDIMessageEvent2> midiEventInput,
         ITargetBlock<MIDIMessageEvent2>? midiEventOutput = null
     );
-    void OpenEditor(CancellationToken cancellationToken);
+    void OpenEditor();
     void CloseEditor();
 }
 
@@ -360,7 +360,7 @@ internal class Effect<T> : IEffect<T>, IDisposable where T : struct
     {
         if (_getParameterProc == default)
         {
-            return default;
+            throw new VstException("getParameter が無い");
         }
         return _getParameterProc(_aeffectPtr, index);
     }
@@ -369,7 +369,7 @@ internal class Effect<T> : IEffect<T>, IDisposable where T : struct
     {
         if (_setParameterProc == default)
         {
-            return;
+            throw new VstException("setParameter が無い");
         }
         _setParameterProc(_aeffectPtr, index, value);
     }
@@ -384,7 +384,7 @@ internal class Effect<T> : IEffect<T>, IDisposable where T : struct
     {
         if (_dispatcherProc == default)
         {
-            return default;
+            throw new VstException("dispatcher が無い");
         }
 
         _logger.LogInformation($"[vst] DispatcherProc({opcode},{index},{value},{ptr},{opt})");
@@ -402,7 +402,7 @@ internal class Effect<T> : IEffect<T>, IDisposable where T : struct
         catch (Exception e)
         {
             _logger.LogError(e, $"[vst] DispatcherProc Exception({opcode},{index},{value},{ptr},{opt})");
-            return IntPtr.Zero;
+            throw new VstException($"dispatcher failed({opcode},{index},{value},{ptr},{opt})", e);
         }
     }
 
@@ -438,13 +438,13 @@ internal class Effect<T> : IEffect<T>, IDisposable where T : struct
         VstBuffer<T> source
     )
     {
-        if (_processProc == default)
-        {
-            return;
-        }
         if (source == default)
         {
             throw new ArgumentNullException(nameof(source));
+        }
+        if (_processProc == default)
+        {
+            throw new VstException("process が無い");
         }
 
         var blockSize = source.BlockSize;
@@ -472,13 +472,13 @@ internal class Effect<T> : IEffect<T>, IDisposable where T : struct
         VstBuffer2<T> source
     )
     {
-        if (_processProc == default)
-        {
-            return;
-        }
         if (source == default)
         {
             throw new ArgumentNullException(nameof(source));
+        }
+        if (_processProc == default)
+        {
+            throw new VstException("process が無い");
         }
 
         var blockSize = source.BlockSize;
@@ -656,13 +656,12 @@ internal class Effect<T> : IEffect<T>, IDisposable where T : struct
         );
     }
 
-    public void OpenEditor(CancellationToken cancellationToken)
+    public void OpenEditor()
     {
         var aeffect = GetAEffect();
         if (!aeffect.flags.HasFlag(AEffect.VstAEffectFlags.effFlagsHasEditor))
         {
-            _logger.LogInformation("[vst] effFlagsHasEditorではない");
-            return;
+            throw new VstException("effFlagsHasEditor ではない");
         }
 
         if (_window != default)
@@ -671,7 +670,14 @@ internal class Effect<T> : IEffect<T>, IDisposable where T : struct
             return;
         }
 
-        _window = _audioMaster.WindowManager.CreateWindow(OnPreCloseWindow, OnPostPaint);
+        try
+        {
+            _window = _audioMaster.WindowManager.CreateWindow(OnPreCloseWindow, OnPostPaint);
+        }
+        catch (Exception e)
+        {
+            throw new VstException("create window failed.", e);
+        }
 
         {
             var result =

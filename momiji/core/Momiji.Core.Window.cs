@@ -150,6 +150,11 @@ public class WindowManager : IDisposable, IWindowManager
     internal void Dispatch(Action item)
     {
         _logger.LogInformation("[window manager] Dispatch");
+        if (_processTask == default)
+        {
+            throw new WindowException("message loop is not exists.");
+        }
+        
         _queue.Enqueue(item);
     }
 
@@ -242,6 +247,7 @@ public class WindowManager : IDisposable, IWindowManager
 
         var ct = _processCancel.Token;
 
+        _logger.LogInformation($"[window manager] start message loop. (thread {Environment.CurrentManagedThreadId:X})");
         while (true)
         {
             //Logger.LogInformation($"[window] MessageLoop createThreadId {window.CreateThreadId:X} current {Thread.CurrentThread.ManagedThreadId:X}");
@@ -355,6 +361,7 @@ public class WindowManager : IDisposable, IWindowManager
                 //_logger.LogInformation($"[window manager] DispatchMessage {ret} {Marshal.GetLastWin32Error()}");
             }
         }
+        _logger.LogInformation("[window manager] end message loop.");
     }
 
     private IntPtr WndProc(IntPtr hwnd, uint msg, IntPtr wParam, IntPtr lParam)
@@ -555,7 +562,7 @@ internal class NativeWindow : IWindow
         var tcs = new TaskCompletionSource<bool>(TaskCreationOptions.AttachedToParent);
         _windowManager.Dispatch(() =>
         {
-            _logger.LogInformation($"[window] MoveWindow {_hWindow.Handle:X} {x} {y} {width} {height} {repaint}");
+            _logger.LogInformation($"[window] MoveWindow {_hWindow.Handle:X} {x} {y} {width} {height} {repaint} (thread {Environment.CurrentManagedThreadId:X})");
             var result =
                 User32.MoveWindow(
                     _hWindow,
@@ -583,7 +590,7 @@ internal class NativeWindow : IWindow
         var tcs = new TaskCompletionSource<bool>(TaskCreationOptions.AttachedToParent);
         _windowManager.Dispatch(() =>
         {
-            _logger.LogInformation($"[window] ShowWindow {_hWindow.Handle:X} {cmdShow}");
+            _logger.LogInformation($"[window] ShowWindow {_hWindow.Handle:X} {cmdShow} (thread {Environment.CurrentManagedThreadId:X})");
             var result =
                 User32.ShowWindow(
                     _hWindow,

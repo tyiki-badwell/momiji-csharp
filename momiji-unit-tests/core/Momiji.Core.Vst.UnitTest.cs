@@ -159,21 +159,24 @@ public class VstUnitTest
         });
         var logger = loggerFactory.CreateLogger<VstUnitTest>();
 
+        using var processCancel = new CancellationTokenSource();
         using var dllManager = new DllManager(configuration, loggerFactory);
         using var windowManager = new WindowManager(loggerFactory);
+
+        var task = windowManager.StartAsync(processCancel.Token);
 
         var counter = new ElapsedTimeCounter();
 
         var blockSize = 2880;
 
         using var vst = new AudioMaster<float>(48000, blockSize, loggerFactory, counter, dllManager, windowManager);
-        using var processCancel = new CancellationTokenSource();
 
         var effect = vst.AddEffect("Synth1 VST.dll");
-        effect.OpenEditor(processCancel.Token);
-        processCancel.Cancel();
+        effect.OpenEditor();
         effect.CloseEditor();
 
+        processCancel.Cancel();
+        task.Wait();
     }
 
     [Fact]

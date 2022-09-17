@@ -274,8 +274,6 @@ public class Logic1
         using var toPcm = new ToPcm<float>(LoggerFactory, counter);
         var effect = vst.AddEffect(Param.EffectName);
 
-        effect.OpenEditor(ct);
-
         using var wave = new WaveOutFloat(
             0,
             2,

@@ -314,11 +314,7 @@ public class Runner : IRunner, IDisposable
         {
             throw new InvalidOperationException($"{nameof(_effect)} is null.");
         }
-        if (_processCancel == default)
-        {
-            throw new InvalidOperationException($"{nameof(_processCancel)} is null.");
-        }
-        _effect.OpenEditor(_processCancel.Token);
+        _effect.OpenEditor();
     }
 
     public void CloseEditor()
@@ -327,7 +323,6 @@ public class Runner : IRunner, IDisposable
         {
             throw new InvalidOperationException($"{nameof(_effect)} is null.");
         }
-
         _effect.CloseEditor();
     }
 }
