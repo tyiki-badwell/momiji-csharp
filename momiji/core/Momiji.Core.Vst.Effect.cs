@@ -671,27 +671,23 @@ internal class Effect<T> : IEffect<T>, IDisposable where T : struct
             return;
         }
 
-        _audioMaster.WindowManager.CreateWindow(OnCreateWindow, OnPreCloseWindow, OnPostPaint);
-        _logger.LogInformation("[vst] Editor Open");
-    }
+        _window = _audioMaster.WindowManager.CreateWindow(OnPreCloseWindow, OnPostPaint);
 
-    private void OnCreateWindow(IWindow window, ref int width, ref int height)
-    {
-        _window = window;
         {
-            _logger.LogInformation($"[vst] open call back current {Environment.CurrentManagedThreadId:X}");
-
             var result =
                 Dispatcher(
                     AEffect.Opcodes.effEditOpen,
                     default,
                     default,
-                    window.HandleRef.Handle,
+                    _window.HandleRef.Handle,
                     default
                 );
             if (result == IntPtr.Zero)
             {
                 _logger.LogInformation("[vst] effEditOpen failed");
+                _window.Close();
+                _window = default;
+                return;
             }
         }
 
@@ -708,17 +704,34 @@ internal class Effect<T> : IEffect<T>, IDisposable where T : struct
             if (result == IntPtr.Zero)
             {
                 _logger.LogInformation("[vst] effEditGetRect failed");
+                _window.Close();
+                _window = default;
+                return;
             }
 
             EditorRect = Marshal.PtrToStructure<ERect>(buffer.Target);
             _logger.LogInformation($"[vst] effEditGetRect width;{EditorRect.right - EditorRect.left} height:{EditorRect.bottom - EditorRect.top}");
 
-            width = EditorRect.right - EditorRect.left;
-            height = EditorRect.bottom - EditorRect.top;
+            var width = EditorRect.right - EditorRect.left;
+            var height = EditorRect.bottom - EditorRect.top;
+
+            _window.Move(
+                0,
+                0,
+                width,
+                height,
+                true
+            );
+
+            _window.Show(
+                5 // SW_SHOW
+            );
 
             //キャプチャ先を作成
             //bitmap = new Bitmap(width, height, PixelFormat.Format24bppRgb);
         }
+
+        _logger.LogInformation("[vst] Editor Open");
     }
 
     private void OnPreCloseWindow()

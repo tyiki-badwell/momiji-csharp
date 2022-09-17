@@ -27,12 +27,10 @@ public interface IWindowManager
     Task StartAsync(CancellationToken stoppingToken);
     void Cancel();
 
-    public delegate void OnCreateWindow(IWindow window, ref int width, ref int height);
     public delegate void OnPreCloseWindow();
     public delegate void OnPostPaint(HandleRef hWindow);
 
-    public void CreateWindow(
-        OnCreateWindow? onCreateWindow = default,
+    public IWindow CreateWindow(
         OnPreCloseWindow? onPreCloseWindow = default,
         OnPostPaint? onPostPaint = default
     );
@@ -44,6 +42,17 @@ public interface IWindow
 {
     HandleRef HandleRef { get; }
     void Close();
+    bool Move(
+        int x,
+        int y,
+        int width,
+        int height,
+        bool repaint
+    );
+
+    bool Show(
+        int cmdShow
+    );
 }
 
 public class WindowManager : IDisposable, IWindowManager
@@ -60,7 +69,7 @@ public class WindowManager : IDisposable, IWindowManager
     private readonly WindowClass _windowClass;
 
     private readonly ConcurrentQueue<Action> _queue = new();
-    private readonly ConcurrentDictionary<IntPtr, IWindow> _windowMap = new();
+    private readonly ConcurrentDictionary<IntPtr, NativeWindow> _windowMap = new();
 
     public delegate IntPtr OnWndProc(HandleRef hWindow, int msg, IntPtr wParam, IntPtr lParam);
 
@@ -138,31 +147,28 @@ public class WindowManager : IDisposable, IWindowManager
         }
     }
 
-    public void CreateWindow(
-        IWindowManager.OnCreateWindow? onCreateWindow = default,
+    internal void Dispatch(Action item)
+    {
+        _logger.LogInformation("[window manager] Dispatch");
+        _queue.Enqueue(item);
+    }
+
+    public IWindow CreateWindow(
         IWindowManager.OnPreCloseWindow? onPreCloseWindow = default,
         IWindowManager.OnPostPaint? onPostPaint = default
     )
     {
-        _queue.Enqueue(() => {
-            var window = 
-                new NativeWindow(
-                    _loggerFactory, 
-                    _windowClass, 
-                    onCreateWindow, 
-                    onPreCloseWindow, 
-                    onPostPaint
-                );
+        var window =
+            new NativeWindow(
+                _loggerFactory,
+                this,
+                _windowClass,
+                onPreCloseWindow,
+                onPostPaint
+            );
 
-            _windowMap.TryAdd(window.HandleRef.Handle, window);
-        });
-    }
-
-    private void CloseWindow(NativeWindow window)
-    {
-        _queue.Enqueue(() => {
-            window.Close();
-        });
+        _windowMap.TryAdd(window.HandleRef.Handle, window);
+        return window;
     }
 
     public void CloseAll()
@@ -355,7 +361,7 @@ public class WindowManager : IDisposable, IWindowManager
     {
         var handleRef = new HandleRef(this, hwnd);
         var isWindowUnicode = (hwnd != IntPtr.Zero) && User32.IsWindowUnicode(handleRef);
-        _logger.LogInformation($"[window manager] WndProc[{hwnd:X} {msg:X} {wParam:X} {lParam:X}] current {Environment.CurrentManagedThreadId:X}");
+        //_logger.LogInformation($"[window manager] WndProc[{hwnd:X} {msg:X} {wParam:X} {lParam:X}] current {Environment.CurrentManagedThreadId:X}");
 
         if (_windowMap.TryGetValue(handleRef.Handle, out var window))
         {
@@ -368,14 +374,10 @@ public class WindowManager : IDisposable, IWindowManager
             }
 
             //ウインドウに流す
-            var nativeWindow = window as NativeWindow;
-            if (nativeWindow != default)
+            var result = window.WndProc(msg, wParam, lParam, out var handled);
+            if (handled)
             {
-                var result = nativeWindow.WndProc(handleRef, msg, wParam, lParam, out var handled);
-                if (handled)
-                {
-                    return result;
-                }
+                return result;
             }
         }
 
@@ -458,6 +460,7 @@ internal class NativeWindow : IWindow
 {
     private readonly ILoggerFactory _loggerFactory;
     private readonly ILogger _logger;
+    private readonly WindowManager _windowManager;
 
     private readonly IWindowManager.OnPreCloseWindow? _onPreCloseWindow;
     private readonly IWindowManager.OnPostPaint? _onPostPaint;
@@ -468,69 +471,66 @@ internal class NativeWindow : IWindow
     private readonly ConcurrentDictionary<IntPtr, (IntPtr, PinnedDelegate<User32.WNDPROC>)> _oldWndProcMap = new();
     internal NativeWindow(
         ILoggerFactory loggerFactory,
+        WindowManager windowManager,
         WindowClass windowClass,
-        IWindowManager.OnCreateWindow? onCreateWindow = default,
         IWindowManager.OnPreCloseWindow? onPreCloseWindow = default,
         IWindowManager.OnPostPaint? onPostPaint = default
     )
     {
         _loggerFactory = loggerFactory;
         _logger = _loggerFactory.CreateLogger<NativeWindow>();
+        _windowManager = windowManager;
 
         _onPreCloseWindow = onPreCloseWindow;
         _onPostPaint = onPostPaint;
 
-        var style = unchecked((int)
-            0x80000000 //WS_POPUP
-                       // 0x00000000L //WS_OVERLAPPED
-                       // | 0x00C00000L //WS_CAPTION
-                       // | 0x00080000L //WS_SYSMENU
-                       // | 0x00040000L //WS_THICKFRAME
-                       //| 0x10000000L //WS_VISIBLE
-            );
+        var tcs = new TaskCompletionSource<HandleRef>(TaskCreationOptions.AttachedToParent);
+        _windowManager.Dispatch(() => {
+            try
+            {
+                var style = unchecked((int)
+                    0x80000000 //WS_POPUP
+                               // 0x00000000L //WS_OVERLAPPED
+                               // | 0x00C00000L //WS_CAPTION
+                               // | 0x00080000L //WS_SYSMENU
+                               // | 0x00040000L //WS_THICKFRAME
+                               //| 0x10000000L //WS_VISIBLE
+                    );
 
-        var CW_USEDEFAULT = unchecked((int)0x80000000);
+                var CW_USEDEFAULT = unchecked((int)0x80000000);
 
-        _hWindow = new HandleRef(this,
-            User32.CreateWindowExW(
-                0,
-                windowClass.ClassName,
-                IntPtr.Zero,
-                style,
-                CW_USEDEFAULT,
-                CW_USEDEFAULT,
-                CW_USEDEFAULT,
-                CW_USEDEFAULT,
-                IntPtr.Zero,
-                IntPtr.Zero,
-                windowClass.HInstance,
-                IntPtr.Zero
-            ));
-        _logger.LogInformation($"[window] CreateWindowEx {_hWindow.Handle:X} {Marshal.GetLastWin32Error()}");
-        if (_hWindow.Handle == IntPtr.Zero)
-        {
-            _hWindow = default;
-            throw new WindowException("CreateWindowEx failed");
-        }
+                var hWindow = new HandleRef(this,
+                    User32.CreateWindowExW(
+                        0,
+                        windowClass.ClassName,
+                        IntPtr.Zero,
+                        style,
+                        CW_USEDEFAULT,
+                        CW_USEDEFAULT,
+                        CW_USEDEFAULT,
+                        CW_USEDEFAULT,
+                        IntPtr.Zero,
+                        IntPtr.Zero,
+                        windowClass.HInstance,
+                        IntPtr.Zero
+                    ));
+                _logger.LogInformation($"[window] CreateWindowEx {hWindow.Handle:X} {Marshal.GetLastWin32Error()}");
+                if (hWindow.Handle == IntPtr.Zero)
+                {
+                    hWindow = default;
+                    throw new WindowException("CreateWindowEx failed");
+                }
 
-        //RECTを受け取る
-        var width = 100;
-        var height = 100;
-        onCreateWindow?.Invoke(this, ref width, ref height);
+                tcs.SetResult(hWindow);
+            }
+            catch (Exception e)
+            {
+                tcs.SetException(e);
+            }
+        });
 
-        User32.MoveWindow(
-            _hWindow,
-            0,
-            0,
-            width,
-            height,
-            true
-        );
-
-        User32.ShowWindow(
-            _hWindow,
-            5 // SW_SHOW
-        );
+        tcs.Task.Wait();
+        _hWindow = tcs.Task.Result;
     }
 
     public void Close()
@@ -544,7 +544,62 @@ internal class NativeWindow : IWindow
                     ;
     }
 
-    public IntPtr WndProc(HandleRef handleRef, uint msg, IntPtr wParam, IntPtr lParam, out bool handled)
+    public bool Move(
+        int x,
+        int y,
+        int width,
+        int height,
+        bool repaint
+    )
+    {
+        var tcs = new TaskCompletionSource<bool>(TaskCreationOptions.AttachedToParent);
+        _windowManager.Dispatch(() =>
+        {
+            _logger.LogInformation($"[window] MoveWindow {_hWindow.Handle:X} {x} {y} {width} {height} {repaint}");
+            var result =
+                User32.MoveWindow(
+                    _hWindow,
+                    x,
+                    y,
+                    width,
+                    height,
+                    repaint
+                );
+
+            if (!result)
+            {
+                _logger.LogInformation($"[window] MoveWindow {_hWindow.Handle:X} {Marshal.GetLastWin32Error()}");
+            }
+            tcs.SetResult(result);
+        });
+        tcs.Task.Wait();
+        return tcs.Task.Result;
+    }
+
+    public bool Show(
+        int cmdShow
+    )
+    {
+        var tcs = new TaskCompletionSource<bool>(TaskCreationOptions.AttachedToParent);
+        _windowManager.Dispatch(() =>
+        {
+            _logger.LogInformation($"[window] ShowWindow {_hWindow.Handle:X} {cmdShow}");
+            var result =
+                User32.ShowWindow(
+                    _hWindow,
+                    cmdShow
+                );
+
+            if (!result)
+            {
+                _logger.LogInformation($"[window] ShowWindow {_hWindow.Handle:X} {Marshal.GetLastWin32Error()}");
+            }
+            tcs.SetResult(result);
+        });
+        tcs.Task.Wait();
+        return tcs.Task.Result;
+    }
+    internal IntPtr WndProc(uint msg, IntPtr wParam, IntPtr lParam, out bool handled)
     {
         handled = false;
         //_logger.LogInformation($"[window] WndProc[{hwnd:X} {msg:X} {wParam:X} {lParam:X} current {Environment.CurrentManagedThreadId:X}");
@@ -660,16 +715,7 @@ internal class NativeWindow : IWindow
             default:
                 break;
         }
-        /*
-                try
-                {
-                    onPostPaint?.Invoke(new HandleRef(this, hwnd));
-                }
-                catch (Exception e)
-                {
-                    Logger.LogError(e, "[window] onPostPaint error");
-                }
-        */
+
         return result;
     }
 
