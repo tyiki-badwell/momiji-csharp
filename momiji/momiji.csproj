@@ -4,7 +4,7 @@
     <TargetFramework>net6.0-windows10.0.19041.0</TargetFramework>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
     <OutputType>Library</OutputType>
-    <Platforms>x86;x64</Platforms>
+    <Platforms>x86;x64;AnyCPU</Platforms>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
   </PropertyGroup>

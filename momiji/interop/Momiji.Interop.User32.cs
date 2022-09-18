@@ -287,6 +287,27 @@ internal static class NativeMethods
 
     [DllImport(Libraries.User32, CallingConvention = CallingConvention.Winapi, ExactSpelling = true, SetLastError = true)]
     [DefaultDllImportSearchPaths(DllImportSearchPath.System32)]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    internal static extern bool ShowWindowAsync(
+        [In] HandleRef hWnd,
+        [In] int nCmdShow
+    );
+
+    [DllImport(Libraries.User32, CallingConvention = CallingConvention.Winapi, ExactSpelling = true, SetLastError = true)]
+    [DefaultDllImportSearchPaths(DllImportSearchPath.System32)]
+    internal static extern int InSendMessageEx(
+        [In] IntPtr lpReserved
+    );
+
+    [DllImport(Libraries.User32, CallingConvention = CallingConvention.Winapi, ExactSpelling = true, SetLastError = true)]
+    [DefaultDllImportSearchPaths(DllImportSearchPath.System32)]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    internal static extern bool ReplyMessage(
+        [In] IntPtr lResult
+    );
+
+    [DllImport(Libraries.User32, CallingConvention = CallingConvention.Winapi, ExactSpelling = true, SetLastError = true)]
+    [DefaultDllImportSearchPaths(DllImportSearchPath.System32)]
     internal static extern bool PrintWindow(
         [In] HandleRef hWnd,
         [In] HandleRef hDC,

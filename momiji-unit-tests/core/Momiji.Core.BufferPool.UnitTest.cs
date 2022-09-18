@@ -1,24 +1,23 @@
 using Microsoft.Extensions.Logging;
-using System;
-using Xunit;
+using Microsoft.VisualStudio.TestTools.UnitTesting;
 
-namespace Momiji.Core.Buffer
+namespace Momiji.Core.Buffer;
+
+[TestClass]
+public class BufferPoolUnitTest
 {
-    public class BufferPoolUnitTest
+    internal class DummyItem : IDisposable
     {
-        internal class DummyItem : IDisposable
+        public void Dispose()
         {
-            public void Dispose()
-            {
-                // NOP
-            }
+            // NOP
         }
+    }
 
-        [Fact]
-        public void Test1()
-        {
-            using var loggerFactory = new LoggerFactory();
-            using var test = new BufferPool<DummyItem>(1, () => new DummyItem(), loggerFactory);
-        }
+    [TestMethod]
+    public void Test1()
+    {
+        using var loggerFactory = new LoggerFactory();
+        using var test = new BufferPool<DummyItem>(1, () => new DummyItem(), loggerFactory);
     }
 }

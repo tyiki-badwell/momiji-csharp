@@ -1,54 +1,54 @@
 using Microsoft.Extensions.Logging;
+using Microsoft.VisualStudio.TestTools.UnitTesting;
 using Momiji.Core.Buffer;
 using Momiji.Core.Timer;
-using System;
 using System.Threading.Tasks.Dataflow;
-using Xunit;
 
-namespace Momiji.Core.Wave
+namespace Momiji.Core.Wave;
+
+[TestClass]
+public class WaveExceptionUnitTest
 {
-    public class WaveExceptionUnitTest
+    [TestMethod]
+    public void Test1()
     {
-        [Fact]
-        public void Test1()
-        {
-            var test = new WaveException();
-            Assert.NotNull(test.Message);
-        }
+        var test = new WaveException();
+        Assert.IsNotNull(test.Message);
     }
+}
 
-    public class WaveOutShortUnitTest
+[TestClass]
+public class WaveOutShortUnitTest
+{
+    [TestMethod]
+    public void Test1()
     {
-        [Fact]
-        public void Test1()
+        var deviceID = 0;
+        var channels = (short)1;
+        var samplingRate = 4800;
+        var sampleLength = 10;
+        var blockSize = (samplingRate * sampleLength);
+        var channelMask = SPEAKER.FrontLeft | SPEAKER.FrontRight;
+        using var loggerFactory = LoggerFactory.Create(builder =>
         {
-            int deviceID = 0;
-            short channels = 1;
-            int samplingRate = 4800;
-            int sampleLength = 10;
-            var blockSize = (samplingRate * sampleLength);
-            SPEAKER channelMask = SPEAKER.FrontLeft | SPEAKER.FrontRight;
-            using var loggerFactory = LoggerFactory.Create(builder =>
-            {
-                builder.AddFilter("Momiji", LogLevel.Debug);
-                builder.AddFilter("Microsoft", LogLevel.Warning);
-                builder.AddFilter("System", LogLevel.Warning);
-                builder.AddConsole();
-                builder.AddDebug();
-            });
-            var counter = new ElapsedTimeCounter();
+            builder.AddFilter("Momiji", LogLevel.Debug);
+            builder.AddFilter("Microsoft", LogLevel.Warning);
+            builder.AddFilter("System", LogLevel.Warning);
+            builder.AddConsole();
+            builder.AddDebug();
+        });
+        var counter = new ElapsedTimeCounter();
 
-            using var pcmPool = new BufferPool<PcmBuffer<short>>(1, () => new PcmBuffer<short>(blockSize, 1), loggerFactory);
+        using var pcmPool = new BufferPool<PcmBuffer<short>>(1, () => new PcmBuffer<short>(blockSize, 1), loggerFactory);
+        {
+            try
             {
-                try
-                {
-                    using var test = new WaveOutShort(deviceID, channels, samplingRate, channelMask, loggerFactory, counter, pcmPool);
-                    test.Execute(pcmPool.Receive(), default);
-                }
-                catch (WaveException)
-                {
+                using var test = new WaveOutShort(deviceID, channels, samplingRate, channelMask, loggerFactory, counter, pcmPool);
+                test.Execute(pcmPool.Receive(), default);
+            }
+            catch (WaveException)
+            {
 
-                }
             }
         }
     }

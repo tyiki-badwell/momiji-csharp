@@ -1,45 +1,46 @@
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
+using Microsoft.VisualStudio.TestTools.UnitTesting;
 using Momiji.Core.Dll;
 using Momiji.Core.Timer;
 using Momiji.Interop.Opus;
-using Xunit;
 
-namespace Momiji.Core.Opus
+namespace Momiji.Core.Opus;
+
+[TestClass]
+public class OpusExceptionUnitTest
 {
-    public class OpusExceptionUnitTest
+    [TestMethod]
+    public void Test1()
     {
-        [Fact]
-        public void Test1()
-        {
-            var test = new OpusException("test");
-            Assert.NotNull(test.Message);
-        }
+        var test = new OpusException("test");
+        Assert.IsNotNull(test.Message);
     }
+}
 
-    public class OpusUnitTest
+[TestClass]
+public class OpusUnitTest
+{
+    [TestMethod]
+    public void Test1()
     {
-        [Fact]
-        public void Test1()
+        var configuration =
+            new ConfigurationBuilder()
+            .AddJsonFile("appsettings.json")
+            .Build();
+
+        using var loggerFactory = LoggerFactory.Create(builder =>
         {
-            var configuration =
-                new ConfigurationBuilder()
-                .AddJsonFile("appsettings.json")
-                .Build();
+            builder.AddFilter("Momiji", LogLevel.Debug);
+            builder.AddFilter("Microsoft", LogLevel.Warning);
+            builder.AddFilter("System", LogLevel.Warning);
+            builder.AddConsole();
+            builder.AddDebug();
+        });
+        var counter = new ElapsedTimeCounter();
+        using var dllManager = new DllManager(configuration, loggerFactory);
 
-            using var loggerFactory = LoggerFactory.Create(builder =>
-            {
-                builder.AddFilter("Momiji", LogLevel.Debug);
-                builder.AddFilter("Microsoft", LogLevel.Warning);
-                builder.AddFilter("System", LogLevel.Warning);
-                builder.AddConsole();
-                builder.AddDebug();
-            });
-            var counter = new ElapsedTimeCounter();
-            using var dllManager = new DllManager(configuration, loggerFactory);
+        using var opus = new OpusEncoder(SamplingRate.Sampling48000, Channels.Stereo, loggerFactory, counter);
 
-            using var opus = new OpusEncoder(SamplingRate.Sampling48000, Channels.Stereo, loggerFactory, counter);
-
-        }
     }
 }

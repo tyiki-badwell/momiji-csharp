@@ -679,62 +679,67 @@ internal class Effect<T> : IEffect<T>, IDisposable where T : struct
             throw new VstException("create window failed.", e);
         }
 
+        try
         {
-            var result =
-                Dispatcher(
-                    AEffect.Opcodes.effEditOpen,
-                    default,
-                    default,
-                    _window.HandleRef.Handle,
-                    default
-                );
-            if (result == IntPtr.Zero)
             {
-                _logger.LogInformation("[vst] effEditOpen failed");
-                _window.Close();
-                _window = default;
-                return;
+                var result =
+                    Dispatcher(
+                        AEffect.Opcodes.effEditOpen,
+                        default,
+                        default,
+                        _window.HandleRef.Handle,
+                        default
+                    );
+                if (result == IntPtr.Zero)
+                {
+                    _logger.LogInformation("[vst] effEditOpen failed");
+                    throw new VstException("effEditOpen failed.");
+                }
+            }
+
+            {
+                using var buffer = new PinnedBuffer<IntPtr>(new IntPtr());
+                var result =
+                    Dispatcher(
+                        AEffect.Opcodes.effEditGetRect,
+                        default,
+                        default,
+                        buffer.AddrOfPinnedObject,
+                        default
+                    );
+                if (result == IntPtr.Zero)
+                {
+                    _logger.LogInformation("[vst] effEditGetRect failed");
+                    throw new VstException("effEditGetRect failed.");
+                }
+
+                EditorRect = Marshal.PtrToStructure<ERect>(buffer.Target);
+                _logger.LogInformation($"[vst] effEditGetRect width;{EditorRect.right - EditorRect.left} height:{EditorRect.bottom - EditorRect.top}");
+
+                var width = EditorRect.right - EditorRect.left;
+                var height = EditorRect.bottom - EditorRect.top;
+
+                _window.Move(
+                    0,
+                    0,
+                    width,
+                    height,
+                    true
+                );
+
+                _window.Show(
+                    5 // SW_SHOW
+                );
+
+                //キャプチャ先を作成
+                //bitmap = new Bitmap(width, height, PixelFormat.Format24bppRgb);
             }
         }
-
+        catch (Exception e)
         {
-            using var buffer = new PinnedBuffer<IntPtr>(new IntPtr());
-            var result =
-                Dispatcher(
-                    AEffect.Opcodes.effEditGetRect,
-                    default,
-                    default,
-                    buffer.AddrOfPinnedObject,
-                    default
-                );
-            if (result == IntPtr.Zero)
-            {
-                _logger.LogInformation("[vst] effEditGetRect failed");
-                _window.Close();
-                _window = default;
-                return;
-            }
-
-            EditorRect = Marshal.PtrToStructure<ERect>(buffer.Target);
-            _logger.LogInformation($"[vst] effEditGetRect width;{EditorRect.right - EditorRect.left} height:{EditorRect.bottom - EditorRect.top}");
-
-            var width = EditorRect.right - EditorRect.left;
-            var height = EditorRect.bottom - EditorRect.top;
-
-            _window.Move(
-                0,
-                0,
-                width,
-                height,
-                true
-            );
-
-            _window.Show(
-                5 // SW_SHOW
-            );
-
-            //キャプチャ先を作成
-            //bitmap = new Bitmap(width, height, PixelFormat.Format24bppRgb);
+            _window.Close();
+            _window = default;
+            throw new VstException("open editor failed.", e);
         }
 
         _logger.LogInformation("[vst] Editor Open");

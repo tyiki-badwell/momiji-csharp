@@ -1,27 +1,29 @@
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
+using Microsoft.VisualStudio.TestTools.UnitTesting;
 using Momiji.Core.Dll;
 using Momiji.Core.Timer;
 using Momiji.Core.WebMidi;
 using Momiji.Core.Window;
 using System.Threading.Tasks.Dataflow;
-using Xunit;
 
 namespace Momiji.Core.Vst;
 
+[TestClass]
 public class VstExceptionUnitTest
 {
-    [Fact]
+    [TestMethod]
     public void Test1()
     {
         var test = new VstException("test");
-        Assert.NotNull(test.Message);
+        Assert.IsNotNull(test.Message);
     }
 }
 
+[TestClass]
 public class VstUnitTest
 {
-    [Fact]
+    [TestMethod]
     public void Test1()
     {
         var configuration =
@@ -141,7 +143,7 @@ public class VstUnitTest
         }
     }
 
-    [Fact]
+    [TestMethod]
     public void Test2()
     {
         var configuration =
@@ -173,13 +175,16 @@ public class VstUnitTest
 
         var effect = vst.AddEffect("Synth1 VST.dll");
         effect.OpenEditor();
+
+        Thread.Sleep(1000);
+
         effect.CloseEditor();
 
         processCancel.Cancel();
         task.Wait();
     }
 
-    [Fact]
+    [TestMethod]
     public void Test3()
     {
         var configuration =
