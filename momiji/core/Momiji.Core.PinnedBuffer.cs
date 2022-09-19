@@ -104,13 +104,7 @@ public class PinnedBuffer<T> : InternalGCHandleBuffer<T> where T : notnull
             return (T)result;
         }
     }
-    public IntPtr AddrOfPinnedObject
-    {
-        get
-        {
-            return Handle.AddrOfPinnedObject();
-        }
-    }
+    public IntPtr AddrOfPinnedObject => Handle.AddrOfPinnedObject();
 }
 
 public class PinnedDelegate<T> : InternalGCHandleBuffer<T> where T : notnull, Delegate

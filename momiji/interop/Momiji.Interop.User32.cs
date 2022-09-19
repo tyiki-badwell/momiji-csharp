@@ -130,12 +130,13 @@ internal static class NativeMethods
 
     [DllImport(Libraries.User32, CallingConvention = CallingConvention.Winapi, ExactSpelling = true, SetLastError = true)]
     [DefaultDllImportSearchPaths(DllImportSearchPath.System32)]
-    internal static extern uint MsgWaitForMultipleObjects(
+    internal static extern uint MsgWaitForMultipleObjects/*Ex*/(
         [In] uint nCount,
         [In] IntPtr pHandles,
         [In][MarshalAs(UnmanagedType.Bool)] bool fWaitAll,
         [In] uint dwMilliseconds,
-        [In] uint dwWakeMask
+        [In] uint dwWakeMask/*,
+        [In] uint dwFlags*/
     );
 
     [DllImport(Libraries.User32, CallingConvention = CallingConvention.Winapi, ExactSpelling = true, SetLastError = true)]

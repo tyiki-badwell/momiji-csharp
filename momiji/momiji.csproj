@@ -23,10 +23,6 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\MomijiCsWin32\MomijiCsWin32.csproj" />
-  </ItemGroup>
-
-  <ItemGroup>
     <None Update="lib\**\*.*">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </None>
