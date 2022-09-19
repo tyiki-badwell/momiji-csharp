@@ -681,6 +681,7 @@ internal class Effect<T> : IEffect<T>, IDisposable where T : struct
 
         try
         {
+            _window.Dispatch(() =>
             {
                 var result =
                     Dispatcher(
@@ -695,7 +696,8 @@ internal class Effect<T> : IEffect<T>, IDisposable where T : struct
                     _logger.LogInformation("[vst] effEditOpen failed");
                     throw new VstException("effEditOpen failed.");
                 }
-            }
+                return result;
+            });
 
             {
                 using var buffer = new PinnedBuffer<IntPtr>(new IntPtr());
