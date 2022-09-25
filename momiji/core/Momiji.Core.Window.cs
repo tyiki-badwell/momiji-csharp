@@ -175,12 +175,16 @@ public class WindowManager : IDisposable, IWindowManager
             }
         });
 
+        tcs.Task.Wait();
+
+        /*
         if (!tcs.Task.Wait(5000, cancel.Token))
         {
             _logger.LogError("[window manager] Dispatch timeout");
             cancel.Cancel();
             tcs.SetCanceled();
         }
+        */
         return tcs.Task.Result;
     }
 

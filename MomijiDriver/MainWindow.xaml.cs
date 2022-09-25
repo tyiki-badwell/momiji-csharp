@@ -1,24 +1,27 @@
-﻿using Microsoft.Extensions.Hosting;
+﻿using System;
+using System.Collections.Generic;
+using System.Threading.Tasks;
+using Microsoft.Extensions.Hosting;
+using Microsoft.UI.Xaml;
 using Momiji.Core.Vst.Worker;
-using MomijiDriver.Helpers;
 
-namespace MomijiDriver;
+// To learn more about WinUI, the WinUI project structure,
+// and more about our project templates, see: http://aka.ms/winui-project-info.
 
-public sealed partial class MainWindow : WindowEx
+namespace MomijiDriver2;
+/// <summary>
+/// An empty window that can be used on its own or navigated to within a Frame.
+/// </summary>
+public sealed partial class MainWindow : Window
 {
     public MainWindow()
     {
         InitializeComponent();
-
-        AppWindow.SetIcon(Path.Combine(AppContext.BaseDirectory, "Assets/WindowIcon.ico"));
-        Content = null;
-        Title = "AppDisplayName".GetLocalized();
     }
-
 
     private readonly List<IHost> list = new();
 
-    public async Task RunAsync()
+    private async Task RunAsync()
     {
         var host = VstBridgeWorker.CreateHost(Array.Empty<string>());
         list.Add(host);
@@ -26,7 +29,7 @@ public sealed partial class MainWindow : WindowEx
         await host.StartAsync().ConfigureAwait(false);
     }
 
-    public async Task StopAsync()
+    private async Task StopAsync()
     {
         var taskSet = new HashSet<Task>();
 
@@ -42,7 +45,7 @@ public sealed partial class MainWindow : WindowEx
         list.Clear();
     }
 
-    public void OpenEditor()
+    private void OpenEditor()
     {
         foreach (var host in list)
         {
@@ -55,7 +58,7 @@ public sealed partial class MainWindow : WindowEx
         }
     }
 
-    public void CloseEditor()
+    private void CloseEditor()
     {
         foreach (var host in list)
         {
@@ -68,14 +71,33 @@ public sealed partial class MainWindow : WindowEx
         }
     }
 
-    private void WindowEx_Activated(object sender, Microsoft.UI.Xaml.WindowActivatedEventArgs args)
+    private void Window_Activated(object sender, WindowActivatedEventArgs args)
     {
 
     }
 
-    private async void WindowEx_Closed(object sender, Microsoft.UI.Xaml.WindowEventArgs args)
+    private async void Window_Closed(object sender, WindowEventArgs args)
     {
         await StopAsync().ConfigureAwait(false);
     }
 
+    private async void Run_Click(object sender, RoutedEventArgs e)
+    {
+        await RunAsync().ConfigureAwait(false);
+    }
+
+    private async void Stop_Click(object sender, RoutedEventArgs e)
+    {
+        await StopAsync().ConfigureAwait(false);
+    }
+
+    private void Open_Click(object sender, RoutedEventArgs e)
+    {
+        OpenEditor();
+    }
+
+    private void Close_Click(object sender, RoutedEventArgs e)
+    {
+        CloseEditor();
+    }
 }
