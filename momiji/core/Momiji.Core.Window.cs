@@ -65,6 +65,7 @@ public class WindowManager : IDisposable, IWindowManager
     private readonly object _sync = new();
     private CancellationTokenSource? _processCancel;
     private Task? _processTask;
+    private int _uiThreadId;
 
     private readonly PinnedDelegate<User32.WNDPROC> _wndProc;
     private readonly WindowClass _windowClass;
@@ -144,7 +145,7 @@ public class WindowManager : IDisposable, IWindowManager
             }
             finally
             {
-                _processCancel.Dispose();
+                _processCancel?.Dispose();
                 _processCancel = null;
 
                 _processTask?.Dispose();
@@ -156,6 +157,11 @@ public class WindowManager : IDisposable, IWindowManager
 
     internal T Dispatch<T>(Func<T> item)
     {
+        if (_uiThreadId == Environment.CurrentManagedThreadId)
+        {
+            return item.Invoke();
+        }
+
         var cancel = _processCancel;
         if (cancel == default)
         {
@@ -175,16 +181,12 @@ public class WindowManager : IDisposable, IWindowManager
             }
         });
 
-        tcs.Task.Wait();
-
-        /*
         if (!tcs.Task.Wait(5000, cancel.Token))
         {
             _logger.LogError("[window manager] Dispatch timeout");
             cancel.Cancel();
             tcs.SetCanceled();
         }
-        */
         return tcs.Task.Result;
     }
 
@@ -238,7 +240,10 @@ public class WindowManager : IDisposable, IWindowManager
             _processCancel = CancellationTokenSource.CreateLinkedTokenSource(stoppingToken);
         }
         _processTask = Run();
-        await _processTask.ConfigureAwait(false);
+        await _processTask.ContinueWith((_) => {
+            _logger.LogInformation($"[window manager] task end");
+            _processTask = default;
+        }).ConfigureAwait(false);
     }
 
     private async Task Run()
@@ -265,12 +270,16 @@ public class WindowManager : IDisposable, IWindowManager
 
         thread.SetApartmentState(ApartmentState.STA);
         _logger.LogInformation($"[window manager] GetApartmentState {thread.GetApartmentState()}");
+        _uiThreadId = thread.ManagedThreadId;
+        thread.IsBackground = true;
         thread.Start();
 
-        await tcs.Task.ConfigureAwait(false);
-        var _ = tcs.Task.Result;
+        await tcs.Task.ContinueWith((_) => {
+            _logger.LogInformation($"[window manager] message loop end");
+            _uiThreadId = default;
+        }).ConfigureAwait(false);
 
-        _logger.LogInformation($"[window manager] end");
+        var _ = tcs.Task.Result;
     }
 
     private void MessageLoop()
@@ -715,7 +724,7 @@ internal class NativeWindow : IWindow
                 var result = User32.DestroyWindow(_hWindow);
                 if (!result)
                 {
-                    _logger.LogInformation($"[window] DestroyWindow {_hWindow.Handle:X} {Marshal.GetLastWin32Error()}");
+                    _logger.LogError($"[window] DestroyWindow {_hWindow.Handle:X} {Marshal.GetLastWin32Error()}");
                 }
 
                 handled = true;
