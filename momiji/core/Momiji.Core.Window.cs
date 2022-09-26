@@ -75,9 +75,6 @@ public class WindowManager : IDisposable, IWindowManager
 
     private readonly ConcurrentDictionary<IntPtr, NativeWindow> _windowMap = new();
 
-    public delegate IntPtr OnWndProc(HandleRef hWindow, int msg, IntPtr wParam, IntPtr lParam);
-
-
     public WindowManager(
         ILoggerFactory loggerFactory
     )
@@ -106,7 +103,10 @@ public class WindowManager : IDisposable, IWindowManager
 
     protected virtual void Dispose(bool disposing)
     {
-        if (_disposed) return;
+        if (_disposed)
+        {
+            return;
+        }
 
         if (disposing)
         {
@@ -243,7 +243,7 @@ public class WindowManager : IDisposable, IWindowManager
         await _processTask.ContinueWith((_) => {
             _logger.LogInformation($"[window manager] task end");
             _processTask = default;
-        }).ConfigureAwait(false);
+        }, CancellationToken.None).ConfigureAwait(false);
     }
 
     private async Task Run()
@@ -265,13 +265,13 @@ public class WindowManager : IDisposable, IWindowManager
             }
         })
         {
-            IsBackground = false
+            IsBackground = false,
+            Name = "UI Thread"
         };
 
         thread.SetApartmentState(ApartmentState.STA);
         _logger.LogInformation($"[window manager] GetApartmentState {thread.GetApartmentState()}");
         _uiThreadId = thread.ManagedThreadId;
-        thread.IsBackground = true;
         thread.Start();
 
         await tcs.Task.ContinueWith((_) => {
@@ -522,7 +522,10 @@ internal class WindowClass : IDisposable
 
     protected virtual void Dispose(bool disposing)
     {
-        if (_disposed) return;
+        if (_disposed)
+        {
+            return;
+        }
 
         if (disposing)
         {
