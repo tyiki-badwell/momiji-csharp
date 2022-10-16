@@ -1,4 +1,5 @@
 ﻿using System.Runtime.InteropServices;
+using System.Runtime.Versioning;
 
 namespace Momiji.Interop.User32;
 
@@ -7,8 +8,110 @@ internal static class Libraries
     public const string User32 = "user32.dll";
 }
 
+internal sealed class HDesktop : Microsoft.Win32.SafeHandles.SafeHandleZeroOrMinusOneIsInvalid
+{
+    public HDesktop() : base(true)
+    {
+    }
+
+    protected override bool ReleaseHandle()
+    {
+        return NativeMethods.CloseDesktop(handle);
+    }
+}
+
 internal static class NativeMethods
 {
+    public enum DF : uint
+    {
+        NONE = 0,
+        ALLOWOTHERACCOUNTHOOK = 0x0001
+    }
+
+    [Flags]
+    public enum ACCESS_MASK : uint
+    {
+        DELETE = 0x00010000,
+        READ_CONTROL = 0x00020000,
+        WRITE_DAC = 0x00040000,
+        WRITE_OWNER = 0x00080000,
+        SYNCHRONIZE = 0x00100000,
+
+        STANDARD_RIGHTS_REQUIRED = DELETE | READ_CONTROL | WRITE_DAC | WRITE_OWNER,
+
+        STANDARD_RIGHTS_READ = READ_CONTROL,
+        STANDARD_RIGHTS_WRITE = READ_CONTROL,
+        STANDARD_RIGHTS_EXECUTE = READ_CONTROL,
+
+        STANDARD_RIGHTS_ALL = DELETE | READ_CONTROL | WRITE_DAC | WRITE_OWNER | SYNCHRONIZE,
+
+        SPECIFIC_RIGHTS_ALL = 0x0000FFFF,
+
+        ACCESS_SYSTEM_SECURITY = 0x01000000,
+
+        MAXIMUM_ALLOWED = 0x02000000,
+
+        GENERIC_READ = 0x80000000,
+        GENERIC_WRITE = 0x40000000,
+        GENERIC_EXECUTE = 0x20000000,
+        GENERIC_ALL = 0x10000000,
+
+        DESKTOP_READOBJECTS = 0x00000001,
+        DESKTOP_CREATEWINDOW = 0x00000002,
+        DESKTOP_CREATEMENU = 0x00000004,
+        DESKTOP_HOOKCONTROL = 0x00000008,
+        DESKTOP_JOURNALRECORD = 0x00000010,
+        DESKTOP_JOURNALPLAYBACK = 0x00000020,
+        DESKTOP_ENUMERATE = 0x00000040,
+        DESKTOP_WRITEOBJECTS = 0x00000080,
+        DESKTOP_SWITCHDESKTOP = 0x00000100,
+
+        WINSTA_ENUMDESKTOPS = 0x00000001,
+        WINSTA_READATTRIBUTES = 0x00000002,
+        WINSTA_ACCESSCLIPBOARD = 0x00000004,
+        WINSTA_CREATEDESKTOP = 0x00000008,
+        WINSTA_WRITEATTRIBUTES = 0x00000010,
+        WINSTA_ACCESSGLOBALATOMS = 0x00000020,
+        WINSTA_EXITWINDOWS = 0x00000040,
+        WINSTA_ENUMERATE = 0x00000100,
+        WINSTA_READSCREEN = 0x00000200,
+
+        WINSTA_ALL_ACCESS = 0x0000037F
+    }
+
+    internal struct SECURITY_ATTRIBUTES
+    {
+        public uint nLength;
+        public IntPtr lpSecurityDescriptor;
+        public bool bInheritHandle;
+    }
+
+    [DllImport(Libraries.User32, CallingConvention = CallingConvention.Winapi, ExactSpelling = true, SetLastError = true)]
+    [DefaultDllImportSearchPaths(DllImportSearchPath.System32)]
+    internal static extern HDesktop CreateDesktopW(
+        [In] string lpszDesktop,
+        [In] IntPtr lpszDevice, /* NULL */
+        [In] IntPtr pDevmode, /* NULL */
+        [In] DF dwFlags,
+        [In] ACCESS_MASK dwDesiredAccess,
+        [In] IntPtr lpsa
+    );
+
+    [DllImport(Libraries.User32, CallingConvention = CallingConvention.Winapi, ExactSpelling = true, SetLastError = true)]
+    [DefaultDllImportSearchPaths(DllImportSearchPath.System32)]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    public static extern bool CloseDesktop(IntPtr hDesktop);
+
+
+    [DllImport(Libraries.User32, CallingConvention = CallingConvention.Winapi, ExactSpelling = true, SetLastError = true)]
+    [DefaultDllImportSearchPaths(DllImportSearchPath.System32)]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    public static extern bool SetThreadDesktop(this HDesktop hDesktop);
+
+
+
+
+
     [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Unicode)]
     public struct WNDCLASS
     {

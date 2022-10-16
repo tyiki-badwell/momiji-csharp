@@ -2,6 +2,7 @@
 using System.Runtime.InteropServices;
 using Microsoft.Extensions.Logging;
 using Momiji.Core.Buffer;
+using Momiji.Interop.User32;
 using Kernel32 = Momiji.Interop.Kernel32.NativeMethods;
 using User32 = Momiji.Interop.User32.NativeMethods;
 
@@ -56,6 +57,7 @@ public interface IWindow
     );
 }
 
+
 public class WindowManager : IDisposable, IWindowManager
 {
     private readonly ILoggerFactory _loggerFactory;
@@ -75,6 +77,8 @@ public class WindowManager : IDisposable, IWindowManager
 
     private readonly ConcurrentDictionary<IntPtr, NativeWindow> _windowMap = new();
 
+    private HDesktop _desktop;
+
     public WindowManager(
         ILoggerFactory loggerFactory
     )
@@ -89,6 +93,12 @@ public class WindowManager : IDisposable, IWindowManager
                 _wndProc,
                 User32.WNDCLASS.CS.OWNDC
             );
+
+        _desktop = User32.CreateDesktopW("test", IntPtr.Zero, IntPtr.Zero, User32.DF.NONE, User32.ACCESS_MASK.GENERIC_ALL, IntPtr.Zero);
+        if (_desktop.IsInvalid)
+        {
+            throw new WindowException($"CreateDesktopW failed {Marshal.GetLastWin32Error()}");
+        }
     }
     ~WindowManager()
     {
@@ -111,10 +121,17 @@ public class WindowManager : IDisposable, IWindowManager
         if (disposing)
         {
             _logger.LogInformation($"[window manager] disposing");
-            Cancel();
+            try
+            {
+                Cancel();
+            }
+            finally
+            {
+                _desktop.Close();
 
-            _windowClass?.Dispose();
-            _wndProc?.Dispose();
+                _windowClass?.Dispose();
+                _wndProc?.Dispose();
+            }
         }
 
         _disposed = true;
@@ -292,6 +309,11 @@ public class WindowManager : IDisposable, IWindowManager
         {
             var result = User32.IsGUIThread(true);
             _logger.LogInformation($"[window manager] IsGUIThread {result} {Marshal.GetLastWin32Error()}");
+        }
+
+        if (!_desktop.SetThreadDesktop())
+        {
+            throw new WindowException($"failed SetThreadDesktop {Marshal.GetLastWin32Error()}");
         }
 
         var forceCancel = false;
