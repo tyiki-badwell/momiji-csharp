@@ -77,7 +77,7 @@ public class WindowManager : IDisposable, IWindowManager
 
     private readonly ConcurrentDictionary<IntPtr, NativeWindow> _windowMap = new();
 
-    private HDesktop _desktop;
+    private readonly HDesktop _desktop;
 
     public WindowManager(
         ILoggerFactory loggerFactory

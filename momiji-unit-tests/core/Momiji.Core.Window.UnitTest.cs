@@ -29,7 +29,7 @@ public class WindowUnitTest
             builder.AddDebug();
         });
 
-        using var desktop = new Desktop(loggerFactory);
+        using var desktop = new WindowManager(loggerFactory);
 
     }
 }
