@@ -70,14 +70,15 @@ public class WindowManager : IDisposable, IWindowManager
     private int _uiThreadId;
 
     private readonly PinnedDelegate<User32.WNDPROC> _wndProc;
-    private readonly WindowClass _windowClass;
+    private readonly WindowClass? _windowClass;
 
     private readonly ConcurrentQueue<Action> _queue = new();
     private readonly ManualResetEventSlim _queueEvent = new();
 
     private readonly ConcurrentDictionary<IntPtr, NativeWindow> _windowMap = new();
 
-    private readonly HDesktop _desktop;
+    private readonly HWindowStation? _windowStation;
+    //private readonly HDesktop? _desktop;
 
     public WindowManager(
         ILoggerFactory loggerFactory
@@ -86,6 +87,44 @@ public class WindowManager : IDisposable, IWindowManager
         _loggerFactory = loggerFactory;
         _logger = _loggerFactory.CreateLogger<WindowManager>();
 
+        _windowStation =
+            User32.CreateWindowStationW(
+                null,
+                User32.CWF.NONE,
+                User32.ACCESS_MASK.GENERIC_ALL,
+                IntPtr.Zero
+            );
+        if (_windowStation.IsInvalid)
+        {
+            throw new WindowException($"CreateWindowStationW failed {Marshal.GetLastWin32Error()}");
+        }
+
+        {
+            using var winSta = User32.GetProcessWindowStation();
+            _logger.LogInformation($"[window manager] ProcessWindowStation now:{winSta.DangerousGetHandle():X} new:{_windowStation.DangerousGetHandle():X}");
+        }
+
+        if (!_windowStation.SetProcessWindowStation())
+        {
+            throw new WindowException($"[window manager] failed SetProcessWindowStation {Marshal.GetLastWin32Error()}");
+        }
+
+        /*
+        _desktop = 
+            User32.CreateDesktopW(
+                "test", 
+                IntPtr.Zero, 
+                IntPtr.Zero, 
+                User32.DF.NONE, 
+                User32.ACCESS_MASK.GENERIC_ALL, 
+                IntPtr.Zero
+            );
+        if (_desktop.IsInvalid)
+        {
+            throw new WindowException($"CreateDesktopW failed {Marshal.GetLastWin32Error()}");
+        }
+        */
+
         _wndProc = new PinnedDelegate<User32.WNDPROC>(new(WndProc));
         _windowClass =
             new WindowClass(
@@ -93,12 +132,6 @@ public class WindowManager : IDisposable, IWindowManager
                 _wndProc,
                 User32.WNDCLASS.CS.OWNDC
             );
-
-        _desktop = User32.CreateDesktopW("test", IntPtr.Zero, IntPtr.Zero, User32.DF.NONE, User32.ACCESS_MASK.GENERIC_ALL, IntPtr.Zero);
-        if (_desktop.IsInvalid)
-        {
-            throw new WindowException($"CreateDesktopW failed {Marshal.GetLastWin32Error()}");
-        }
     }
     ~WindowManager()
     {
@@ -127,7 +160,8 @@ public class WindowManager : IDisposable, IWindowManager
             }
             finally
             {
-                _desktop.Close();
+//                _desktop?.Close();
+                _windowStation?.Close();
 
                 _windowClass?.Dispose();
                 _wndProc?.Dispose();
@@ -306,14 +340,23 @@ public class WindowManager : IDisposable, IWindowManager
             throw new InvalidOperationException($"{nameof(_processCancel)} is null.");
         }
 
+        /*
+        {
+            using var desktop = User32.GetThreadDesktop(Environment.CurrentManagedThreadId);
+            _logger.LogInformation($"[window manager] ThreadDesktop now:{desktop.DangerousGetHandle():X} new:{_desktop.DangerousGetHandle():X}");
+        }
+        */
+
+        /*
+        if (!_desktop.SetThreadDesktop())
+        {
+            throw new WindowException($"[window manager] failed SetThreadDesktop {Marshal.GetLastWin32Error()}");
+        }
+        */
+
         {
             var result = User32.IsGUIThread(true);
             _logger.LogInformation($"[window manager] IsGUIThread {result} {Marshal.GetLastWin32Error()}");
-        }
-
-        if (!_desktop.SetThreadDesktop())
-        {
-            throw new WindowException($"failed SetThreadDesktop {Marshal.GetLastWin32Error()}");
         }
 
         var forceCancel = false;

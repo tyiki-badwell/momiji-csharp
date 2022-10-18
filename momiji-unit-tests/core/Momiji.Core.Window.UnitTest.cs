@@ -29,7 +29,17 @@ public class WindowUnitTest
             builder.AddDebug();
         });
 
-        using var desktop = new WindowManager(loggerFactory);
+        using var tokenSource = new CancellationTokenSource();
 
+        using var manager = new WindowManager(loggerFactory);
+        var task = manager.StartAsync(tokenSource.Token);
+
+        var _ = Task.Delay(1000, CancellationToken.None)
+                    .ContinueWith(
+                        (task) => { tokenSource.Cancel(); },
+                        TaskScheduler.Default
+                    );
+
+        task.Wait();
     }
 }

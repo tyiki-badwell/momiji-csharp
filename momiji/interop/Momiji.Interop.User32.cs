@@ -1,5 +1,5 @@
 ﻿using System.Runtime.InteropServices;
-using System.Runtime.Versioning;
+using Microsoft.Win32.SafeHandles;
 
 namespace Momiji.Interop.User32;
 
@@ -8,7 +8,21 @@ internal static class Libraries
     public const string User32 = "user32.dll";
 }
 
-internal sealed class HDesktop : Microsoft.Win32.SafeHandles.SafeHandleZeroOrMinusOneIsInvalid
+
+
+internal sealed class HWindowStation : SafeHandleZeroOrMinusOneIsInvalid
+{
+    public HWindowStation() : base(true)
+    {
+    }
+
+    protected override bool ReleaseHandle()
+    {
+        return NativeMethods.CloseWindowStation(handle);
+    }
+}
+
+internal sealed class HDesktop : SafeHandleZeroOrMinusOneIsInvalid
 {
     public HDesktop() : base(true)
     {
@@ -22,14 +36,20 @@ internal sealed class HDesktop : Microsoft.Win32.SafeHandles.SafeHandleZeroOrMin
 
 internal static class NativeMethods
 {
-    public enum DF : uint
+    internal enum CWF : uint
+    {
+        NONE = 0,
+        CREATE_ONLY = 0x0001
+    }
+
+    internal enum DF : uint
     {
         NONE = 0,
         ALLOWOTHERACCOUNTHOOK = 0x0001
     }
 
     [Flags]
-    public enum ACCESS_MASK : uint
+    internal enum ACCESS_MASK : uint
     {
         DELETE = 0x00010000,
         READ_CONTROL = 0x00020000,
@@ -79,17 +99,33 @@ internal static class NativeMethods
         WINSTA_ALL_ACCESS = 0x0000037F
     }
 
-    internal struct SECURITY_ATTRIBUTES
-    {
-        public uint nLength;
-        public IntPtr lpSecurityDescriptor;
-        public bool bInheritHandle;
-    }
+    [DllImport(Libraries.User32, CallingConvention = CallingConvention.Winapi, ExactSpelling = true, SetLastError = true)]
+    [DefaultDllImportSearchPaths(DllImportSearchPath.System32)]
+    public static extern HWindowStation CreateWindowStationW(
+        [In] string? lpwinsta,
+        [In] CWF dwFlags,
+        [In] ACCESS_MASK dwDesiredAccess, 
+        [In] IntPtr lpsa
+    );
+
+    [DllImport(Libraries.User32, CallingConvention = CallingConvention.Winapi, ExactSpelling = true, SetLastError = true)]
+    [DefaultDllImportSearchPaths(DllImportSearchPath.System32)]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    internal static extern bool CloseWindowStation(IntPtr hWinSta);
+
+    [DllImport(Libraries.User32, CallingConvention = CallingConvention.Winapi, ExactSpelling = true, SetLastError = true)]
+    [DefaultDllImportSearchPaths(DllImportSearchPath.System32)]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    internal static extern bool SetProcessWindowStation(this HWindowStation hWinSta);
+
+    [DllImport(Libraries.User32, CallingConvention = CallingConvention.Winapi, ExactSpelling = true, SetLastError = true)]
+    [DefaultDllImportSearchPaths(DllImportSearchPath.System32)]
+    public static extern HWindowStation GetProcessWindowStation();
 
     [DllImport(Libraries.User32, CallingConvention = CallingConvention.Winapi, ExactSpelling = true, SetLastError = true)]
     [DefaultDllImportSearchPaths(DllImportSearchPath.System32)]
     internal static extern HDesktop CreateDesktopW(
-        [In] string lpszDesktop,
+        [In] string? lpszDesktop,
         [In] IntPtr lpszDevice, /* NULL */
         [In] IntPtr pDevmode, /* NULL */
         [In] DF dwFlags,
@@ -100,16 +136,17 @@ internal static class NativeMethods
     [DllImport(Libraries.User32, CallingConvention = CallingConvention.Winapi, ExactSpelling = true, SetLastError = true)]
     [DefaultDllImportSearchPaths(DllImportSearchPath.System32)]
     [return: MarshalAs(UnmanagedType.Bool)]
-    public static extern bool CloseDesktop(IntPtr hDesktop);
+    internal static extern bool CloseDesktop(IntPtr hDesktop);
 
 
     [DllImport(Libraries.User32, CallingConvention = CallingConvention.Winapi, ExactSpelling = true, SetLastError = true)]
     [DefaultDllImportSearchPaths(DllImportSearchPath.System32)]
     [return: MarshalAs(UnmanagedType.Bool)]
-    public static extern bool SetThreadDesktop(this HDesktop hDesktop);
+    internal static extern bool SetThreadDesktop(this HDesktop hDesktop);
 
-
-
+    [DllImport(Libraries.User32, CallingConvention = CallingConvention.Winapi, ExactSpelling = true, SetLastError = true)]
+    [DefaultDllImportSearchPaths(DllImportSearchPath.System32)]
+    internal static extern HDesktop GetThreadDesktop(int dwThreadId);
 
 
     [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Unicode)]
