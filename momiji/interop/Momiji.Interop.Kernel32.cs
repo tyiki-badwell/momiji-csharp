@@ -65,6 +65,10 @@ internal static class NativeMethods
     internal static extern bool CloseHandle(
         [In] IntPtr hObject
     );
+
+    [DllImport(Libraries.Kernel32, CallingConvention = CallingConvention.Winapi, ExactSpelling = true, SetLastError = true)]
+    [DefaultDllImportSearchPaths(DllImportSearchPath.System32)]
+    internal static extern int GetCurrentThreadId();
 }
 
 internal sealed class WaitableTimer : SafeHandleZeroOrMinusOneIsInvalid

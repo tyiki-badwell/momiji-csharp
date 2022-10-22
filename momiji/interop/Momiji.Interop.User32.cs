@@ -1,5 +1,7 @@
 ﻿using System.Runtime.InteropServices;
+using System.Security.Cryptography;
 using Microsoft.Win32.SafeHandles;
+using static Momiji.Interop.User32.NativeMethods;
 
 namespace Momiji.Interop.User32;
 
@@ -49,7 +51,48 @@ internal static class NativeMethods
     }
 
     [Flags]
-    internal enum ACCESS_MASK : uint
+    internal enum WINSTA_ACCESS_MASK : uint
+    {
+        DELETE = 0x00010000,
+        READ_CONTROL = 0x00020000,
+        WRITE_DAC = 0x00040000,
+        WRITE_OWNER = 0x00080000,
+        SYNCHRONIZE = 0x00100000,
+
+        STANDARD_RIGHTS_REQUIRED = DELETE | READ_CONTROL | WRITE_DAC | WRITE_OWNER,
+
+        STANDARD_RIGHTS_READ = READ_CONTROL,
+        STANDARD_RIGHTS_WRITE = READ_CONTROL,
+        STANDARD_RIGHTS_EXECUTE = READ_CONTROL,
+
+        STANDARD_RIGHTS_ALL = DELETE | READ_CONTROL | WRITE_DAC | WRITE_OWNER | SYNCHRONIZE,
+
+        SPECIFIC_RIGHTS_ALL = 0x0000FFFF,
+
+        ACCESS_SYSTEM_SECURITY = 0x01000000,
+
+        MAXIMUM_ALLOWED = 0x02000000,
+
+        GENERIC_READ = 0x80000000,
+        GENERIC_WRITE = 0x40000000,
+        GENERIC_EXECUTE = 0x20000000,
+        GENERIC_ALL = 0x10000000,
+
+        WINSTA_ENUMDESKTOPS = 0x00000001,
+        WINSTA_READATTRIBUTES = 0x00000002,
+        WINSTA_ACCESSCLIPBOARD = 0x00000004,
+        WINSTA_CREATEDESKTOP = 0x00000008,
+        WINSTA_WRITEATTRIBUTES = 0x00000010,
+        WINSTA_ACCESSGLOBALATOMS = 0x00000020,
+        WINSTA_EXITWINDOWS = 0x00000040,
+        WINSTA_ENUMERATE = 0x00000100,
+        WINSTA_READSCREEN = 0x00000200,
+
+        WINSTA_ALL_ACCESS = 0x0000037F
+    }
+
+    [Flags]
+    internal enum DESKTOP_ACCESS_MASK : uint
     {
         DELETE = 0x00010000,
         READ_CONTROL = 0x00020000,
@@ -85,26 +128,85 @@ internal static class NativeMethods
         DESKTOP_ENUMERATE = 0x00000040,
         DESKTOP_WRITEOBJECTS = 0x00000080,
         DESKTOP_SWITCHDESKTOP = 0x00000100,
-
-        WINSTA_ENUMDESKTOPS = 0x00000001,
-        WINSTA_READATTRIBUTES = 0x00000002,
-        WINSTA_ACCESSCLIPBOARD = 0x00000004,
-        WINSTA_CREATEDESKTOP = 0x00000008,
-        WINSTA_WRITEATTRIBUTES = 0x00000010,
-        WINSTA_ACCESSGLOBALATOMS = 0x00000020,
-        WINSTA_EXITWINDOWS = 0x00000040,
-        WINSTA_ENUMERATE = 0x00000100,
-        WINSTA_READSCREEN = 0x00000200,
-
-        WINSTA_ALL_ACCESS = 0x0000037F
     }
+
+    internal enum SE_OBJECT_TYPE : uint
+    {
+        SE_UNKNOWN_OBJECT_TYPE,
+        SE_FILE_OBJECT,
+        SE_SERVICE,
+        SE_PRINTER,
+        SE_REGISTRY_KEY,
+        SE_LMSHARE,
+        SE_KERNEL_OBJECT,
+        SE_WINDOW_OBJECT,
+        SE_DS_OBJECT,
+        SE_DS_OBJECT_ALL,
+        SE_PROVIDER_DEFINED_OBJECT,
+        SE_WMIGUID_OBJECT,
+        SE_REGISTRY_WOW64_32KEY,
+        SE_REGISTRY_WOW64_64KEY
+    };
+
+    [Flags]
+    internal enum SECURITY_INFORMATION : uint
+    {
+        OWNER_SECURITY_INFORMATION = 0x00000001,
+        GROUP_SECURITY_INFORMATION = 0x00000002,
+        DACL_SECURITY_INFORMATION = 0x00000004,
+        SACL_SECURITY_INFORMATION = 0x00000008,
+        UNPROTECTED_SACL_SECURITY_INFORMATION = 0x10000000,
+        UNPROTECTED_DACL_SECURITY_INFORMATION = 0x20000000,
+        PROTECTED_SACL_SECURITY_INFORMATION = 0x40000000,
+        PROTECTED_DACL_SECURITY_INFORMATION = 0x80000000
+    }
+
+    [DllImport("advapi32.dll", CallingConvention = CallingConvention.Winapi, ExactSpelling = true, SetLastError = false)]
+    [DefaultDllImportSearchPaths(DllImportSearchPath.System32)]
+    internal static extern int GetSecurityInfo(
+      [In] IntPtr handle,
+      [In] SE_OBJECT_TYPE ObjectType,
+      [In] SECURITY_INFORMATION SecurityInfo,
+      [Out] out IntPtr ppsidOwner,
+      [Out] out IntPtr ppsidGroup,
+      [Out] out IntPtr ppDacl,
+      [Out] out IntPtr ppSacl,
+      [Out] out IntPtr ppSecurityDescriptor
+    );
+
+
+    [DllImport("advapi32.dll", CallingConvention = CallingConvention.Winapi, ExactSpelling = true, SetLastError = true)]
+    [DefaultDllImportSearchPaths(DllImportSearchPath.System32)]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    internal static extern bool ConvertSidToStringSidW(
+        [In] IntPtr sid,
+        [Out] out IntPtr stringSid
+    );
+
+    [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Unicode, Pack = 0)]
+    internal struct Trustee
+    {
+        public IntPtr pMultipleTrustee;
+        public int multipleTrusteeOperation;
+        public int trusteeForm;
+        public int trusteeType;
+        public IntPtr pSid;
+    };
+
+    [DllImport("advapi32.dll", CallingConvention = CallingConvention.Winapi, ExactSpelling = true, SetLastError = false)]
+    [DefaultDllImportSearchPaths(DllImportSearchPath.System32)]
+    internal static extern int GetEffectiveRightsFromAclW(
+        [In] IntPtr pacl,
+        [In] ref Trustee pTrustee,
+        [Out] out DESKTOP_ACCESS_MASK pAccessRights
+    );
 
     [DllImport(Libraries.User32, CallingConvention = CallingConvention.Winapi, ExactSpelling = true, SetLastError = true)]
     [DefaultDllImportSearchPaths(DllImportSearchPath.System32)]
     public static extern HWindowStation CreateWindowStationW(
         [In] string? lpwinsta,
         [In] CWF dwFlags,
-        [In] ACCESS_MASK dwDesiredAccess, 
+        [In] WINSTA_ACCESS_MASK dwDesiredAccess, 
         [In] IntPtr lpsa
     );
 
@@ -129,7 +231,7 @@ internal static class NativeMethods
         [In] IntPtr lpszDevice, /* NULL */
         [In] IntPtr pDevmode, /* NULL */
         [In] DF dwFlags,
-        [In] ACCESS_MASK dwDesiredAccess,
+        [In] DESKTOP_ACCESS_MASK dwDesiredAccess,
         [In] IntPtr lpsa
     );
 
@@ -147,7 +249,6 @@ internal static class NativeMethods
     [DllImport(Libraries.User32, CallingConvention = CallingConvention.Winapi, ExactSpelling = true, SetLastError = true)]
     [DefaultDllImportSearchPaths(DllImportSearchPath.System32)]
     internal static extern HDesktop GetThreadDesktop(int dwThreadId);
-
 
     [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Unicode)]
     public struct WNDCLASS

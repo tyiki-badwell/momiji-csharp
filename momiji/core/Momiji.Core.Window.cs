@@ -1,5 +1,6 @@
 ﻿using System.Collections.Concurrent;
 using System.Runtime.InteropServices;
+using System.Security.Cryptography;
 using Microsoft.Extensions.Logging;
 using Momiji.Core.Buffer;
 using Momiji.Interop.User32;
@@ -70,14 +71,14 @@ public class WindowManager : IDisposable, IWindowManager
     private int _uiThreadId;
 
     private readonly PinnedDelegate<User32.WNDPROC> _wndProc;
-    private readonly WindowClass? _windowClass;
+    private readonly WindowClass _windowClass;
 
     private readonly ConcurrentQueue<Action> _queue = new();
     private readonly ManualResetEventSlim _queueEvent = new();
 
     private readonly ConcurrentDictionary<IntPtr, NativeWindow> _windowMap = new();
 
-    private readonly HWindowStation? _windowStation;
+    //private readonly HWindowStation? _windowStation;
     //private readonly HDesktop? _desktop;
 
     public WindowManager(
@@ -87,6 +88,7 @@ public class WindowManager : IDisposable, IWindowManager
         _loggerFactory = loggerFactory;
         _logger = _loggerFactory.CreateLogger<WindowManager>();
 
+        /*
         _windowStation =
             User32.CreateWindowStationW(
                 null,
@@ -108,6 +110,7 @@ public class WindowManager : IDisposable, IWindowManager
         {
             throw new WindowException($"[window manager] failed SetProcessWindowStation {Marshal.GetLastWin32Error()}");
         }
+        */
 
         /*
         _desktop = 
@@ -122,6 +125,11 @@ public class WindowManager : IDisposable, IWindowManager
         if (_desktop.IsInvalid)
         {
             throw new WindowException($"CreateDesktopW failed {Marshal.GetLastWin32Error()}");
+        }
+
+        {
+            using var desktop = User32.GetThreadDesktop(Environment.CurrentManagedThreadId);
+            _logger.LogInformation($"[window manager] ThreadDesktop now:{desktop.DangerousGetHandle():X} new:{_desktop.DangerousGetHandle():X}");
         }
         */
 
@@ -161,10 +169,10 @@ public class WindowManager : IDisposable, IWindowManager
             finally
             {
 //                _desktop?.Close();
-                _windowStation?.Close();
+//                _windowStation?.Close();
 
-                _windowClass?.Dispose();
-                _wndProc?.Dispose();
+                _windowClass.Dispose();
+                _wndProc.Dispose();
             }
         }
 
@@ -299,6 +307,20 @@ public class WindowManager : IDisposable, IWindowManager
 
     private async Task Run()
     {
+        {
+            using var desktop = User32.GetThreadDesktop(Kernel32.GetCurrentThreadId());
+            _logger.LogInformation($"[window manager] GetThreadDesktop now:{desktop.DangerousGetHandle():X}");
+
+            if (desktop.IsInvalid)
+            {
+                _logger.LogInformation($"GetThreadDesktop failed {Marshal.GetLastWin32Error()}");
+            }
+            else
+            {
+                PrintDesktopACL(desktop);
+            }
+        }
+
         var tcs = new TaskCompletionSource<bool>(TaskCreationOptions.AttachedToParent);
         var thread = new Thread(() =>
         {
@@ -333,6 +355,55 @@ public class WindowManager : IDisposable, IWindowManager
         var _ = tcs.Task.Result;
     }
 
+
+    private void PrintDesktopACL(HDesktop desktop)
+    {
+        var result =
+            User32.GetSecurityInfo(
+                desktop.DangerousGetHandle(),
+                User32.SE_OBJECT_TYPE.SE_WINDOW_OBJECT,
+                User32.SECURITY_INFORMATION.OWNER_SECURITY_INFORMATION
+                | User32.SECURITY_INFORMATION.GROUP_SECURITY_INFORMATION
+                | User32.SECURITY_INFORMATION.DACL_SECURITY_INFORMATION
+                //| User32.SECURITY_INFORMATION.SACL_SECURITY_INFORMATION
+                ,
+                out var owner,
+                out var group,
+                out var dacl,
+                out var sacl,
+                out var sd
+            );
+        if (result != 0)
+        {
+            throw new WindowException($"GetSecurityInfo failed {result}");
+        }
+
+        {
+            User32.ConvertSidToStringSidW(owner, out var str);
+            var sid = Marshal.PtrToStringUni(str);
+            _logger.LogInformation($"[window manager] ThreadDesktop owner:{sid}");
+            Marshal.FreeHGlobal(str);
+        }
+        {
+            User32.ConvertSidToStringSidW(group, out var str);
+            var sid = Marshal.PtrToStringUni(str);
+            _logger.LogInformation($"[window manager] ThreadDesktop group:{sid}");
+            Marshal.FreeHGlobal(str);
+        }
+
+        var trustee = new User32.Trustee()
+        {
+            pSid = owner,
+            trusteeForm = 0,
+            trusteeType = 1
+        };
+
+        User32.GetEffectiveRightsFromAclW(dacl, ref trustee, out var ar);
+        _logger.LogInformation($"[window manager] ThreadDesktop access:{ar}");
+
+        Marshal.FreeHGlobal(sd);
+    }
+
     private void MessageLoop()
     {
         if (_processCancel == null)
@@ -340,20 +411,46 @@ public class WindowManager : IDisposable, IWindowManager
             throw new InvalidOperationException($"{nameof(_processCancel)} is null.");
         }
 
-        /*
         {
-            using var desktop = User32.GetThreadDesktop(Environment.CurrentManagedThreadId);
-            _logger.LogInformation($"[window manager] ThreadDesktop now:{desktop.DangerousGetHandle():X} new:{_desktop.DangerousGetHandle():X}");
-        }
-        */
+            using var desktop = User32.GetThreadDesktop(Kernel32.GetCurrentThreadId());
+            _logger.LogInformation($"[window manager] GetThreadDesktop now:{desktop.DangerousGetHandle():X}");
 
+            if (desktop.IsInvalid)
+            {
+                _logger.LogInformation($"GetThreadDesktop failed {Marshal.GetLastWin32Error()}");
+            }
+            else
+            {
+                PrintDesktopACL(desktop);
+            }
+        }
+
+        {
+            using var desktop =
+                User32.CreateDesktopW(
+                    "test",
+                    IntPtr.Zero,
+                    IntPtr.Zero,
+                    User32.DF.NONE,
+                    User32.DESKTOP_ACCESS_MASK.GENERIC_ALL,
+                    IntPtr.Zero
+                );
+            if (desktop.IsInvalid)
+            {
+                _logger.LogInformation($"CreateDesktopW failed {Marshal.GetLastWin32Error()}");
+            }
+            else
+            {
+                PrintDesktopACL(desktop);
+            }
+        }
+        //TODO HOOKが仕掛けられてたら解除する
         /*
         if (!_desktop.SetThreadDesktop())
         {
-            throw new WindowException($"[window manager] failed SetThreadDesktop {Marshal.GetLastWin32Error()}");
+            throw new WindowException($"[window manager] SetThreadDesktop failed. {Marshal.GetLastWin32Error()}");
         }
         */
-
         {
             var result = User32.IsGUIThread(true);
             _logger.LogInformation($"[window manager] IsGUIThread {result} {Marshal.GetLastWin32Error()}");

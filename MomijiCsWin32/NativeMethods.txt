@@ -1,4 +1,18 @@
-﻿D3D11CreateDevice
+﻿
+CreateWindowStation
+CloseWindowStation
+OpenWindowStationW
+SetProcessWindowStation
+GetProcessWindowStation
+
+CreateDesktopExW
+CloseDesktop
+OpenDesktopW
+OpenInputDesktop
+SetThreadDesktop
+GetThreadDesktop
+
+D3D11CreateDevice
 CreateDirect3D11DeviceFromDXGIDevice
 
 //ID2D1Factory6
