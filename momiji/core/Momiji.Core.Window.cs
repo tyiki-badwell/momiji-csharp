@@ -390,12 +390,13 @@ public class WindowManager : IDisposable, IWindowManager
                 out var owner,
                 out var group,
                 out var dacl,
-                out var sacl,
+                out var _,
                 out var sd
             );
         if (result != 0)
         {
-            throw new WindowException($"GetSecurityInfo failed {result}");
+            _logger.LogError($"[window manager] GetSecurityInfo failed {result}");
+            return;
         }
 
         {
@@ -455,6 +456,8 @@ public class WindowManager : IDisposable, IWindowManager
                     User32.DESKTOP_ACCESS_MASK.GENERIC_ALL,
                     IntPtr.Zero
                 );
+            _logger.LogInformation($"[window manager] CreateDesktopW new:{desktop.DangerousGetHandle():X}");
+
             if (desktop.IsInvalid)
             {
                 _logger.LogInformation($"CreateDesktopW failed {Marshal.GetLastWin32Error()}");
