@@ -87,13 +87,7 @@ public class VstBridgeWorker : BackgroundService
 
     protected async override Task ExecuteAsync(CancellationToken stoppingToken)
     {
-        var taskSet = new List<Task>
-        {
-            _runner.StartAsync(stoppingToken),
-            _windowManager.StartAsync(stoppingToken)
-        };
-
-        await Task.WhenAll(taskSet);
+        await _runner.StartAsync(stoppingToken);
     }
 }
 
@@ -194,6 +188,8 @@ public class Runner : IRunner, IDisposable
         var ct = _processCancel.Token;
 
         var taskSet = new HashSet<Task>();
+
+        taskSet.Add(_windowManager.StartAsync(ct));
 
         var blockSize = (int)(_param.SamplingRate * _param.SampleLength);
         var audioInterval = (long)(10_000_000.0 * _param.SampleLength);

@@ -124,8 +124,6 @@ public class Runner : IRunner, IDisposable
 
             try
             {
-                var windowManagerTask = WindowManager.StartAsync(_processCancel.Token);
-
                 //logic = new Logic1(Configuration, LoggerFactory, DllManager, Param, midiEventInput, midiEventOutput, processCancel);
                 _logic = new Logic2(Configuration, LoggerFactory, DllManager, WindowManager, Param, _midiEventInput, _midiEventOutput, _processCancel);
                 //logic = new Logic4(Configuration, LoggerFactory, DllManager, Param, midiEventInput, midiEventOutput, processCancel);
@@ -135,7 +133,18 @@ public class Runner : IRunner, IDisposable
                 BroadcastStatus("run");
                 Logger.LogInformation("[home] started.");
 
-                await _processTask.ConfigureAwait(false);
+                await _processTask.ContinueWith((task) => {
+
+                    Logger.LogInformation(task.Exception, $"[home] task end");
+                    _processTask = default;
+
+                    _processCancel?.Dispose();
+                    _processCancel = default;
+
+                    BroadcastStatus("stop");
+                    Logger.LogInformation("[home] stopped.");
+
+                }, CancellationToken.None).ConfigureAwait(false);
 
                 Logger.LogInformation("main loop end");
             }
@@ -147,16 +156,6 @@ public class Runner : IRunner, IDisposable
             {
                 Logger.LogInformation(e, "Exception");
                 throw;
-            }
-            finally
-            {
-                _processTask?.Dispose();
-                _processTask = null;
-                _processCancel?.Dispose();
-                _processCancel = null;
-
-                BroadcastStatus("stop");
-                Logger.LogInformation("[home] stopped.");
             }
         });
     }

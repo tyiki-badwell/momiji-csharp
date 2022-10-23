@@ -4,6 +4,8 @@ using Momiji.Core.Window;
 
 var builder = WebApplication.CreateBuilder(args);
 
+builder.Logging.AddAzureWebAppDiagnostics();
+
 // Add services to the container.
 builder.Services.AddRazorPages();
 

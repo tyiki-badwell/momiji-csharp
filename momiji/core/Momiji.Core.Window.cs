@@ -1,6 +1,7 @@
 ﻿using System.Collections.Concurrent;
 using System.Runtime.InteropServices;
 using System.Security.Cryptography;
+using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Momiji.Core.Buffer;
 using Momiji.Interop.User32;
@@ -181,36 +182,29 @@ public class WindowManager : IDisposable, IWindowManager
 
     public void Cancel()
     {
+        var processCancel = _processCancel;
+
         lock (_sync)
         {
-            if (_processCancel == null)
+            if (processCancel == null)
             {
                 _logger.LogInformation("[window manager] already stopped.");
                 return;
             }
+            _processCancel = default;
+        }
 
-            try
-            {
-                _processCancel.Cancel();
-                if ((_processTask != default) && !_processTask.Wait(5000))
-                {
-                    _logger.LogInformation("[window manager] Process Cancel timeout");
-                    _processTask = null;
-                }
-            }
-            catch (AggregateException e)
-            {
-                _logger.LogInformation(e, "[window manager] Process Cancel Exception");
-            }
-            finally
-            {
-                _processCancel?.Dispose();
-                _processCancel = null;
+        var task = _processTask;
 
-                _processTask?.Dispose();
-                _processTask = null;
-            }
-            _logger.LogInformation("[window manager] stopped.");
+        processCancel.Cancel();
+
+        try
+        {
+            task?.Wait();
+        }
+        catch (Exception e)
+        {
+            _logger.LogError(e, "[window manager] cancel failed.");
         }
     }
 
@@ -219,12 +213,6 @@ public class WindowManager : IDisposable, IWindowManager
         if (_uiThreadId == Environment.CurrentManagedThreadId)
         {
             return item.Invoke();
-        }
-
-        var cancel = _processCancel;
-        if (cancel == default)
-        {
-            throw new WindowException("no cancel token.");
         }
 
         var tcs = new TaskCompletionSource<T>(TaskCreationOptions.AttachedToParent);
@@ -240,11 +228,9 @@ public class WindowManager : IDisposable, IWindowManager
             }
         });
 
-        if (!tcs.Task.Wait(5000, cancel.Token))
+        if (!tcs.Task.Wait(5000, CancellationToken.None))
         {
             _logger.LogError("[window manager] Dispatch timeout");
-            cancel.Cancel();
-            tcs.SetCanceled();
         }
         return tcs.Task.Result;
     }
@@ -253,7 +239,7 @@ public class WindowManager : IDisposable, IWindowManager
     private void Dispatch(Action item)
     {
         _logger.LogInformation($"[window manager] Dispatch {Environment.CurrentManagedThreadId:X}");
-        if (_processTask == default)
+        if (_processCancel == default)
         {
             throw new WindowException("message loop is not exists.");
         }
@@ -282,9 +268,17 @@ public class WindowManager : IDisposable, IWindowManager
 
     public void CloseAll()
     {
-        Parallel.ForEach(_windowMap.Values, (window) => {
-            window.Close();
-        });
+        foreach (var window in _windowMap.Values)
+        {
+            try
+            {
+                window.Close();
+            }
+            catch (Exception e)
+            {
+                _logger.LogError(e, "[window manager] close failed.");
+            }
+        }
     }
 
     public async Task StartAsync(CancellationToken stoppingToken)
@@ -299,10 +293,28 @@ public class WindowManager : IDisposable, IWindowManager
             _processCancel = CancellationTokenSource.CreateLinkedTokenSource(stoppingToken);
         }
         _processTask = Run();
-        await _processTask.ContinueWith((_) => {
-            _logger.LogInformation($"[window manager] task end");
-            _processTask = default;
-        }, CancellationToken.None).ConfigureAwait(false);
+
+        try
+        {
+            await _processTask.ContinueWith((task) =>
+            {
+                _logger.LogInformation(task.Exception, $"[window manager] task end");
+
+                _processTask = default;
+
+                _processCancel?.Dispose();
+                _processCancel = default;
+
+                _logger.LogInformation("[window manager] stopped.");
+
+            }, CancellationToken.None).ConfigureAwait(false);
+        }
+        catch (Exception e)
+        {
+            _logger.LogError(e, "[window manager] await failed.");
+        }
+
+        _logger.LogInformation($"[window manager] await end");
     }
 
     private async Task Run()
@@ -348,11 +360,19 @@ public class WindowManager : IDisposable, IWindowManager
         thread.Start();
 
         await tcs.Task.ContinueWith((_) => {
-            _logger.LogInformation($"[window manager] message loop end");
+            _logger.LogInformation($"[window manager] message loop task end");
             _uiThreadId = default;
         }).ConfigureAwait(false);
 
         var _ = tcs.Task.Result;
+
+        if (_windowMap.Count > 0)
+        {
+            _logger.LogWarning($"[window manager] window left {_windowMap.Count}");
+
+            //TODO メッセージループが止まった後でウインドウを破棄する方法？
+        }
+
     }
 
 
@@ -513,12 +533,12 @@ public class WindowManager : IDisposable, IWindowManager
                     );
                 if (res == 258) // WAIT_TIMEOUT
                 {
-                    //_logger.LogError($"[window manager] MsgWaitForMultipleObjectsEx timeout.");
+                    //_logger.LogInformation($"[window manager] MsgWaitForMultipleObjectsEx timeout.");
                     continue;
                 }
                 else if (res == 0) // WAIT_OBJECT_0
                 {
-                    //_logger.LogError($"[window manager] MsgWaitForMultipleObjectsEx comes queue event.");
+                    //_logger.LogInformation($"[window manager] MsgWaitForMultipleObjectsEx comes queue event.");
                     _queueEvent.Reset();
                     //ディスパッチ
                     while (_queue.TryDequeue(out var result))
@@ -530,12 +550,12 @@ public class WindowManager : IDisposable, IWindowManager
                 }
                 else if (res == 1) // WAIT_OBJECT_0+1
                 {
-                    //_logger.LogError($"[window manager] MsgWaitForMultipleObjectsEx comes cancel event.");
+                    //_logger.LogInformation($"[window manager] MsgWaitForMultipleObjectsEx comes cancel event.");
                     continue;
                 }
                 else if (res == 2) // WAIT_OBJECT_0+2
                 {
-                    //_logger.LogError($"[window manager] MsgWaitForMultipleObjectsEx comes message.");
+                    //_logger.LogInformation($"[window manager] MsgWaitForMultipleObjectsEx comes message.");
                     DispatchMessage();
                     continue;
                 }
@@ -613,7 +633,7 @@ public class WindowManager : IDisposable, IWindowManager
                 case 0x0082://WM_NCDESTROY
                     //_logger.LogInformation($"[window manager] WM_NCDESTROY[{hwnd:X} {msg:X} {wParam:X} {lParam:X} current {Environment.CurrentManagedThreadId:X}");
                     _windowMap.TryRemove(handleRef.Handle, out var _);
-                    _logger.LogInformation($"[window manager] remove [{hwnd:X}]");
+                    _logger.LogInformation($"[window manager] remove window map [{hwnd:X}]");
                     break;
             }
 

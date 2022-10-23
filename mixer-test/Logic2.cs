@@ -93,6 +93,8 @@ public class Logic2 : ILogic
         var ct = ProcessCancel.Token;
         var taskSet = new HashSet<Task>();
 
+        taskSet.Add(WindowManager.StartAsync(ct));
+
         var blockSize = (int)(Param.SamplingRate * Param.SampleLength);
         Logger.LogInformation($"[loop3] blockSize {blockSize}");
 
@@ -277,6 +279,8 @@ public class Logic2 : ILogic
     {
         var ct = ProcessCancel.Token;
         var taskSet = new HashSet<Task>();
+
+        taskSet.Add(WindowManager.StartAsync(ct));
 
         var blockSize = (int)(Param.SamplingRate * Param.SampleLength);
         var audioInterval = (long)(10_000_000.0 * Param.SampleLength);
