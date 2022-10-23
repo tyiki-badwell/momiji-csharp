@@ -128,12 +128,14 @@ public class Runner : IRunner, IDisposable
                 _logic = new Logic2(Configuration, LoggerFactory, DllManager, WindowManager, Param, _midiEventInput, _midiEventOutput, _processCancel);
                 //logic = new Logic4(Configuration, LoggerFactory, DllManager, Param, midiEventInput, midiEventOutput, processCancel);
 
-                _processTask = _logic.RunAsync().ContinueWith((task) => { Cancel(); }, TaskScheduler.Default);
+                _processTask = _logic.RunAsync();
 
                 BroadcastStatus("run");
                 Logger.LogInformation("[home] started.");
 
                 await _processTask.ContinueWith((task) => {
+
+                    Cancel();
 
                     Logger.LogInformation(task.Exception, $"[home] task end");
                     _processTask = default;
