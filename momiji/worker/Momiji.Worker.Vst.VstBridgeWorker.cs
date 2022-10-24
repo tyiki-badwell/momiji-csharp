@@ -164,14 +164,41 @@ public class Runner : IRunner, IDisposable
 
     public async Task StartAsync(CancellationToken stoppingToken)
     {
-        if (_processCancel != null)
+        lock (_sync)
         {
-            _logger.LogInformation("[worker] already started.");
-            return;
+            if (_processCancel != null)
+            {
+                _logger.LogInformation("[worker] already started.");
+                return;
+            }
+            _processCancel = CancellationTokenSource.CreateLinkedTokenSource(stoppingToken);
         }
-        _processCancel = CancellationTokenSource.CreateLinkedTokenSource(stoppingToken);
+
         _processTask = Run();
-        await _processTask.ConfigureAwait(false);
+        try
+        {
+            await _processTask.ContinueWith((task) => {
+
+                Cancel();
+
+                _logger.LogInformation(task.Exception, $"[worker] task end");
+                _processTask = default;
+
+                _processCancel?.Dispose();
+                _processCancel = default;
+
+                _logger.LogInformation("[worker] stopped.");
+
+            }, CancellationToken.None).ConfigureAwait(false);
+        }                
+        catch (TaskCanceledException)
+        {
+            _logger.LogInformation("[worker] TaskCanceled");
+        }
+        catch (Exception e)
+        {
+            _logger.LogInformation(e, "[worker] Exception");
+        }
     }
 
     private async Task Run()
@@ -275,32 +302,22 @@ public class Runner : IRunner, IDisposable
 
     public void Cancel()
     {
-        lock(_sync)
+        var processCancel = _processCancel;
+        if (processCancel == null)
         {
-            if (_processCancel == null)
-            {
-                _logger.LogInformation("[worker] already stopped.");
-                return;
-            }
+            _logger.LogInformation("[worker] already stopped.");
+            return;
+        }
 
-            try
-            {
-                _processCancel.Cancel();
-                _processTask?.Wait();
-            }
-            catch (AggregateException e)
-            {
-                _logger.LogInformation(e, "[worker] Process Cancel Exception");
-            }
-            finally
-            {
-                _processCancel.Dispose();
-                _processCancel = null;
-
-                _processTask?.Dispose();
-                _processTask = null;
-            }
-            _logger.LogInformation("[worker] stopped.");
+        var task = _processTask;
+        try
+        {
+            processCancel.Cancel();
+            task?.Wait();
+        }
+        catch (Exception e)
+        {
+            _logger.LogInformation(e, "[worker] failed.");
         }
     }
 

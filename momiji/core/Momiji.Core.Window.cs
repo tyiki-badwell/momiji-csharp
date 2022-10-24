@@ -183,28 +183,21 @@ public class WindowManager : IDisposable, IWindowManager
     public void Cancel()
     {
         var processCancel = _processCancel;
-
-        lock (_sync)
+        if (processCancel == null)
         {
-            if (processCancel == null)
-            {
-                _logger.LogInformation("[window manager] already stopped.");
-                return;
-            }
-            _processCancel = default;
+            _logger.LogInformation("[window manager] already stopped.");
+            return;
         }
 
         var task = _processTask;
-
-        processCancel.Cancel();
-
         try
         {
+            processCancel.Cancel();
             task?.Wait();
         }
         catch (Exception e)
         {
-            _logger.LogError(e, "[window manager] cancel failed.");
+            _logger.LogError(e, "[window manager] failed.");
         }
     }
 
@@ -298,6 +291,8 @@ public class WindowManager : IDisposable, IWindowManager
         {
             await _processTask.ContinueWith((task) =>
             {
+                Cancel();
+
                 _logger.LogInformation(task.Exception, $"[window manager] task end");
 
                 _processTask = default;
@@ -311,10 +306,8 @@ public class WindowManager : IDisposable, IWindowManager
         }
         catch (Exception e)
         {
-            _logger.LogError(e, "[window manager] await failed.");
+            _logger.LogError(e, "[window manager] failed.");
         }
-
-        _logger.LogInformation($"[window manager] await end");
     }
 
     private async Task Run()
