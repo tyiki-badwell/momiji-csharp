@@ -1,10 +1,9 @@
 ﻿using System.Collections.Concurrent;
 using System.Runtime.InteropServices;
-using System.Security.Cryptography;
-using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Momiji.Core.Buffer;
 using Momiji.Interop.User32;
+using Advapi32 = Momiji.Interop.Advapi32.NativeMethods;
 using Kernel32 = Momiji.Interop.Kernel32.NativeMethods;
 using User32 = Momiji.Interop.User32.NativeMethods;
 
@@ -372,13 +371,13 @@ public class WindowManager : IDisposable, IWindowManager
     private void PrintDesktopACL(HDesktop desktop)
     {
         var result =
-            User32.GetSecurityInfo(
+            Advapi32.GetSecurityInfo(
                 desktop.DangerousGetHandle(),
-                User32.SE_OBJECT_TYPE.SE_WINDOW_OBJECT,
-                User32.SECURITY_INFORMATION.OWNER_SECURITY_INFORMATION
-                | User32.SECURITY_INFORMATION.GROUP_SECURITY_INFORMATION
-                | User32.SECURITY_INFORMATION.DACL_SECURITY_INFORMATION
-                //| User32.SECURITY_INFORMATION.SACL_SECURITY_INFORMATION
+                Advapi32.SE_OBJECT_TYPE.SE_WINDOW_OBJECT,
+                Advapi32.SECURITY_INFORMATION.OWNER_SECURITY_INFORMATION
+                | Advapi32.SECURITY_INFORMATION.GROUP_SECURITY_INFORMATION
+                | Advapi32.SECURITY_INFORMATION.DACL_SECURITY_INFORMATION
+                //| Advapi32.SECURITY_INFORMATION.SACL_SECURITY_INFORMATION
                 ,
                 out var owner,
                 out var group,
@@ -393,27 +392,27 @@ public class WindowManager : IDisposable, IWindowManager
         }
 
         {
-            User32.ConvertSidToStringSidW(owner, out var str);
+            Advapi32.ConvertSidToStringSidW(owner, out var str);
             var sid = Marshal.PtrToStringUni(str);
             _logger.LogInformation($"[window manager] ThreadDesktop owner:{sid}");
             Marshal.FreeHGlobal(str);
         }
         {
-            User32.ConvertSidToStringSidW(group, out var str);
+            Advapi32.ConvertSidToStringSidW(group, out var str);
             var sid = Marshal.PtrToStringUni(str);
             _logger.LogInformation($"[window manager] ThreadDesktop group:{sid}");
             Marshal.FreeHGlobal(str);
         }
 
-        var trustee = new User32.Trustee()
+        var trustee = new Advapi32.Trustee()
         {
             pSid = owner,
             trusteeForm = 0,
             trusteeType = 1
         };
 
-        User32.GetEffectiveRightsFromAclW(dacl, ref trustee, out var ar);
-        _logger.LogInformation($"[window manager] ThreadDesktop access:{ar}");
+        Advapi32.GetEffectiveRightsFromAclW(dacl, ref trustee, out var ar);
+        _logger.LogInformation($"[window manager] ThreadDesktop access:{Enum.ToObject(typeof(User32.DESKTOP_ACCESS_MASK), ar)}");
 
         Marshal.FreeHGlobal(sd);
     }
@@ -440,6 +439,69 @@ public class WindowManager : IDisposable, IWindowManager
         }
 
         {
+            using var sdBuf = new PinnedBuffer<byte[]>(new byte[(int)Advapi32.SECURITY_DESCRIPTOR_CONST.MIN_LENGTH*10]);
+            var sd = sdBuf.AddrOfPinnedObject;
+
+            {
+                var result =
+                    Advapi32.InitializeSecurityDescriptor(
+                        sd,
+                        Advapi32.SECURITY_DESCRIPTOR_CONST.REVISION
+                    );
+                if (!result)
+                {
+                    _logger.LogInformation($"InitializeSecurityDescriptor failed {Marshal.GetLastWin32Error()}");
+                }
+            }
+
+            {
+                using var eaBuf = new PinnedBuffer<Advapi32.ExplicitAccess>(new() { 
+                    grfAccessPermissions = 0,
+                    grfAccessMode = Advapi32.ACCESS_MODE.GRANT_ACCESS,
+                    grfInheritance = Advapi32.ACE.NO_INHERITANCE,
+                    trustee = new Advapi32.Trustee()
+                    {
+                        trusteeForm = 0,
+                        trusteeType = 0,
+                        pSid = IntPtr.Zero
+                    }
+                });
+
+                var error =
+                    Advapi32.SetEntriesInAclW(
+                        1,
+                        eaBuf.AddrOfPinnedObject,
+                        IntPtr.Zero,
+                        out var newAcl
+                    );
+                if (error != 0)
+                {
+                    _logger.LogInformation($"SetEntriesInAclW failed {error}");
+                }
+                else
+                {
+                    var result =
+                        Advapi32.SetSecurityDescriptorDacl(
+                            sd,
+                            true,
+                            newAcl,
+                            false
+                        );
+                    if (!result)
+                    {
+                        _logger.LogInformation($"SetSecurityDescriptorDacl failed {Marshal.GetLastWin32Error()}");
+                    }
+                }
+                Marshal.FreeHGlobal(newAcl);
+            }
+
+            var sa = new Advapi32.SecurityAttributes()
+            {
+                nLength = Marshal.SizeOf<Advapi32.SecurityAttributes>(),
+                lpSecurityDescriptor = sd,
+                bInheritHandle = false
+            };
+
             using var desktop =
                 User32.CreateDesktopW(
                     "test",
@@ -447,7 +509,7 @@ public class WindowManager : IDisposable, IWindowManager
                     IntPtr.Zero,
                     User32.DF.NONE,
                     User32.DESKTOP_ACCESS_MASK.GENERIC_ALL,
-                    IntPtr.Zero
+                    ref sa
                 );
             _logger.LogInformation($"[window manager] CreateDesktopW new:{desktop.DangerousGetHandle():X}");
 

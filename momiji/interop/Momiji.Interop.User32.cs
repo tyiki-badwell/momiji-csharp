@@ -1,7 +1,5 @@
 ﻿using System.Runtime.InteropServices;
-using System.Security.Cryptography;
 using Microsoft.Win32.SafeHandles;
-using static Momiji.Interop.User32.NativeMethods;
 
 namespace Momiji.Interop.User32;
 
@@ -9,8 +7,6 @@ internal static class Libraries
 {
     public const string User32 = "user32.dll";
 }
-
-
 
 internal sealed class HWindowStation : SafeHandleZeroOrMinusOneIsInvalid
 {
@@ -130,84 +126,13 @@ internal static class NativeMethods
         DESKTOP_SWITCHDESKTOP = 0x00000100,
     }
 
-    internal enum SE_OBJECT_TYPE : uint
-    {
-        SE_UNKNOWN_OBJECT_TYPE,
-        SE_FILE_OBJECT,
-        SE_SERVICE,
-        SE_PRINTER,
-        SE_REGISTRY_KEY,
-        SE_LMSHARE,
-        SE_KERNEL_OBJECT,
-        SE_WINDOW_OBJECT,
-        SE_DS_OBJECT,
-        SE_DS_OBJECT_ALL,
-        SE_PROVIDER_DEFINED_OBJECT,
-        SE_WMIGUID_OBJECT,
-        SE_REGISTRY_WOW64_32KEY,
-        SE_REGISTRY_WOW64_64KEY
-    };
-
-    [Flags]
-    internal enum SECURITY_INFORMATION : uint
-    {
-        OWNER_SECURITY_INFORMATION = 0x00000001,
-        GROUP_SECURITY_INFORMATION = 0x00000002,
-        DACL_SECURITY_INFORMATION = 0x00000004,
-        SACL_SECURITY_INFORMATION = 0x00000008,
-        UNPROTECTED_SACL_SECURITY_INFORMATION = 0x10000000,
-        UNPROTECTED_DACL_SECURITY_INFORMATION = 0x20000000,
-        PROTECTED_SACL_SECURITY_INFORMATION = 0x40000000,
-        PROTECTED_DACL_SECURITY_INFORMATION = 0x80000000
-    }
-
-    [DllImport("advapi32.dll", CallingConvention = CallingConvention.Winapi, ExactSpelling = true, SetLastError = false)]
-    [DefaultDllImportSearchPaths(DllImportSearchPath.System32)]
-    internal static extern int GetSecurityInfo(
-      [In] IntPtr handle,
-      [In] SE_OBJECT_TYPE ObjectType,
-      [In] SECURITY_INFORMATION SecurityInfo,
-      [Out] out IntPtr ppsidOwner,
-      [Out] out IntPtr ppsidGroup,
-      [Out] out IntPtr ppDacl,
-      [Out] out IntPtr ppSacl,
-      [Out] out IntPtr ppSecurityDescriptor
-    );
-
-
-    [DllImport("advapi32.dll", CallingConvention = CallingConvention.Winapi, ExactSpelling = true, SetLastError = true)]
-    [DefaultDllImportSearchPaths(DllImportSearchPath.System32)]
-    [return: MarshalAs(UnmanagedType.Bool)]
-    internal static extern bool ConvertSidToStringSidW(
-        [In] IntPtr sid,
-        [Out] out IntPtr stringSid
-    );
-
-    [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Unicode, Pack = 0)]
-    internal struct Trustee
-    {
-        public IntPtr pMultipleTrustee;
-        public int multipleTrusteeOperation;
-        public int trusteeForm;
-        public int trusteeType;
-        public IntPtr pSid;
-    };
-
-    [DllImport("advapi32.dll", CallingConvention = CallingConvention.Winapi, ExactSpelling = true, SetLastError = false)]
-    [DefaultDllImportSearchPaths(DllImportSearchPath.System32)]
-    internal static extern int GetEffectiveRightsFromAclW(
-        [In] IntPtr pacl,
-        [In] ref Trustee pTrustee,
-        [Out] out DESKTOP_ACCESS_MASK pAccessRights
-    );
-
     [DllImport(Libraries.User32, CallingConvention = CallingConvention.Winapi, ExactSpelling = true, SetLastError = true)]
     [DefaultDllImportSearchPaths(DllImportSearchPath.System32)]
     public static extern HWindowStation CreateWindowStationW(
         [In] string? lpwinsta,
         [In] CWF dwFlags,
         [In] WINSTA_ACCESS_MASK dwDesiredAccess, 
-        [In] IntPtr lpsa
+        [In] ref Advapi32.NativeMethods.SecurityAttributes lpsa
     );
 
     [DllImport(Libraries.User32, CallingConvention = CallingConvention.Winapi, ExactSpelling = true, SetLastError = true)]
@@ -232,7 +157,7 @@ internal static class NativeMethods
         [In] IntPtr pDevmode, /* NULL */
         [In] DF dwFlags,
         [In] DESKTOP_ACCESS_MASK dwDesiredAccess,
-        [In] IntPtr lpsa
+        [In] ref Advapi32.NativeMethods.SecurityAttributes lpsa
     );
 
     [DllImport(Libraries.User32, CallingConvention = CallingConvention.Winapi, ExactSpelling = true, SetLastError = true)]
