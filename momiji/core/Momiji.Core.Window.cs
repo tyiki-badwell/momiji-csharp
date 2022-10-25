@@ -551,11 +551,11 @@ public class WindowManager : IDisposable, IWindowManager
             _queueEvent.WaitHandle.SafeWaitHandle.DangerousGetHandle(),
             ct.WaitHandle.SafeWaitHandle.DangerousGetHandle()
          });
+        var handleCount = waitHandlesPin.Target.Length;
 
         _logger.LogInformation($"[window manager] start message loop. current {Environment.CurrentManagedThreadId:X}");
         while (true)
         {
-            _logger.LogTrace($"[window] MessageLoop current {Environment.CurrentManagedThreadId:X}");
             if (forceCancel)
             {
                 _logger.LogInformation("[window manager] force canceled.");
@@ -590,7 +590,7 @@ public class WindowManager : IDisposable, IWindowManager
                 _logger.LogTrace($"[window manager] MsgWaitForMultipleObjectsEx current {Environment.CurrentManagedThreadId:X}");
                 var res =
                     User32.MsgWaitForMultipleObjects/*Ex*/(
-                        (uint)waitHandlesPin.Target.Length,
+                        (uint)handleCount,
                         waitHandlesPin.AddrOfPinnedObject,
                         false,
                         1000,
@@ -617,9 +617,11 @@ public class WindowManager : IDisposable, IWindowManager
                 else if (res == 1) // WAIT_OBJECT_0+1
                 {
                     _logger.LogTrace($"[window manager] MsgWaitForMultipleObjectsEx comes cancel event.");
+                    //ctがシグナル状態になりっぱなしになるので、リストから外す
+                    handleCount--;
                     continue;
                 }
-                else if (res == 2) // WAIT_OBJECT_0+2
+                else if (res == handleCount) // WAIT_OBJECT_0+2
                 {
                     _logger.LogTrace($"[window manager] MsgWaitForMultipleObjectsEx comes message.");
                     DispatchMessage();
