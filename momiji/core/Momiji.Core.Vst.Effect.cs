@@ -529,7 +529,7 @@ internal class Effect<T> : IEffect<T>, IDisposable where T : struct
 
         {
             //TODO この一帯がかなり遅い
-            while (midiEventInput.TryReceive(out MIDIMessageEvent2 item))
+            while (midiEventInput.TryReceive(out var item))
             {
                 if ((item.midiMessageEvent.receivedTime * 1000) > nowTime)
                 {
