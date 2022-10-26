@@ -296,6 +296,12 @@ internal static class NativeMethods
 
     [DllImport(Libraries.User32, CallingConvention = CallingConvention.Winapi, ExactSpelling = true, SetLastError = true)]
     [DefaultDllImportSearchPaths(DllImportSearchPath.System32)]
+    internal static extern uint GetQueueStatus(
+        [In] uint flags
+    );
+
+    [DllImport(Libraries.User32, CallingConvention = CallingConvention.Winapi, ExactSpelling = true, SetLastError = true)]
+    [DefaultDllImportSearchPaths(DllImportSearchPath.System32)]
     internal static extern uint MsgWaitForMultipleObjectsEx(
         [In] uint nCount,
         [In] IntPtr pHandles,

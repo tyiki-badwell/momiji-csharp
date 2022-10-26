@@ -542,6 +542,14 @@ public class WindowManager : IDisposable, IWindowManager
             _logger.LogInformation($"[window manager] IsGUIThread {result} {Marshal.GetLastWin32Error()}");
         }
 
+        { //メッセージキューが無ければ作られるハズ
+            var result = 
+                User32.GetQueueStatus(
+                    0x04FF //QS_ALLINPUT
+                );
+            _logger.LogInformation($"[window manager] GetQueueStatus {result} {Marshal.GetLastWin32Error()}");
+        }
+
         var forceCancel = false;
         var cancelled = false;
 
