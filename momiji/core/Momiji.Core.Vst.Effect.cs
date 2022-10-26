@@ -716,10 +716,12 @@ internal class Effect<T> : IEffect<T>, IDisposable where T : struct
                 }
 
                 EditorRect = Marshal.PtrToStructure<ERect>(buffer.Target);
-                _logger.LogInformation($"[vst] effEditGetRect width;{EditorRect.right - EditorRect.left} height:{EditorRect.bottom - EditorRect.top}");
-
                 var width = EditorRect.right - EditorRect.left;
                 var height = EditorRect.bottom - EditorRect.top;
+
+                _logger.LogInformation($"[vst] effEditGetRect width;{width} height:{height}");
+                width = (width == 0) ? 100 : width;
+                height = (height == 0) ? 100 : height;
 
                 _window.Move(
                     0,

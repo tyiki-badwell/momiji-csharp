@@ -589,13 +589,12 @@ public class WindowManager : IDisposable, IWindowManager
             {
                 _logger.LogTrace($"[window manager] MsgWaitForMultipleObjectsEx current {Environment.CurrentManagedThreadId:X}");
                 var res =
-                    User32.MsgWaitForMultipleObjects/*Ex*/(
+                    User32.MsgWaitForMultipleObjectsEx(
                         (uint)handleCount,
                         waitHandlesPin.AddrOfPinnedObject,
-                        false,
                         1000,
-                        0x04FF/*, //QS_ALLINPUT
-                        0x0004*/ //MWMO_INPUTAVAILABLE
+                        0x04FF, //QS_ALLINPUT
+                        0x0004 //MWMO_INPUTAVAILABLE
                     );
                 if (res == 258) // WAIT_TIMEOUT
                 {

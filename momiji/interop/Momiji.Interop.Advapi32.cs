@@ -144,7 +144,7 @@ internal static class NativeMethods
         public Trustee trustee;
     };
 
-    [DllImport(Libraries.Advapi32, CallingConvention = CallingConvention.Winapi, ExactSpelling = true, SetLastError = true)]
+    [DllImport(Libraries.Advapi32, CallingConvention = CallingConvention.Winapi, ExactSpelling = true, SetLastError = false)]
     [DefaultDllImportSearchPaths(DllImportSearchPath.System32)]
     internal static extern int SetEntriesInAclW(
         [In] ulong cCountOfExplicitEntries,
