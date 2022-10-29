@@ -829,7 +829,7 @@ public class WindowManager : IDisposable, IWindowManager
             : User32.DefWindowProcA(hwnd, msg, wParam, lParam)
             ;
 
-        _logger.LogWarning($"[window manager] DefWindowProc [{defWndProcResult:X}]");
+        _logger.LogTrace($"[window manager] DefWindowProc [{defWndProcResult:X}]");
         return defWndProcResult;
     }
 
@@ -967,6 +967,7 @@ internal class NativeWindow : IWindow
                 hWindow = default;
                 throw new WindowException("CreateWindowEx failed");
             }
+
             return hWindow;
         });
 
@@ -1092,6 +1093,16 @@ internal class NativeWindow : IWindow
 
             //result=0: 実行前は非表示だった/ <>0:実行前から表示されていた
             _logger.LogInformation($"[window] ShowWindow {_hWindow:X} {result} {Marshal.GetLastWin32Error()}");
+
+            {
+                var wndpl = new User32.WINDOWPLACEMENT()
+                {
+                    length = Marshal.SizeOf<User32.WINDOWPLACEMENT>()
+                };
+                User32.GetWindowPlacement(_hWindow, ref wndpl);
+
+                _logger.LogInformation($"[window] GetWindowPlacement result {wndpl.showCmd}");
+            }
 
             return result;
         });

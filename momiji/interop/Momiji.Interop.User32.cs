@@ -474,6 +474,41 @@ internal static class NativeMethods
         [In] int nCmdShow
     );
 
+    [StructLayout(LayoutKind.Sequential)]
+    internal struct POINT
+    {
+        public long x;
+        public long y;
+    }
+
+
+    [StructLayout(LayoutKind.Sequential)]
+    internal struct WINDOWPLACEMENT
+    {
+        [Flags]
+        internal enum FLAG : uint
+        {
+            WPF_SETMINPOSITION = 0x0001,
+            WPF_RESTORETOMAXIMIZED = 0x0002,
+            WPF_ASYNCWINDOWPLACEMENT = 0x0004
+        }
+        public int length;
+        public FLAG flags;
+        public uint showCmd;
+        public POINT ptMinPosition;
+        public POINT ptMaxPosition;
+        public RECT rcNormalPosition;
+        public RECT rcDevice;
+    }
+
+    [DllImport(Libraries.User32, CallingConvention = CallingConvention.Winapi, ExactSpelling = true, SetLastError = true)]
+    [DefaultDllImportSearchPaths(DllImportSearchPath.System32)]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    internal static extern bool GetWindowPlacement(
+        [In] IntPtr hWnd,
+        [In, Out] ref WINDOWPLACEMENT lpwndpl
+    );
+
     [DllImport(Libraries.User32, CallingConvention = CallingConvention.Winapi, ExactSpelling = true, SetLastError = true)]
     [DefaultDllImportSearchPaths(DllImportSearchPath.System32)]
     internal static extern int InSendMessageEx(
