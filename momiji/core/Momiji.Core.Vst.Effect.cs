@@ -72,7 +72,10 @@ public class VstBuffer<T> : IDisposable where T : struct
 
     protected virtual void Dispose(bool disposing)
     {
-        if (_disposed) return;
+        if (_disposed)
+        {
+            return;
+        }
 
         if (disposing)
         {
@@ -134,7 +137,10 @@ public class VstBuffer2<T> : IDisposable where T : struct
 
     protected virtual void Dispose(bool disposing)
     {
-        if (_disposed) return;
+        if (_disposed)
+        {
+            return;
+        }
 
         if (disposing)
         {
@@ -331,7 +337,10 @@ internal class Effect<T> : IEffect<T>, IDisposable where T : struct
 
     protected virtual void Dispose(bool disposing)
     {
-        if (_disposed) return;
+        if (_disposed)
+        {
+            return;
+        }
 
         if (disposing)
         {
@@ -688,7 +697,7 @@ internal class Effect<T> : IEffect<T>, IDisposable where T : struct
                         AEffect.Opcodes.effEditOpen,
                         default,
                         default,
-                        _window.HandleRef.Handle,
+                        _window.Handle,
                         default
                     );
                 if (result == IntPtr.Zero)
