@@ -1,4 +1,5 @@
 ﻿using System.Collections.Concurrent;
+using System.Diagnostics;
 using System.Runtime.InteropServices;
 using Microsoft.Extensions.Logging;
 using Momiji.Core.Buffer;
@@ -309,6 +310,101 @@ public class WindowManager : IDisposable, IWindowManager
         }
     }
 
+
+    private void CheckIntegrityLevel()
+    {
+        if (!Advapi32.OpenProcessToken(
+                Process.GetCurrentProcess().Handle, 
+                Advapi32.DesiredAccess.TOKEN_QUERY, 
+                out var token
+        ))
+        {
+            _logger.LogError($"OpenProcessToken failed {Marshal.GetLastWin32Error()}");
+            return;
+        }
+
+        try
+        {
+            if (!Advapi32.GetTokenInformation(
+                    token,
+                    Advapi32.TOKEN_INFORMATION_CLASS.TokenIntegrityLevel,
+                    IntPtr.Zero,
+                    0,
+                    out var dwLengthNeeded
+            ))
+            {
+                var error = Marshal.GetLastWin32Error();
+                if (error != 122) //ERROR_INSUFFICIENT_BUFFER ではない
+                {
+                    _logger.LogError($"GetTokenInformation failed {error}");
+                    return;
+                }
+            }
+            else
+            { //ここでは必ずエラーになるハズなので、正常系がエラー扱い
+                return;
+            }
+
+            using var tiBuf = new PinnedBuffer<byte[]>(new byte[dwLengthNeeded]);
+            var ti = tiBuf.AddrOfPinnedObject;
+
+            if (!Advapi32.GetTokenInformation(
+                    token,
+                    Advapi32.TOKEN_INFORMATION_CLASS.TokenIntegrityLevel,
+                    ti,
+                    dwLengthNeeded,
+                    out var _
+            ))
+            {
+                _logger.LogError($"GetTokenInformation failed {Marshal.GetLastWin32Error()}");
+                return;
+            }
+
+            var sid = Marshal.ReadIntPtr(ti);
+
+            PrintAccountFromSid(sid);
+        }
+        finally
+        {
+            token.Dispose();
+        }
+    }
+
+    private void PrintAccountFromSid(IntPtr sid)
+    {
+        using var szNameBuf = new PinnedBuffer<int[]>(new int[1]);
+        var szName = szNameBuf.AddrOfPinnedObject;
+
+        using var szDomainNameBuf = new PinnedBuffer<int[]>(new int[1]);
+        var szDomainName = szDomainNameBuf.AddrOfPinnedObject;
+
+        if (!Advapi32.LookupAccountSidW(IntPtr.Zero, sid, IntPtr.Zero, szName, IntPtr.Zero, szDomainName, out var use))
+        {
+            var error = Marshal.GetLastWin32Error();
+            if (error != 122) //ERROR_INSUFFICIENT_BUFFER ではない
+            {
+                _logger.LogError($"LookupAccountSidW failed {error}");
+                return;
+            }
+        }
+        else
+        { //ここでは必ずエラーになるハズなので、正常系がエラー扱い
+            return;
+        }
+
+        using var nameBuf = new PinnedBuffer<char[]>(new char[szNameBuf.Target[0]]);
+        var name = nameBuf.AddrOfPinnedObject;
+
+        using var domainNameBuf = new PinnedBuffer<char[]>(new char[szDomainNameBuf.Target[0]]);
+        var domainName = domainNameBuf.AddrOfPinnedObject;
+        if (!Advapi32.LookupAccountSidW(IntPtr.Zero, sid, name, szName, domainName, szDomainName, out var _))
+        {
+            _logger.LogError($"GetTokenInformation failed {Marshal.GetLastWin32Error()}");
+            return;
+        }
+        _logger.LogInformation($"account {Marshal.PtrToStringUni(name)} {Marshal.PtrToStringUni(domainName)} {use}");
+    }
+
     private async Task Run()
     {
         {
@@ -330,6 +426,9 @@ public class WindowManager : IDisposable, IWindowManager
         {
             try
             {
+                CheckIntegrityLevel();
+                CheckDesktop();
+
                 MessageLoop();
                 _logger.LogInformation($"[window manager] message loop normal end");
                 tcs.SetResult(true);
@@ -391,12 +490,15 @@ public class WindowManager : IDisposable, IWindowManager
             return;
         }
 
+        PrintAccountFromSid(owner);
         {
             Advapi32.ConvertSidToStringSidW(owner, out var str);
             var sid = Marshal.PtrToStringUni(str);
             _logger.LogInformation($"[window manager] ThreadDesktop owner:{sid}");
             Marshal.FreeHGlobal(str);
         }
+
+        PrintAccountFromSid(group);
         {
             Advapi32.ConvertSidToStringSidW(group, out var str);
             var sid = Marshal.PtrToStringUni(str);
@@ -415,7 +517,7 @@ public class WindowManager : IDisposable, IWindowManager
             var error = Advapi32.GetEffectiveRightsFromAclW(dacl, ref trustee, out var ar);
             if (error != 0)
             {
-                _logger.LogInformation($"GetEffectiveRightsFromAclW failed {error}");
+                _logger.LogError($"GetEffectiveRightsFromAclW failed {error}");
             }
             else
             {
@@ -425,20 +527,15 @@ public class WindowManager : IDisposable, IWindowManager
         Marshal.FreeHGlobal(sd);
     }
 
-    private void MessageLoop()
+    private void CheckDesktop()
     {
-        if (_processCancel == null)
-        {
-            throw new InvalidOperationException($"{nameof(_processCancel)} is null.");
-        }
-
         {
             using var desktop = User32.GetThreadDesktop(Kernel32.GetCurrentThreadId());
             _logger.LogInformation($"[window manager] GetThreadDesktop now:{desktop.DangerousGetHandle():X}");
 
             if (desktop.IsInvalid)
             {
-                _logger.LogInformation($"GetThreadDesktop failed {Marshal.GetLastWin32Error()}");
+                _logger.LogError($"GetThreadDesktop failed {Marshal.GetLastWin32Error()}");
             }
             else
             {
@@ -447,7 +544,7 @@ public class WindowManager : IDisposable, IWindowManager
         }
 
         {
-            using var sdBuf = new PinnedBuffer<byte[]>(new byte[(int)Advapi32.SECURITY_DESCRIPTOR_CONST.MIN_LENGTH*10]);
+            using var sdBuf = new PinnedBuffer<byte[]>(new byte[(int)Advapi32.SECURITY_DESCRIPTOR_CONST.MIN_LENGTH * 10]);
             var sd = sdBuf.AddrOfPinnedObject;
 
             {
@@ -463,7 +560,8 @@ public class WindowManager : IDisposable, IWindowManager
             }
 
             {
-                using var eaBuf = new PinnedBuffer<Advapi32.ExplicitAccess>(new() { 
+                using var eaBuf = new PinnedBuffer<Advapi32.ExplicitAccess>(new()
+                {
                     grfAccessPermissions = 0,
                     grfAccessMode = Advapi32.ACCESS_MODE.GRANT_ACCESS,
                     grfInheritance = Advapi32.ACE.NO_INHERITANCE,
@@ -530,13 +628,15 @@ public class WindowManager : IDisposable, IWindowManager
                 PrintDesktopACL(desktop);
             }
         }
-        //TODO HOOKが仕掛けられてたら解除する
-        /*
-        if (!_desktop.SetThreadDesktop())
+    }
+
+    private void MessageLoop()
+    {
+        if (_processCancel == null)
         {
-            throw new WindowException($"[window manager] SetThreadDesktop failed. {Marshal.GetLastWin32Error()}");
+            throw new InvalidOperationException($"{nameof(_processCancel)} is null.");
         }
-        */
+
         {
             var result = User32.IsGUIThread(true);
             _logger.LogInformation($"[window manager] IsGUIThread {result} {Marshal.GetLastWin32Error()}");
@@ -838,6 +938,7 @@ internal class NativeWindow : IWindow
 
             var CW_USEDEFAULT = unchecked((int)0x80000000);
 
+            _logger.LogTrace($"[window] CreateWindowEx current {Environment.CurrentManagedThreadId:X}");
             var hWindow = new HandleRef(this,
                 User32.CreateWindowExW(
                     0,
@@ -853,7 +954,7 @@ internal class NativeWindow : IWindow
                     windowClass.HInstance,
                     IntPtr.Zero
                 ));
-            _logger.LogInformation($"[window] CreateWindowEx {hWindow.Handle:X} {Marshal.GetLastWin32Error()} current {Environment.CurrentManagedThreadId:X}");
+            _logger.LogInformation($"[window] CreateWindowEx result {hWindow.Handle:X} {Marshal.GetLastWin32Error()} current {Environment.CurrentManagedThreadId:X}");
             if (hWindow.Handle == IntPtr.Zero)
             {
                 hWindow = default;
@@ -873,7 +974,7 @@ internal class NativeWindow : IWindow
     public bool Close()
     {
         _logger.LogInformation($"[window] Close {_hWindow.Handle:X}");
-        return SendNotifyMessage(
+        return SendMessage( //SendNotifyMessage(
             0x0112, //WM_SYSCOMMAND
             (IntPtr)0xF060, //SC_CLOSE
             IntPtr.Zero
@@ -902,6 +1003,33 @@ internal class NativeWindow : IWindow
                 _logger.LogError($"[window] SendNotifyMessageW {_hWindow.Handle:X} {Marshal.GetLastWin32Error()}");
             }
             return result;
+        });
+    }
+
+    private bool SendMessage(
+        int nMsg,
+        IntPtr wParam,
+        IntPtr lParam
+    )
+    {
+        return Dispatch(() =>
+        {
+            _logger.LogInformation($"[window] SendMessageW {_hWindow.Handle:X} {nMsg:X} {wParam:X} {lParam:X} current {Environment.CurrentManagedThreadId:X}");
+            var result =
+                User32.SendMessageW(
+                    _hWindow,
+                    nMsg,
+                    wParam,
+                    lParam
+                );
+
+            var error = Marshal.GetLastWin32Error();
+            if (error != 0)
+            {
+                _logger.LogError($"[window] SendMessageW {_hWindow.Handle:X} {error}");
+                return false;
+            }
+            return true;
         });
     }
 

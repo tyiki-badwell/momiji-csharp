@@ -1,4 +1,6 @@
-﻿using System.Runtime.InteropServices;
+﻿using System;
+using System.Runtime.InteropServices;
+using Microsoft.Win32.SafeHandles;
 
 namespace Momiji.Interop.Advapi32;
 
@@ -153,6 +155,145 @@ internal static class NativeMethods
         [Out] out IntPtr newAcl
     );
 
-    
 
+    internal enum DesiredAccess : uint
+    {
+        STANDARD_RIGHTS_REQUIRED = 0x000F0000,
+        STANDARD_RIGHTS_READ = 0x00020000,
+        TOKEN_ASSIGN_PRIMARY = 0x0001,
+        TOKEN_DUPLICATE = 0x0002,
+        TOKEN_IMPERSONATE = 0x0004,
+        TOKEN_QUERY = 0x0008,
+        TOKEN_QUERY_SOURCE = 0x0010,
+        TOKEN_ADJUST_PRIVILEGES = 0x0020,
+        TOKEN_ADJUST_GROUPS = 0x0040,
+        TOKEN_ADJUST_DEFAULT = 0x0080,
+        TOKEN_ADJUST_SESSIONID = 0x0100,
+        TOKEN_READ = 
+            STANDARD_RIGHTS_READ
+            | TOKEN_QUERY,
+        TOKEN_ALL_ACCESS = 
+            STANDARD_RIGHTS_REQUIRED
+            | TOKEN_ASSIGN_PRIMARY 
+            | TOKEN_DUPLICATE 
+            | TOKEN_IMPERSONATE 
+            | TOKEN_QUERY 
+            | TOKEN_QUERY_SOURCE 
+            | TOKEN_ADJUST_PRIVILEGES 
+            | TOKEN_ADJUST_GROUPS 
+            | TOKEN_ADJUST_DEFAULT 
+            | TOKEN_ADJUST_SESSIONID
+    }
+
+    [DllImport(Libraries.Advapi32, CallingConvention = CallingConvention.Winapi, ExactSpelling = true, SetLastError = true)]
+    [DefaultDllImportSearchPaths(DllImportSearchPath.System32)]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    internal static extern bool OpenProcessToken(
+        [In] IntPtr ProcessHandle,
+        [In] DesiredAccess DesiredAccess,
+        [Out] out HToken TokenHandle
+    );
+
+    internal enum TOKEN_INFORMATION_CLASS : int
+    {
+        TokenUser = 1,
+        TokenGroups,
+        TokenPrivileges,
+        TokenOwner,
+        TokenPrimaryGroup,
+        TokenDefaultDacl,
+        TokenSource,
+        TokenType,
+        TokenImpersonationLevel,
+        TokenStatistics,
+        TokenRestrictedSids,
+        TokenSessionId,
+        TokenGroupsAndPrivileges,
+        TokenSessionReference,
+        TokenSandBoxInert,
+        TokenAuditPolicy,
+        TokenOrigin,
+        TokenElevationType,
+        TokenLinkedToken,
+        TokenElevation,
+        TokenHasRestrictions,
+        TokenAccessInformation,
+        TokenVirtualizationAllowed,
+        TokenVirtualizationEnabled,
+        TokenIntegrityLevel,
+        TokenUIAccess,
+        TokenMandatoryPolicy,
+        TokenLogonSid,
+        TokenIsAppContainer,
+        TokenCapabilities,
+        TokenAppContainerSid,
+        TokenAppContainerNumber,
+        TokenUserClaimAttributes,
+        TokenDeviceClaimAttributes,
+        TokenRestrictedUserClaimAttributes,
+        TokenRestrictedDeviceClaimAttributes,
+        TokenDeviceGroups,
+        TokenRestrictedDeviceGroups,
+        TokenSecurityAttributes,
+        TokenIsRestricted,
+        TokenProcessTrustLevel,
+        TokenPrivateNameSpace,
+        TokenSingletonAttributes,
+        TokenBnoIsolation,
+        TokenChildProcessFlags,
+        TokenIsLessPrivilegedAppContainer,
+        TokenIsSandboxed,
+        TokenIsAppSilo,
+        MaxTokenInfoClass
+    }
+
+    [DllImport(Libraries.Advapi32, CallingConvention = CallingConvention.Winapi, ExactSpelling = true, SetLastError = true)]
+    [DefaultDllImportSearchPaths(DllImportSearchPath.System32)]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    internal static extern bool GetTokenInformation(
+        [In] this HToken TokenHandle,
+        [In] TOKEN_INFORMATION_CLASS TokenInformationClass,
+        [In] IntPtr TokenInformation,
+        [In] int TokenInformationLength,
+        [Out] out int ReturnLength
+    );
+
+    [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Unicode, Pack = 0)]
+    internal struct SidAndAttributes
+    {
+        public int Sid;
+        public int Attributes;
+    };
+
+    [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Unicode, Pack = 0)]
+    internal struct TokenMandatoryLabel
+    {
+        public SidAndAttributes Label;
+    };
+
+    [DllImport(Libraries.Advapi32, CallingConvention = CallingConvention.Winapi, ExactSpelling = true, SetLastError = true)]
+    [DefaultDllImportSearchPaths(DllImportSearchPath.System32)]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    internal static extern bool LookupAccountSidW(
+        [In] IntPtr lpSystemName,
+        [In] IntPtr Sid,
+        [In] IntPtr Name,
+        [In] IntPtr cchName,
+        [In] IntPtr ReferencedDomainName,
+        [In] IntPtr cchReferencedDomainName,
+        [Out] out int peUse
+    );
+
+}
+
+internal sealed class HToken : SafeHandleZeroOrMinusOneIsInvalid
+{
+    public HToken() : base(true)
+    {
+    }
+
+    protected override bool ReleaseHandle()
+    {
+        return Kernel32.NativeMethods.CloseHandle(handle);
+    }
 }

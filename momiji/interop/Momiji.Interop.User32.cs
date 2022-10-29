@@ -380,6 +380,15 @@ internal static class NativeMethods
 
     [DllImport(Libraries.User32, CallingConvention = CallingConvention.Winapi, ExactSpelling = true, SetLastError = true)]
     [DefaultDllImportSearchPaths(DllImportSearchPath.System32)]
+    internal static extern IntPtr SendMessageW(
+        [In] HandleRef hWnd,
+        [In] int nMsg,
+        [In] IntPtr wParam,
+        [In] IntPtr lParam
+    );
+
+    [DllImport(Libraries.User32, CallingConvention = CallingConvention.Winapi, ExactSpelling = true, SetLastError = true)]
+    [DefaultDllImportSearchPaths(DllImportSearchPath.System32)]
     internal static extern IntPtr SetWindowLongPtrA(
         [In] HandleRef hWnd,
         [In] int nIndex,
