@@ -741,7 +741,7 @@ internal class Effect<T> : IEffect<T>, IDisposable where T : struct
                 );
 
                 _window.Show(
-                    5 // SW_SHOW
+                    4 // SW_SHOWNOACTIVATE
                 );
 
                 //キャプチャ先を作成

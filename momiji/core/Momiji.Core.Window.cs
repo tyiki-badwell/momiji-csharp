@@ -327,6 +327,16 @@ public class WindowManager : IDisposable, IWindowManager
             _logger.LogInformation($"[window manager] GetQueueStatus {result} {Marshal.GetLastWin32Error()}");
         }
 
+        {
+            var si = new Kernel32.STARTUPINFOW()
+            {
+                cb = Marshal.SizeOf<Kernel32.STARTUPINFOW>()
+            };
+            Kernel32.GetStartupInfoW(ref si);
+
+            _logger.LogInformation($"[window manager] GetStartupInfoW [{si.dwFlags}][{si.wShowWindow}] {Marshal.GetLastWin32Error()}");
+        }
+
         var forceCancel = false;
         var cancelled = false;
 
@@ -613,11 +623,11 @@ internal class NativeWindow : IWindow
         _hWindow = Dispatch(() => {
             var style = unchecked((int)
                 0x80000000 //WS_POPUP
-                            // 0x00000000L //WS_OVERLAPPED
-                            // | 0x00C00000L //WS_CAPTION
-                            // | 0x00080000L //WS_SYSMENU
-                            // | 0x00040000L //WS_THICKFRAME
-                            //| 0x10000000L //WS_VISIBLE
+                // 0x00000000 //WS_OVERLAPPED
+                // | 0x00C00000 //WS_CAPTION
+                // | 0x00080000 //WS_SYSMENU
+                // | 0x00040000 //WS_THICKFRAME
+                | 0x10000000 //WS_VISIBLE
                 );
 
             var CW_USEDEFAULT = unchecked((int)0x80000000);
@@ -754,12 +764,7 @@ internal class NativeWindow : IWindow
                 };
                 User32.GetWindowPlacement(_hWindow, ref wndpl);
 
-                _logger.LogInformation($"[window] GetWindowPlacement result {wndpl.showCmd}");
-
-                if (cmdShow != wndpl.showCmd)
-                {//指定した状態と異なっている
-                    throw new WindowException($"Show failed. {cmdShow} -> {wndpl.showCmd}");
-                }
+                _logger.LogInformation($"[window] GetWindowPlacement result {cmdShow} -> {wndpl.showCmd}");
             }
 
             return result;
