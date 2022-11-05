@@ -1,7 +1,9 @@
 ﻿using System.Collections.Concurrent;
+using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using Microsoft.Extensions.Logging;
 using Momiji.Core.Buffer;
+using Momiji.Interop.Vst;
 using Kernel32 = Momiji.Interop.Kernel32.NativeMethods;
 using User32 = Momiji.Interop.User32.NativeMethods;
 
@@ -28,7 +30,7 @@ public interface IWindowManager
     void Cancel();
 
     public delegate void OnPreCloseWindow();
-    public delegate void OnPostPaint(HandleRef hWindow);
+    public delegate void OnPostPaint(IntPtr hWindow);
 
     public IWindow CreateWindow(
         OnPreCloseWindow? onPreCloseWindow = default,
@@ -75,6 +77,7 @@ public class WindowManager : IDisposable, IWindowManager
     private readonly ManualResetEventSlim _queueEvent = new();
 
     private readonly ConcurrentDictionary<IntPtr, NativeWindow> _windowMap = new();
+    internal readonly ConcurrentDictionary<int, NativeWindow> _windowHashMap = new();
 
     public WindowManager(
         ILoggerFactory loggerFactory
@@ -490,27 +493,60 @@ public class WindowManager : IDisposable, IWindowManager
         var isWindowUnicode = (hwnd != IntPtr.Zero) && User32.IsWindowUnicode(hwnd);
         _logger.LogTrace("[window manager] WndProc[{hwnd:X} {msg:X} {wParam:X} {lParam:X}] current {CurrentManagedThreadId:X}", hwnd, msg, wParam, lParam, Environment.CurrentManagedThreadId);
 
-        if (_windowMap.TryGetValue(hwnd, out var window))
+        switch (msg)
         {
-            switch (msg)
-            {
-                case 0x0082://WM_NCDESTROY
-                    _logger.LogTrace("[window manager] WM_NCDESTROY[{hwnd:X} {msg:X} {wParam:X} {lParam:X} current {CurrentManagedThreadId:X}", hwnd, msg, wParam, lParam, Environment.CurrentManagedThreadId);
-                    _windowMap.TryRemove(hwnd, out var _);
-                    _logger.LogInformation("[window manager] remove window map [{hwnd:X}]", hwnd);
-                    break;
-            }
+            case 0x0081://WM_NCCREATE
+                _logger.LogTrace("[window manager] WM_NCCREATE");
 
-            //ウインドウに流す
-            var result = window.WndProc(msg, wParam, lParam, out var handled);
-            if (handled)
+                int windowHashCode;
+                unsafe
+                {
+                    var cr = Unsafe.AsRef<User32.CREATESTRUCT>((void*)lParam);
+                    _logger.LogTrace($"[window manager] CREATESTRUCT {cr.lpCreateParams:X} {cr.hwndParent:X} {cr.cy} {cr.cx} {cr.y} {cr.x} {cr.style:X} {cr.dwExStyle:X}");
+                    windowHashCode = (int)cr.lpCreateParams;
+                }
+
+                if (_windowHashMap.TryRemove(windowHashCode, out var window))
+                {
+                    _windowMap.TryAdd(hwnd, window);
+                    _logger.LogInformation("[window manager] add window map [{hwnd:X}]", hwnd);
+                }
+                else
+                {
+                    _logger.LogWarning("[window manager] unkown window handle");
+                }
+                break;
+        }
+
+        {
+            if (_windowMap.TryGetValue(hwnd, out var window))
             {
-                return result;
+                //ウインドウに流す
+                var result = window.WndProc(msg, wParam, lParam, out var handled);
+                if (handled)
+                {
+                    return result;
+                }
+            }
+            else
+            {
+                _logger.LogTrace("[window manager] unkown window handle");
             }
         }
-        else
+
+        switch (msg)
         {
-            _logger.LogTrace("[window manager] unkown window handle WndProc[{hwnd:X} {msg:X} {wParam:X} {lParam:X}] current {CurrentManagedThreadId:X}", hwnd, msg, wParam, lParam, Environment.CurrentManagedThreadId);
+            case 0x0082://WM_NCDESTROY
+                _logger.LogTrace("[window manager] WM_NCDESTROY");
+                if (_windowMap.TryRemove(hwnd, out _))
+                {
+                    _logger.LogInformation("[window manager] remove window map [{hwnd:X}]", hwnd);
+                }
+                else
+                {
+                    _logger.LogWarning("[window manager] failed. remove window map [{hwnd:X}]", hwnd);
+                }
+                break;
         }
 
         var defWndProcResult = isWindowUnicode
@@ -623,6 +659,9 @@ internal class NativeWindow : IWindow
         _onPreCloseWindow = onPreCloseWindow;
         _onPostPaint = onPostPaint;
 
+        var thisHashCode = GetHashCode();
+        _windowManager._windowHashMap.TryAdd(thisHashCode, this);
+
         _hWindow = Dispatch(() => {
             var style = unchecked((int)
                 0x80000000 //WS_POPUP
@@ -649,7 +688,7 @@ internal class NativeWindow : IWindow
                     IntPtr.Zero,
                     IntPtr.Zero,
                     windowClass.HInstance,
-                    IntPtr.Zero
+                    new IntPtr(thisHashCode)
                 );
             var error = Marshal.GetLastWin32Error();
             _logger.LogInformation("[window] CreateWindowEx result {hWindow:X} {error} current {CurrentManagedThreadId:X}", hWindow, error, Environment.CurrentManagedThreadId);
@@ -780,10 +819,6 @@ internal class NativeWindow : IWindow
 
         switch (msg)
         {
-            case 0x0002://WM_DESTROY
-                _logger.LogTrace("[window] WM_DESTROY");
-                break;
-
             case 0x0082://WM_NCDESTROY
                 _logger.LogTrace("[window] WM_NCDESTROY");
                 _hWindow = default;
@@ -890,7 +925,7 @@ internal class NativeWindow : IWindow
                 _logger.LogTrace("[window] SubWndProc WM_PAINT");
                 try
                 {
-                    _onPostPaint?.Invoke(new HandleRef(this, hwnd));
+                    _onPostPaint?.Invoke(hwnd);
                 }
                 catch (Exception e)
                 {

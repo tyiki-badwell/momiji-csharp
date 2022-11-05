@@ -786,7 +786,7 @@ internal class Effect<T> : IEffect<T>, IDisposable where T : struct
         bitmap = default;
         */
     }
-    private void OnPostPaint(HandleRef hWnd)
+    private void OnPostPaint(IntPtr hWnd)
     {
         /*
         using var g = Graphics.FromImage(bitmap);

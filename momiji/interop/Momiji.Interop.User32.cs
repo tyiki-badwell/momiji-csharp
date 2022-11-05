@@ -1,4 +1,5 @@
-﻿using System.Runtime.InteropServices;
+﻿using System;
+using System.Runtime.InteropServices;
 using Microsoft.Win32.SafeHandles;
 
 namespace Momiji.Interop.User32;
@@ -176,10 +177,10 @@ internal static class NativeMethods
     internal static extern HDesktop GetThreadDesktop(int dwThreadId);
 
     [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Unicode)]
-    public struct WNDCLASS
+    internal struct WNDCLASS
     {
         [Flags]
-        public enum CS : uint
+        internal enum CS : uint
         {
             NONE    = 0,
             VREDRAW = 0x00000001,
@@ -210,7 +211,7 @@ internal static class NativeMethods
     }
 
     [UnmanagedFunctionPointer(CallingConvention.Winapi, CharSet = CharSet.Ansi, SetLastError = false)]
-    public delegate IntPtr WNDPROC(IntPtr hWnd, uint msg, IntPtr wParam, IntPtr lParam);
+    internal delegate IntPtr WNDPROC(IntPtr hWnd, uint msg, IntPtr wParam, IntPtr lParam);
 
     [DllImport(Libraries.User32, CallingConvention = CallingConvention.Winapi, ExactSpelling = true, SetLastError = true)]
     [DefaultDllImportSearchPaths(DllImportSearchPath.System32)]
@@ -267,6 +268,23 @@ internal static class NativeMethods
         [In] IntPtr hInst,
         [In] IntPtr pvParam
     );
+
+    [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Unicode)]
+    internal struct CREATESTRUCT
+    {
+        public IntPtr lpCreateParams;
+        public IntPtr hInstance;
+        public IntPtr hMenu;
+        public IntPtr hwndParent;
+        public int cy;
+        public int cx;
+        public int y;
+        public int x;
+        public long style;
+        public IntPtr lpszName;
+        public IntPtr lpszClass;
+        public int dwExStyle;
+    }
 
     [DllImport(Libraries.User32, CallingConvention = CallingConvention.Winapi, ExactSpelling = true, SetLastError = true)]
     [DefaultDllImportSearchPaths(DllImportSearchPath.System32)]
