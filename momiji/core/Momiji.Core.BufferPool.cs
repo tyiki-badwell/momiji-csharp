@@ -36,7 +36,7 @@ public class BufferPool<T> : IDisposable, IReceivableSourceBlock<T>, ITargetBloc
     {
         var buffer = _allocator();
         _list.Add(buffer);
-        _logger.LogInformation($"AddBuffer[{_genericTypeName}] [{_list.Count}]");
+        _logger.LogInformation("AddBuffer[{_genericTypeName}] [{Count}]", _genericTypeName, _list.Count);
         return buffer;
     }
     ~BufferPool()
@@ -52,11 +52,14 @@ public class BufferPool<T> : IDisposable, IReceivableSourceBlock<T>, ITargetBloc
 
     protected virtual void Dispose(bool disposing)
     {
-        if (_disposed) return;
+        if (_disposed)
+        {
+            return;
+        }
 
         if (disposing)
         {
-            _logger.LogInformation($"Dispose buffer size[{_list.Count}][{_genericTypeName}]");
+            _logger.LogInformation("Dispose [{_genericTypeName}] buffer size[{_list.Count}]", _genericTypeName, _list.Count);
             _list.ForEach(item => item.Dispose());
             _list.Clear();
         }

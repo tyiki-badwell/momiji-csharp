@@ -111,7 +111,7 @@ public class WindowManager : IDisposable, IWindowManager
 
         if (disposing)
         {
-            _logger.LogInformation($"[window manager] disposing");
+            _logger.LogInformation("[window manager] disposing");
             try
             {
                 Cancel();
@@ -181,7 +181,7 @@ public class WindowManager : IDisposable, IWindowManager
 
     private void Dispatch(Action item)
     {
-        _logger.LogInformation($"[window manager] Dispatch {Environment.CurrentManagedThreadId:X}");
+        _logger.LogInformation("[window manager] Dispatch {CurrentManagedThreadId:X}", Environment.CurrentManagedThreadId);
         if (_processCancel == default)
         {
             throw new WindowException("message loop is not exists.");
@@ -243,7 +243,7 @@ public class WindowManager : IDisposable, IWindowManager
             {
                 Cancel();
 
-                _logger.LogInformation(task.Exception, $"[window manager] task end");
+                _logger.LogInformation(task.Exception, "[window manager] task end");
 
                 _processTask = default;
 
@@ -271,7 +271,7 @@ public class WindowManager : IDisposable, IWindowManager
                 WindowDebug.CheckDesktop(_loggerFactory);
 
                 MessageLoop();
-                _logger.LogInformation($"[window manager] message loop normal end");
+                _logger.LogInformation("[window manager] message loop normal end");
                 tcs.SetResult(true);
             }
             catch (Exception e)
@@ -287,12 +287,12 @@ public class WindowManager : IDisposable, IWindowManager
         };
 
         thread.SetApartmentState(ApartmentState.STA);
-        _logger.LogInformation($"[window manager] GetApartmentState {thread.GetApartmentState()}");
+        _logger.LogInformation("[window manager] GetApartmentState {GetApartmentState}", thread.GetApartmentState());
         _uiThreadId = thread.ManagedThreadId;
         thread.Start();
 
         await tcs.Task.ContinueWith((_) => {
-            _logger.LogInformation($"[window manager] message loop task end");
+            _logger.LogInformation("[window manager] message loop task end");
             _uiThreadId = default;
         }).ConfigureAwait(false);
 
@@ -300,9 +300,11 @@ public class WindowManager : IDisposable, IWindowManager
 
         if (!_windowMap.IsEmpty)
         {
-            _logger.LogWarning($"[window manager] window left {_windowMap.Count}");
-
-            //TODO メッセージループが止まった後でウインドウを破棄する方法？
+            _logger.LogWarning("[window manager] window left {Count}", _windowMap.Count);
+            foreach (var hwnd in _windowMap.Keys)
+            {
+                User32.DestroyWindow(hwnd);
+            }
         }
 
     }
@@ -316,7 +318,7 @@ public class WindowManager : IDisposable, IWindowManager
 
         {
             var result = User32.IsGUIThread(true);
-            _logger.LogInformation($"[window manager] IsGUIThread {result} {Marshal.GetLastWin32Error()}");
+            _logger.LogInformation("[window manager] IsGUIThread {result} {GetLastWin32Error}", result, Marshal.GetLastWin32Error());
         }
 
         { //メッセージキューが無ければ作られるハズ
@@ -324,7 +326,7 @@ public class WindowManager : IDisposable, IWindowManager
                 User32.GetQueueStatus(
                     0x04FF //QS_ALLINPUT
                 );
-            _logger.LogInformation($"[window manager] GetQueueStatus {result} {Marshal.GetLastWin32Error()}");
+            _logger.LogInformation("[window manager] GetQueueStatus {result} {GetLastWin32Error}", result, Marshal.GetLastWin32Error());
         }
 
         {
@@ -334,7 +336,7 @@ public class WindowManager : IDisposable, IWindowManager
             };
             Kernel32.GetStartupInfoW(ref si);
 
-            _logger.LogInformation($"[window manager] GetStartupInfoW [{si.dwFlags}][{si.wShowWindow}] {Marshal.GetLastWin32Error()}");
+            _logger.LogInformation("[window manager] GetStartupInfoW [{dwFlags}][{wShowWindow}] {GetLastWin32Error}", si.dwFlags, si.wShowWindow, Marshal.GetLastWin32Error());
         }
 
         var forceCancel = false;
@@ -348,7 +350,7 @@ public class WindowManager : IDisposable, IWindowManager
          });
         var handleCount = waitHandlesPin.Target.Length;
 
-        _logger.LogInformation($"[window manager] start message loop. current {Environment.CurrentManagedThreadId:X}");
+        _logger.LogInformation("[window manager] start message loop. current {CurrentManagedThreadId:X}", Environment.CurrentManagedThreadId);
         while (true)
         {
             if (forceCancel)
@@ -382,7 +384,7 @@ public class WindowManager : IDisposable, IWindowManager
             }
 
             {
-                _logger.LogTrace($"[window manager] MsgWaitForMultipleObjectsEx current {Environment.CurrentManagedThreadId:X}");
+                _logger.LogTrace("[window manager] MsgWaitForMultipleObjectsEx current {CurrentManagedThreadId:X}", Environment.CurrentManagedThreadId);
                 var res =
                     User32.MsgWaitForMultipleObjectsEx(
                         (uint)handleCount,
@@ -393,31 +395,31 @@ public class WindowManager : IDisposable, IWindowManager
                     );
                 if (res == 258) // WAIT_TIMEOUT
                 {
-                    _logger.LogTrace($"[window manager] MsgWaitForMultipleObjectsEx timeout.");
+                    _logger.LogTrace("[window manager] MsgWaitForMultipleObjectsEx timeout.");
                     continue;
                 }
                 else if (res == 0) // WAIT_OBJECT_0
                 {
-                    _logger.LogTrace($"[window manager] MsgWaitForMultipleObjectsEx comes queue event.");
+                    _logger.LogTrace("[window manager] MsgWaitForMultipleObjectsEx comes queue event.");
                     _queueEvent.Reset();
                     //ディスパッチ
                     while (_queue.TryDequeue(out var result))
                     {
-                        _logger.LogTrace($"[window manager] Invoke current {Environment.CurrentManagedThreadId:X}");
+                        _logger.LogTrace("[window manager] Invoke current {CurrentManagedThreadId:X}", Environment.CurrentManagedThreadId);
                         result.Invoke();
                     }
                     continue;
                 }
                 else if (res == 1) // WAIT_OBJECT_0+1
                 {
-                    _logger.LogTrace($"[window manager] MsgWaitForMultipleObjectsEx comes cancel event.");
+                    _logger.LogTrace("[window manager] MsgWaitForMultipleObjectsEx comes cancel event.");
                     //ctがシグナル状態になりっぱなしになるので、リストから外す
                     handleCount--;
                     continue;
                 }
                 else if (res == handleCount) // WAIT_OBJECT_0+2
                 {
-                    _logger.LogTrace($"[window manager] MsgWaitForMultipleObjectsEx comes message.");
+                    _logger.LogTrace("[window manager] MsgWaitForMultipleObjectsEx comes message.");
                     DispatchMessage();
                     continue;
                 }
@@ -436,7 +438,7 @@ public class WindowManager : IDisposable, IWindowManager
 
         while (true)
         {
-            _logger.LogTrace($"[window manager] PeekMessage current {Environment.CurrentManagedThreadId:X}");
+            _logger.LogTrace("[window manager] PeekMessage current {CurrentManagedThreadId:X}", Environment.CurrentManagedThreadId);
             if (!User32.PeekMessageW(
                     ref msg,
                     IntPtr.Zero,
@@ -448,19 +450,19 @@ public class WindowManager : IDisposable, IWindowManager
                 _logger.LogTrace("[window manager] PeekMessage NONE");
                 return;
             }
-            _logger.LogTrace($"[window manager] MSG {msg.hwnd:X} {msg.message:X} {msg.wParam:X} {msg.lParam:X} {msg.time} {msg.pt_x} {msg.pt_y}");
+            _logger.LogTrace("[window manager] MSG {hwnd:X} {message:X} {wParam:X} {lParam:X} {time} {pt_x} {pt_y}", msg.hwnd, msg.message, msg.wParam, msg.lParam, msg.time, msg.pt_x, msg.pt_y);
 
             var IsWindowUnicode = (msg.hwnd != IntPtr.Zero) && User32.IsWindowUnicode(msg.hwnd);
-            //Logger.LogInformation($"[window] IsWindowUnicode {IsWindowUnicode}");
+            _logger.LogTrace("[window] IsWindowUnicode {IsWindowUnicode}", IsWindowUnicode);
 
             {
                 var ret = User32.InSendMessageEx(IntPtr.Zero);
-                _logger.LogTrace($"[window manager] InSendMessageEx {ret:X}");
+                _logger.LogTrace("[window manager] InSendMessageEx {ret:X}", ret);
                 if ((ret & (0x00000008 | 0x00000001)) == 0x00000001) //ISMEX_SEND
                 {
                     _logger.LogTrace("[window manager] ISMEX_SEND");
                     var ret2 = User32.ReplyMessage(new IntPtr(1));
-                    _logger.LogTrace($"[window manager] ReplyMessage {ret2} {Marshal.GetLastWin32Error()}");
+                    _logger.LogTrace("[window manager] ReplyMessage {ret2} {GetLastWin32Error}", ret2, Marshal.GetLastWin32Error());
                 }
             }
 
@@ -469,7 +471,7 @@ public class WindowManager : IDisposable, IWindowManager
             {
                 _logger.LogTrace("[window manager] TranslateMessage");
                 var ret = User32.TranslateMessage(ref msg);
-                _logger.LogTrace($"[window manager] TranslateMessage {ret} {Marshal.GetLastWin32Error()}");
+                _logger.LogTrace("[window manager] TranslateMessage {ret} {GetLastWin32Error}", ret, Marshal.GetLastWin32Error());
             }
 
             {
@@ -478,7 +480,7 @@ public class WindowManager : IDisposable, IWindowManager
                             ? User32.DispatchMessageW(ref msg)
                             : User32.DispatchMessageA(ref msg)
                             ;
-                _logger.LogTrace($"[window manager] DispatchMessage {ret} {Marshal.GetLastWin32Error()}");
+                _logger.LogTrace("[window manager] DispatchMessage {ret} {GetLastWin32Error}", ret, Marshal.GetLastWin32Error());
             }
         }
     }
@@ -486,16 +488,16 @@ public class WindowManager : IDisposable, IWindowManager
     private IntPtr WndProc(IntPtr hwnd, uint msg, IntPtr wParam, IntPtr lParam)
     {
         var isWindowUnicode = (hwnd != IntPtr.Zero) && User32.IsWindowUnicode(hwnd);
-        _logger.LogTrace($"[window manager] WndProc[{hwnd:X} {msg:X} {wParam:X} {lParam:X}] current {Environment.CurrentManagedThreadId:X}");
+        _logger.LogTrace("[window manager] WndProc[{hwnd:X} {msg:X} {wParam:X} {lParam:X}] current {CurrentManagedThreadId:X}", hwnd, msg, wParam, lParam, Environment.CurrentManagedThreadId);
 
         if (_windowMap.TryGetValue(hwnd, out var window))
         {
             switch (msg)
             {
                 case 0x0082://WM_NCDESTROY
-                    _logger.LogTrace($"[window manager] WM_NCDESTROY[{hwnd:X} {msg:X} {wParam:X} {lParam:X} current {Environment.CurrentManagedThreadId:X}");
+                    _logger.LogTrace("[window manager] WM_NCDESTROY[{hwnd:X} {msg:X} {wParam:X} {lParam:X} current {CurrentManagedThreadId:X}", hwnd, msg, wParam, lParam, Environment.CurrentManagedThreadId);
                     _windowMap.TryRemove(hwnd, out var _);
-                    _logger.LogInformation($"[window manager] remove window map [{hwnd:X}]");
+                    _logger.LogInformation("[window manager] remove window map [{hwnd:X}]", hwnd);
                     break;
             }
 
@@ -508,7 +510,7 @@ public class WindowManager : IDisposable, IWindowManager
         }
         else
         {
-            _logger.LogWarning($"[window manager] unkown window handle [{hwnd:X}]");
+            _logger.LogTrace("[window manager] unkown window handle WndProc[{hwnd:X} {msg:X} {wParam:X} {lParam:X}] current {CurrentManagedThreadId:X}", hwnd, msg, wParam, lParam, Environment.CurrentManagedThreadId);
         }
 
         var defWndProcResult = isWindowUnicode
@@ -516,7 +518,7 @@ public class WindowManager : IDisposable, IWindowManager
             : User32.DefWindowProcA(hwnd, msg, wParam, lParam)
             ;
 
-        _logger.LogTrace($"[window manager] DefWindowProc [{defWndProcResult:X}]");
+        _logger.LogTrace("[window manager] DefWindowProc [{defWndProcResult:X}]", defWndProcResult);
         return defWndProcResult;
     }
 
@@ -553,10 +555,11 @@ internal class WindowClass : IDisposable
         };
 
         var atom = User32.RegisterClassW(ref _windowClass);
-        _logger.LogInformation($"[window class] RegisterClass {_windowClass.lpszClassName} {atom} {Marshal.GetLastWin32Error()}");
+        var error = Marshal.GetLastWin32Error();
+        _logger.LogInformation("[window class] RegisterClass {lpszClassName} {atom} {GetLastWin32Error}", _windowClass.lpszClassName, atom, error);
         if (atom == 0)
         {
-            throw new WindowException($"RegisterClass failed [{Marshal.GetLastWin32Error()}]");
+            throw new WindowException($"RegisterClass failed [{error}]");
         }
     }
 
@@ -580,11 +583,11 @@ internal class WindowClass : IDisposable
 
         if (disposing)
         {
-            _logger.LogInformation($"[window class] disposing");
+            _logger.LogInformation("[window class] disposing");
         }
 
         var result = User32.UnregisterClassW(_windowClass.lpszClassName, _windowClass.hInstance);
-        _logger.LogInformation($"[window class] UnregisterClass {_windowClass.lpszClassName} {result} {Marshal.GetLastWin32Error()}");
+        _logger.LogInformation("[window class] UnregisterClass {lpszClassName} {result} {GetLastWin32Error}", _windowClass.lpszClassName, result, Marshal.GetLastWin32Error());
 
         Marshal.FreeHGlobal(_windowClass.lpszClassName);
 
@@ -632,7 +635,7 @@ internal class NativeWindow : IWindow
 
             var CW_USEDEFAULT = unchecked((int)0x80000000);
 
-            _logger.LogTrace($"[window] CreateWindowEx current {Environment.CurrentManagedThreadId:X}");
+            _logger.LogTrace("[window] CreateWindowEx current {CurrentManagedThreadId:X}", Environment.CurrentManagedThreadId);
             var hWindow =
                 User32.CreateWindowExW(
                     0,
@@ -649,7 +652,7 @@ internal class NativeWindow : IWindow
                     IntPtr.Zero
                 );
             var error = Marshal.GetLastWin32Error();
-            _logger.LogInformation($"[window] CreateWindowEx result {hWindow:X} {error} current {Environment.CurrentManagedThreadId:X}");
+            _logger.LogInformation("[window] CreateWindowEx result {hWindow:X} {error} current {CurrentManagedThreadId:X}", hWindow, error, Environment.CurrentManagedThreadId);
             if (hWindow == IntPtr.Zero)
             {
                 hWindow = default;
@@ -669,7 +672,7 @@ internal class NativeWindow : IWindow
 
     public bool Close()
     {
-        _logger.LogInformation($"[window] Close {_hWindow:X}");
+        _logger.LogInformation("[window] Close {_hWindow:X}", _hWindow);
         return SendMessage(
             0x0010, //WM_CLOSE
             IntPtr.Zero,
@@ -693,7 +696,7 @@ internal class NativeWindow : IWindow
     {
         return Dispatch(() =>
         {
-            _logger.LogInformation($"[window] SendMessageW {_hWindow:X} {nMsg:X} {wParam:X} {lParam:X} current {Environment.CurrentManagedThreadId:X}");
+            _logger.LogInformation("[window] SendMessageW {_hWindow:X} {nMsg:X} {wParam:X} {lParam:X} current {CurrentManagedThreadId:X}", _hWindow, nMsg, wParam, lParam, Environment.CurrentManagedThreadId);
             var result =
                 User32.SendMessageW(
                     _hWindow,
@@ -705,7 +708,7 @@ internal class NativeWindow : IWindow
             var error = Marshal.GetLastWin32Error();
             if (error != 0)
             {
-                _logger.LogError($"[window] SendMessageW {_hWindow:X} {error}");
+                _logger.LogError("[window] SendMessageW {_hWindow:X} {error}", _hWindow, error);
                 return false;
             }
             return true;
@@ -722,7 +725,7 @@ internal class NativeWindow : IWindow
     {
         return Dispatch(() =>
         {
-            _logger.LogInformation($"[window] MoveWindow {_hWindow:X} {x} {y} {width} {height} {repaint} current {Environment.CurrentManagedThreadId:X}");
+            _logger.LogInformation("[window] MoveWindow {_hWindow:X} {x} {y} {width} {height} {repaint} current {CurrentManagedThreadId:X}", _hWindow, x, y, width, height, repaint, Environment.CurrentManagedThreadId);
             var result =
                 User32.MoveWindow(
                     _hWindow,
@@ -735,7 +738,7 @@ internal class NativeWindow : IWindow
 
             if (!result)
             {
-                _logger.LogError($"[window] MoveWindow {_hWindow:X} {Marshal.GetLastWin32Error()}");
+                _logger.LogError("[window] MoveWindow {_hWindow:X} {GetLastWin32Error}", _hWindow, Marshal.GetLastWin32Error());
             }
             return result;
         });
@@ -747,7 +750,7 @@ internal class NativeWindow : IWindow
     {
         return Dispatch(() =>
         {
-            _logger.LogInformation($"[window] ShowWindow {_hWindow:X} {cmdShow} current {Environment.CurrentManagedThreadId:X}");
+            _logger.LogInformation("[window] ShowWindow {_hWindow:X} {cmdShow} current {CurrentManagedThreadId:X}", _hWindow, cmdShow, Environment.CurrentManagedThreadId);
             var result =
                 User32.ShowWindow(
                     _hWindow,
@@ -755,7 +758,7 @@ internal class NativeWindow : IWindow
                 );
 
             //result=0: 実行前は非表示だった/ <>0:実行前から表示されていた
-            _logger.LogInformation($"[window] ShowWindow {_hWindow:X} {result} {Marshal.GetLastWin32Error()}");
+            _logger.LogInformation("[window] ShowWindow {_hWindow:X} {result} {GetLastWin32Error}", _hWindow, result, Marshal.GetLastWin32Error());
 
             {
                 var wndpl = new User32.WINDOWPLACEMENT()
@@ -764,7 +767,7 @@ internal class NativeWindow : IWindow
                 };
                 User32.GetWindowPlacement(_hWindow, ref wndpl);
 
-                _logger.LogInformation($"[window] GetWindowPlacement result {cmdShow} -> {wndpl.showCmd}");
+                _logger.LogInformation("[window] GetWindowPlacement result {cmdShow} -> {showCmd}", cmdShow, wndpl.showCmd);
             }
 
             return result;
@@ -773,21 +776,21 @@ internal class NativeWindow : IWindow
     internal IntPtr WndProc(uint msg, IntPtr wParam, IntPtr lParam, out bool handled)
     {
         handled = false;
-        _logger.LogTrace($"[window] WndProc[{_hWindow:X} {msg:X} {wParam:X} {lParam:X} current {Environment.CurrentManagedThreadId:X}");
+        _logger.LogTrace("[window] WndProc[{_hWindow:X} {msg:X} {wParam:X} {lParam:X}] current {CurrentManagedThreadId:X}", _hWindow, msg, wParam, lParam, Environment.CurrentManagedThreadId);
 
         switch (msg)
         {
-            //case 0x0002://WM_DESTROY
-            //    _logger.LogInformation($"[window] WM_DESTROY[{_hWindow:X} {msg:X} {wParam:X} {lParam:X} current {Environment.CurrentManagedThreadId:X}");
-            //    break;
+            case 0x0002://WM_DESTROY
+                _logger.LogTrace("[window] WM_DESTROY");
+                break;
 
             case 0x0082://WM_NCDESTROY
-                _logger.LogTrace($"[window] WM_NCDESTROY[{_hWindow:X} {msg:X} {wParam:X} {lParam:X} current {Environment.CurrentManagedThreadId:X}");
+                _logger.LogTrace("[window] WM_NCDESTROY");
                 _hWindow = default;
                 break;
 
             case 0x0010://WM_CLOSE
-                _logger.LogTrace($"[window] WM_CLOSE[{_hWindow:X} {msg:X} {wParam:X} {lParam:X} current {Environment.CurrentManagedThreadId:X}");
+                _logger.LogTrace("[window] WM_CLOSE");
                 try
                 {
                     _onPreCloseWindow?.Invoke();
@@ -797,23 +800,23 @@ internal class NativeWindow : IWindow
                     _logger.LogError(e, "[window] onPreCloseWindow error");
                 }
 
-                _logger.LogTrace($"[window] DestroyWindow {_hWindow:X} current {Environment.CurrentManagedThreadId:X}");
+                _logger.LogTrace("[window] DestroyWindow {_hWindow:X} current {CurrentManagedThreadId:X}", _hWindow, Environment.CurrentManagedThreadId);
                 var result = User32.DestroyWindow(_hWindow);
                 if (!result)
                 {
-                    _logger.LogError($"[window] DestroyWindow {_hWindow:X} {Marshal.GetLastWin32Error()}");
+                    _logger.LogError("[window] DestroyWindow {_hWindow:X} {GetLastWin32Error}", _hWindow, Marshal.GetLastWin32Error());
                 }
 
                 handled = true;
                 break;
 
             case 0x0210://WM_PARENTNOTIFY
-                _logger.LogTrace($"[window] WM_PARENTNOTIFY [{wParam:X} {lParam:X}]");
+                _logger.LogTrace("[window] WM_PARENTNOTIFY");
                 switch ((int)wParam & 0xFFFF)
                 {
                     case 0x0001: //WM_CREATE
                         {
-                            _logger.LogTrace($"[window] WM_PARENTNOTIFY [{wParam:X}(WM_CREATE) {lParam:X}]");
+                            _logger.LogTrace("[window] WM_PARENTNOTIFY WM_CREATE");
                             var childHWnd = lParam;
                             var isChildeWindowUnicode = (lParam != IntPtr.Zero) && User32.IsWindowUnicode(childHWnd);
                             var subWndProc = new PinnedDelegate<User32.WNDPROC>(new(SubWndProc));
@@ -831,7 +834,7 @@ internal class NativeWindow : IWindow
                         }
                     case 0x0002: //WM_DESTROY
                         {
-                            _logger.LogTrace($"[window] WM_PARENTNOTIFY [{wParam:X}(WM_DESTROY) {lParam:X}]");
+                            _logger.LogTrace("[window] WM_PARENTNOTIFY WM_DESTROY");
                             var childHWnd = lParam;
                             if (_oldWndProcMap.TryRemove(childHWnd, out var pair))
                             {
@@ -859,14 +862,14 @@ internal class NativeWindow : IWindow
 
     private IntPtr SubWndProc(IntPtr hwnd, uint msg, IntPtr wParam, IntPtr lParam)
     {
-        _logger.LogTrace($"[window] SubWndProc[{hwnd:X} {msg:X} {wParam:X} {lParam:X}] current {Environment.CurrentManagedThreadId:X}");
+        _logger.LogTrace("[window] SubWndProc[{hwnd:X} {msg:X} {wParam:X} {lParam:X}] current {CurrentManagedThreadId:X}", hwnd, msg, wParam, lParam, Environment.CurrentManagedThreadId);
 
         var isWindowUnicode = (hwnd != IntPtr.Zero) && User32.IsWindowUnicode(hwnd);
         IntPtr result;
 
         if (_oldWndProcMap.TryGetValue(hwnd, out var pair))
         {
-            _logger.LogTrace($"[window] CallWindowProc [{pair.Item1:X} {hwnd:X} {msg:X} {wParam:X} {lParam:X}] current {Environment.CurrentManagedThreadId:X}");
+            _logger.LogTrace("[window] CallWindowProc [{pair.Item1:X}]", pair.Item1);
             result = isWindowUnicode
                         ? User32.CallWindowProcW(pair.Item1, hwnd, msg, wParam, lParam)
                         : User32.CallWindowProcA(pair.Item1, hwnd, msg, wParam, lParam)
@@ -874,7 +877,7 @@ internal class NativeWindow : IWindow
         }
         else
         {
-            _logger.LogWarning($"[window] unkown hwnd -> DefWindowProc [{hwnd:X} {msg:X} {wParam:X} {lParam:X}] current {Environment.CurrentManagedThreadId:X}");
+            _logger.LogWarning("[window] unkown hwnd -> DefWindowProc");
             result = isWindowUnicode
                         ? User32.DefWindowProcW(hwnd, msg, wParam, lParam)
                         : User32.DefWindowProcA(hwnd, msg, wParam, lParam)
@@ -884,7 +887,7 @@ internal class NativeWindow : IWindow
         switch (msg)
         {
             case 0x000F://WM_PAINT
-                _logger.LogTrace($"[window] SubWndProc WM_PAINT[{hwnd:X} {msg:X} {wParam:X} {lParam:X} current {Environment.CurrentManagedThreadId:X}");
+                _logger.LogTrace("[window] SubWndProc WM_PAINT");
                 try
                 {
                     _onPostPaint?.Invoke(new HandleRef(this, hwnd));

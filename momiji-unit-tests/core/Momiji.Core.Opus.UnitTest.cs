@@ -31,7 +31,7 @@ public class OpusUnitTest
 
         using var loggerFactory = LoggerFactory.Create(builder =>
         {
-            builder.AddFilter("Momiji", LogLevel.Debug);
+            builder.AddFilter("Momiji", LogLevel.Trace);
             builder.AddFilter("Microsoft", LogLevel.Warning);
             builder.AddFilter("System", LogLevel.Warning);
             builder.AddConsole();

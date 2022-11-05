@@ -36,29 +36,11 @@ public class ElapsedTimeCounter
         _startTimestamp = Stopwatch.GetTimestamp();
     }
 
-    public long Elapsed
-    {
-        get
-        {
-            return Stopwatch.GetTimestamp() - _startTimestamp;
-        }
-    }
+    public long Elapsed => Stopwatch.GetTimestamp() - _startTimestamp;
 
-    public long ElapsedTicks
-    {
-        get
-        {
-            return (Elapsed * 10_000_000) / Stopwatch.Frequency;
-        }
-    }
+    public long ElapsedTicks => Elapsed * 10_000_000 / Stopwatch.Frequency;
 
-    public long NowTicks
-    {
-        get
-        {
-            return _startTicks + ElapsedTicks;
-        }
-    }
+    public long NowTicks => _startTicks + ElapsedTicks;
 }
 
 public class Waiter : IDisposable
@@ -159,7 +141,10 @@ public class Waiter : IDisposable
 
     protected virtual void Dispose(bool disposing)
     {
-        if (_disposed) return;
+        if (_disposed)
+        {
+            return;
+        }
 
         if (disposing)
         {

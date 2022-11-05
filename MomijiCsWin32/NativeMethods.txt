@@ -1,16 +1,4 @@
-﻿
-CreateWindowStation
-CloseWindowStation
-OpenWindowStationW
-SetProcessWindowStation
-GetProcessWindowStation
-
-CreateDesktopExW
-CloseDesktop
-OpenDesktopW
-OpenInputDesktop
-SetThreadDesktop
-GetThreadDesktop
+﻿GetStartupInfoW
 
 D3D11CreateDevice
 CreateDirect3D11DeviceFromDXGIDevice
