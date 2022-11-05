@@ -77,7 +77,7 @@ public class WindowManager : IDisposable, IWindowManager
     private readonly ManualResetEventSlim _queueEvent = new();
 
     private readonly ConcurrentDictionary<IntPtr, NativeWindow> _windowMap = new();
-    internal readonly ConcurrentDictionary<int, NativeWindow> _windowHashMap = new();
+    private readonly ConcurrentDictionary<int, NativeWindow> _windowHashMap = new();
 
     public WindowManager(
         ILoggerFactory loggerFactory
@@ -203,12 +203,14 @@ public class WindowManager : IDisposable, IWindowManager
             new NativeWindow(
                 _loggerFactory,
                 this,
-                _windowClass,
                 onPreCloseWindow,
                 onPostPaint
             );
 
-        _windowMap.TryAdd(window.Handle, window);
+        _windowHashMap.TryAdd(window.GetHashCode(), window);
+
+        window.CreateWindow(_windowClass);
+
         return window;
     }
 
@@ -647,7 +649,6 @@ internal class NativeWindow : IWindow
     internal NativeWindow(
         ILoggerFactory loggerFactory,
         WindowManager windowManager,
-        WindowClass windowClass,
         IWindowManager.OnPreCloseWindow? onPreCloseWindow = default,
         IWindowManager.OnPostPaint? onPostPaint = default
     )
@@ -659,16 +660,27 @@ internal class NativeWindow : IWindow
         _onPreCloseWindow = onPreCloseWindow;
         _onPostPaint = onPostPaint;
 
+        _logger.LogInformation("[window] Create end");
+    }
+
+    public T Dispatch<T>(Func<T> item)
+    {
+        return _windowManager.Dispatch(item);
+    }
+
+    internal void CreateWindow(
+        WindowClass windowClass
+    )
+    {
         var thisHashCode = GetHashCode();
-        _windowManager._windowHashMap.TryAdd(thisHashCode, this);
 
         _hWindow = Dispatch(() => {
             var style = unchecked((int)
                 0x80000000 //WS_POPUP
-                // 0x00000000 //WS_OVERLAPPED
-                // | 0x00C00000 //WS_CAPTION
-                // | 0x00080000 //WS_SYSMENU
-                // | 0x00040000 //WS_THICKFRAME
+                           // 0x00000000 //WS_OVERLAPPED
+                           // | 0x00C00000 //WS_CAPTION
+                           // | 0x00080000 //WS_SYSMENU
+                           // | 0x00040000 //WS_THICKFRAME
                 | 0x10000000 //WS_VISIBLE
                 );
 
@@ -700,13 +712,6 @@ internal class NativeWindow : IWindow
 
             return hWindow;
         });
-
-        _logger.LogInformation("[window] Create end");
-    }
-
-    public T Dispatch<T>(Func<T> item)
-    {
-        return _windowManager.Dispatch(item);
     }
 
     public bool Close()
