@@ -1,4 +1,5 @@
-﻿using System.Diagnostics;
+﻿using System.Data;
+using System.Diagnostics;
 using System.Runtime.InteropServices;
 using System.Security.AccessControl;
 using System.Security.Principal;
@@ -83,6 +84,7 @@ public class WindowDebug
         HDesktop desktop
     )
     {
+        try
         {
             var windowSecurity = new WindowSecurity(desktop);
             logger.LogInformation($"[window debug] SecurityInfo owner:{windowSecurity.GetOwner(typeof(NTAccount))}({windowSecurity.GetOwner(typeof(SecurityIdentifier))})");
@@ -96,13 +98,16 @@ public class WindowDebug
                 {
                     continue;
                 }
-                logger.LogInformation($"[window debug] AccessRule:{rule.IdentityReference} {Enum.ToObject(typeof(User32.DESKTOP_ACCESS_MASK),rule.Rights)}");
+                logger.LogInformation($"[window debug] AccessRule:{rule.IdentityReference} {Enum.ToObject(typeof(User32.DESKTOP_ACCESS_MASK), rule.Rights)}");
             }
         }
+        catch (Exception e)
+        {
+            logger.LogError(e, "[window debug] WindowSecurity error");
+        }
     }
-
     private static void PrintAccountFromSid(
-        ILogger logger, 
+    ILogger logger, 
         IntPtr sid
     )
     {
