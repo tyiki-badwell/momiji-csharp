@@ -3,7 +3,6 @@ using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using Microsoft.Extensions.Logging;
 using Momiji.Core.Buffer;
-using Momiji.Interop.Vst;
 using Kernel32 = Momiji.Interop.Kernel32.NativeMethods;
 using User32 = Momiji.Interop.User32.NativeMethods;
 

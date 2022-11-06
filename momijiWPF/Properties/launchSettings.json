@@ -1,9 +1,0 @@
-{
-  "profiles": {
-    "MomijiWPF": {
-      "commandName": "Project",
-      "nativeDebugging": true,
-      "hotReloadEnabled": false
-    }
-  }
-}

@@ -1,8 +1,8 @@
 ﻿<Application
-    x:Class="MomijiDriver2.App"
+    x:Class="MomijiDriver.App"
     xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-    xmlns:local="using:MomijiDriver2">
+    xmlns:local="using:MomijiDriver">
     <Application.Resources>
         <ResourceDictionary>
             <ResourceDictionary.MergedDictionaries>

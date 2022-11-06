@@ -8,7 +8,7 @@ using Momiji.Core.Vst.Worker;
 // To learn more about WinUI, the WinUI project structure,
 // and more about our project templates, see: http://aka.ms/winui-project-info.
 
-namespace MomijiDriver2;
+namespace MomijiDriver;
 /// <summary>
 /// An empty window that can be used on its own or navigated to within a Frame.
 /// </summary>
@@ -99,5 +99,7 @@ public sealed partial class MainWindow : Window
     private void Close_Click(object sender, RoutedEventArgs e)
     {
         CloseEditor();
+
+        Microsoft.UI.Windowing.AppWindow.Create();
     }
 }
