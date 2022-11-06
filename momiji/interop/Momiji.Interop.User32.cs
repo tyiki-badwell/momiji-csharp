@@ -479,6 +479,19 @@ internal static class NativeMethods
     [DllImport(Libraries.User32, CallingConvention = CallingConvention.Winapi, ExactSpelling = true, SetLastError = true)]
     [DefaultDllImportSearchPaths(DllImportSearchPath.System32)]
     [return: MarshalAs(UnmanagedType.Bool)]
+    internal static extern bool SetWindowPos(
+      [In] IntPtr hWnd,
+      [In] IntPtr hWndInsertAfter,
+      [In] int X,
+      [In] int Y,
+      [In] int cx,
+      [In] int cy,
+      [In] uint uFlags
+    );
+
+    [DllImport(Libraries.User32, CallingConvention = CallingConvention.Winapi, ExactSpelling = true, SetLastError = true)]
+    [DefaultDllImportSearchPaths(DllImportSearchPath.System32)]
+    [return: MarshalAs(UnmanagedType.Bool)]
     internal static extern bool ShowWindow(
         [In] IntPtr hWnd,
         [In] int nCmdShow
@@ -564,10 +577,10 @@ internal static class NativeMethods
     [StructLayout(LayoutKind.Sequential)]
     internal struct RECT
     {
-        public long left;
-        public long top;
-        public long right;
-        public long bottom;
+        public int left;
+        public int top;
+        public int right;
+        public int bottom;
     };
 
     [DllImport(Libraries.User32, CallingConvention = CallingConvention.Winapi, ExactSpelling = true, SetLastError = true)]
@@ -577,4 +590,14 @@ internal static class NativeMethods
         [In] IntPtr hWnd,
         [In] ref RECT lpRect
     );
+
+    [DllImport(Libraries.User32, CallingConvention = CallingConvention.Winapi, ExactSpelling = true, SetLastError = true)]
+    [DefaultDllImportSearchPaths(DllImportSearchPath.System32)]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    internal static extern bool AdjustWindowRect(
+        [In] ref RECT lpRect,
+        [In] int dwStyle,
+        [In][MarshalAs(UnmanagedType.Bool)] bool bMenu
+    );
+
 }

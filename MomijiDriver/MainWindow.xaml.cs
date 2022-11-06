@@ -1,9 +1,12 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Hosting;
+using Microsoft.UI.Windowing;
 using Microsoft.UI.Xaml;
 using Momiji.Core.Vst.Worker;
+using Momiji.Core.Window;
 
 // To learn more about WinUI, the WinUI project structure,
 // and more about our project templates, see: http://aka.ms/winui-project-info.
@@ -45,32 +48,6 @@ public sealed partial class MainWindow : Window
         list.Clear();
     }
 
-    private void OpenEditor()
-    {
-        foreach (var host in list)
-        {
-            var worker = (IRunner?)host.Services.GetService(typeof(IRunner));
-            if (worker == null)
-            {
-                continue;
-            }
-            worker.OpenEditor();
-        }
-    }
-
-    private void CloseEditor()
-    {
-        foreach (var host in list)
-        {
-            var worker = (IRunner?)host.Services.GetService(typeof(IRunner));
-            if (worker == null)
-            {
-                continue;
-            }
-            worker.CloseEditor();
-        }
-    }
-
     private void Window_Activated(object sender, WindowActivatedEventArgs args)
     {
 
@@ -91,15 +68,71 @@ public sealed partial class MainWindow : Window
         await StopAsync().ConfigureAwait(false);
     }
 
-    private void Open_Click(object sender, RoutedEventArgs e)
+    private void OpenEditor_Click(object sender, RoutedEventArgs e)
     {
-        OpenEditor();
+        list.AsParallel().ForAll(host =>
+        {
+            var worker = (IRunner?)host.Services.GetService(typeof(IRunner));
+            if (worker == null)
+            {
+                return;
+            }
+            var window = worker.OpenEditor();
+            
+            window.SetWindowStyle(
+                0x00800000 // WS_BORDER
+                | 0x00C00000 //WS_CAPTION
+                | 0x00010000 //WS_MAXIMIZEBOX
+                | 0x00020000 //WS_MINIMIZEBOX
+                | 0x00000000 //WS_OVERLAPPED
+                | 0x00080000 //WS_SYSMENU
+                | 0x00040000 //WS_THICKFRAME
+            );
+
+            window.Show(1);
+        });
     }
 
-    private void Close_Click(object sender, RoutedEventArgs e)
+    private void CloseEditor_Click(object sender, RoutedEventArgs e)
     {
-        CloseEditor();
+        list.AsParallel().ForAll(host => {
+            var worker = (IRunner?)host.Services.GetService(typeof(IRunner));
+            if (worker == null)
+            {
+                return;
+            }
+            worker.CloseEditor();
+        });
+    }
 
-        Microsoft.UI.Windowing.AppWindow.Create();
+    private void Window_Click(object sender, RoutedEventArgs e)
+    {
+        var window = AppWindow.Create();
+        window.Show();
+    }
+
+    private void Window2_Click(object sender, RoutedEventArgs e)
+    {
+        list.AsParallel().ForAll(host => {
+            var manager = (IWindowManager?)host.Services.GetService(typeof(IWindowManager));
+            if (manager == null)
+            {
+                return;
+            }
+            var window = manager.CreateWindow();
+            window.Move(0, 0, 200, 200, true);
+
+            window.SetWindowStyle(
+                0x00800000 // WS_BORDER
+                | 0x00C00000 //WS_CAPTION
+                | 0x00010000 //WS_MAXIMIZEBOX
+                | 0x00020000 //WS_MINIMIZEBOX
+                | 0x00000000 //WS_OVERLAPPED
+                | 0x00080000 //WS_SYSMENU
+                | 0x00040000 //WS_THICKFRAME
+            );
+
+            window.Show(1);
+        });
     }
 }

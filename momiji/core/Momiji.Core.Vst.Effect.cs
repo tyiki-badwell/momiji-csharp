@@ -168,7 +168,7 @@ public interface IEffect<T> where T : struct
         IReceivableSourceBlock<MIDIMessageEvent2> midiEventInput,
         ITargetBlock<MIDIMessageEvent2>? midiEventOutput = null
     );
-    void OpenEditor();
+    IWindow OpenEditor();
     void CloseEditor();
 }
 
@@ -665,7 +665,7 @@ internal class Effect<T> : IEffect<T>, IDisposable where T : struct
         );
     }
 
-    public void OpenEditor()
+    public IWindow OpenEditor()
     {
         var aeffect = GetAEffect();
         if (!aeffect.flags.HasFlag(AEffect.VstAEffectFlags.effFlagsHasEditor))
@@ -676,7 +676,7 @@ internal class Effect<T> : IEffect<T>, IDisposable where T : struct
         if (_window != default)
         {
             _logger.LogInformation("[vst] Editorが起動済");
-            return;
+            return _window;
         }
 
         try
@@ -741,7 +741,7 @@ internal class Effect<T> : IEffect<T>, IDisposable where T : struct
                 );
 
                 _window.Show(
-                    4 // SW_SHOWNOACTIVATE
+                    1 // SW_NORMAL
                 );
 
                 //キャプチャ先を作成
@@ -756,6 +756,8 @@ internal class Effect<T> : IEffect<T>, IDisposable where T : struct
         }
 
         _logger.LogInformation("[vst] Editor Open");
+
+        return _window;
     }
 
     private void OnPreCloseWindow()

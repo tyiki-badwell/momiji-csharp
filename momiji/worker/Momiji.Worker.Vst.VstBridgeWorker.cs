@@ -96,7 +96,7 @@ public interface IRunner
     Task StartAsync(CancellationToken stoppingToken);
     void Cancel();
 
-    void OpenEditor();
+    IWindow OpenEditor();
     void CloseEditor();
 
     //void Note(MIDIMessageEvent[] midiMessage);
@@ -321,13 +321,13 @@ public class Runner : IRunner, IDisposable
         }
     }
 
-    public void OpenEditor()
+    public IWindow OpenEditor()
     {
         if (_effect == default)
         {
             throw new InvalidOperationException($"{nameof(_effect)} is null.");
         }
-        _effect.OpenEditor();
+        return _effect.OpenEditor();
     }
 
     public void CloseEditor()

@@ -13,11 +13,14 @@
         <Grid.RowDefinitions>
             <RowDefinition Height="80"/>
             <RowDefinition Height="80"/>
+            <RowDefinition Height="80"/>
             <RowDefinition Height="80*"/>
         </Grid.RowDefinitions>
         <Button x:Name="Run" Click="Run_Click" HorizontalAlignment="Left" Margin="10,0,0,0" VerticalAlignment="Center" Height="54" Width="135">Run</Button>
         <Button x:Name="Stop" Click="Stop_Click" HorizontalAlignment="Left" Margin="175,0,0,0" VerticalAlignment="Center" Height="54" Width="135">Stop</Button>
-        <Button x:Name="EditorOpen" Click="Open_Click" HorizontalAlignment="Left" Margin="10,10,0,0" VerticalAlignment="Top" Height="56" Width="135" Grid.Row="1">Open</Button>
-        <Button x:Name="EditorClose" Click="Close_Click" HorizontalAlignment="Left" Margin="175,10,0,0" VerticalAlignment="Top" Height="56" Width="135" Grid.Row="1">Close</Button>
+        <Button x:Name="OpenEditor" Click="OpenEditor_Click" HorizontalAlignment="Left" Margin="10,10,0,0" VerticalAlignment="Top" Height="56" Width="135" Grid.Row="1">Open</Button>
+        <Button x:Name="CloseEditor" Click="CloseEditor_Click" HorizontalAlignment="Left" Margin="175,10,0,0" VerticalAlignment="Top" Height="56" Width="135" Grid.Row="1">Close</Button>
+        <Button x:Name="Window" Click="Window_Click" HorizontalAlignment="Left" Margin="10,10,0,0" VerticalAlignment="Top" Height="56" Width="135" Grid.Row="2">Window</Button>
+        <Button x:Name="Window2" Click="Window2_Click" HorizontalAlignment="Left" Margin="175,10,0,0" VerticalAlignment="Top" Height="56" Width="135" Grid.Row="2">Window2</Button>
     </Grid>
 </Window>

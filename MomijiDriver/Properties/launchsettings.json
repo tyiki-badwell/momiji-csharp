@@ -1,10 +1,10 @@
 {
   "profiles": {
-    "MomijiDriver2 (Package)": {
+    "MomijiDriver (Package)": {
       "commandName": "MsixPackage",
       "nativeDebugging": true
     },
-    "MomijiDriver2 (Unpackaged)": {
+    "MomijiDriver (Unpackaged)": {
       "commandName": "Project",
       "nativeDebugging": true
     }
