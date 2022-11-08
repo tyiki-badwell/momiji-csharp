@@ -381,7 +381,7 @@ internal static class NativeMethods
     [return: MarshalAs(UnmanagedType.Bool)]
     internal static extern bool SendNotifyMessageA(
         [In] IntPtr hWnd,
-        [In] int nMsg,
+        [In] uint nMsg,
         [In] IntPtr wParam,
         [In] IntPtr lParam
     );
@@ -391,7 +391,7 @@ internal static class NativeMethods
     [return: MarshalAs(UnmanagedType.Bool)]
     internal static extern bool SendNotifyMessageW(
         [In] IntPtr hWnd,
-        [In] int nMsg,
+        [In] uint nMsg,
         [In] IntPtr wParam,
         [In] IntPtr lParam
     );
@@ -400,7 +400,7 @@ internal static class NativeMethods
     [DefaultDllImportSearchPaths(DllImportSearchPath.System32)]
     internal static extern IntPtr SendMessageW(
         [In] IntPtr hWnd,
-        [In] int nMsg,
+        [In] uint nMsg,
         [In] IntPtr wParam,
         [In] IntPtr lParam
     );

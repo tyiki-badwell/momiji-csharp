@@ -1,5 +1,4 @@
-﻿using System.Data;
-using System.Diagnostics;
+﻿using System.Diagnostics;
 using System.Runtime.InteropServices;
 using System.Security.AccessControl;
 using System.Security.Principal;
@@ -11,9 +10,9 @@ using Advapi32 = Momiji.Interop.Advapi32.NativeMethods;
 using Kernel32 = Momiji.Interop.Kernel32.NativeMethods;
 using User32 = Momiji.Interop.User32.NativeMethods;
 
-namespace Momiji.Core.Window;
+namespace Momiji.Internal.Debug;
 
-public class WindowDebug
+internal class WindowDebug
 {
     public static void CheckIntegrityLevel(
         ILoggerFactory loggerFactory
