@@ -4,7 +4,7 @@
     <TargetFramework>net6.0-windows10.0.19041.0</TargetFramework>
     <RootNamespace>MomijiTest</RootNamespace>
     <IsPackable>false</IsPackable>
-    <Platforms>AnyCPU;x86;x64</Platforms>
+    <Platforms>x86;x64</Platforms>
 	  <Nullable>enable</Nullable>
 	  <ImplicitUsings>enable</ImplicitUsings>
   </PropertyGroup>
