@@ -12,16 +12,30 @@ namespace Momiji.Core.Window;
 
 public class WindowException : Exception
 {
-    public WindowException()
+    public WindowException(string message) : base(message)
     {
     }
 
-    public WindowException(string message) : base(message)
+    public WindowException(int error, string message) : base($"{message} {MakeMessage(error)}")
     {
     }
 
     public WindowException(string message, Exception innerException) : base(message, innerException)
     {
+    }
+    private static string MakeMessage(int error)
+    {
+        var text = new System.Text.StringBuilder(256);
+        Kernel32.FormatMessageW(
+            0x00001000, //FORMAT_MESSAGE_FROM_SYSTEM,
+            IntPtr.Zero,
+            error,
+            0,
+            text, 
+            (uint)text.Capacity,
+            IntPtr.Zero
+        );
+        return $"{text}({error})";
     }
 }
 public interface IWindowManager
@@ -330,7 +344,10 @@ public class WindowManager : IDisposable, IWindowManager
 
         {
             var result = User32.IsGUIThread(true);
-            _logger.LogInformation("IsGUIThread {result} {GetLastWin32Error}", result, Marshal.GetLastWin32Error());
+            if (!result)
+            {
+                throw new WindowException(Marshal.GetLastWin32Error(), $"IsGUIThread failed {result}");
+            }
         }
 
         { //メッセージキューが無ければ作られるハズ
@@ -437,7 +454,7 @@ public class WindowManager : IDisposable, IWindowManager
                 }
                 else
                 {
-                    throw new WindowException($"MsgWaitForMultipleObjectsEx failed {res} {Marshal.GetLastWin32Error()}");
+                    throw new WindowException(Marshal.GetLastWin32Error(), $"MsgWaitForMultipleObjectsEx failed {res}");
                 }
             }
         }
@@ -517,6 +534,7 @@ public class WindowManager : IDisposable, IWindowManager
 
                 if (_windowHashMap.TryRemove(windowHashCode, out var window))
                 {
+                    window._hWindow = hwnd;
                     _windowMap.TryAdd(hwnd, window);
                     _logger.LogInformation("add window map [{hwnd:X}]", hwnd);
                 }
@@ -604,7 +622,7 @@ internal class WindowClass : IDisposable
         _logger.LogInformation("RegisterClass {lpszClassName} {atom} {GetLastWin32Error}", _windowClass.lpszClassName, atom, error);
         if (atom == 0)
         {
-            throw new WindowException($"RegisterClass failed [{error}]");
+            throw new WindowException(error, "RegisterClass failed");
         }
     }
 
@@ -649,7 +667,7 @@ internal class NativeWindow : IWindow
     private readonly IWindowManager.OnPreCloseWindow? _onPreCloseWindow;
     private readonly IWindowManager.OnPostPaint? _onPostPaint;
 
-    private IntPtr _hWindow;
+    internal IntPtr _hWindow;
     public IntPtr Handle => _hWindow;
 
     private readonly ConcurrentDictionary<IntPtr, (IntPtr, PinnedDelegate<User32.WNDPROC>)> _oldWndProcMap = new();
@@ -714,7 +732,7 @@ internal class NativeWindow : IWindow
             if (hWindow == IntPtr.Zero)
             {
                 hWindow = default;
-                throw new WindowException($"CreateWindowEx failed {error}");
+                throw new WindowException(error, "CreateWindowEx failed");
             }
 
             return hWindow;
@@ -804,8 +822,15 @@ internal class NativeWindow : IWindow
                     cmdShow
                 );
 
+            var error = Marshal.GetLastWin32Error();
+
             //result=0: 実行前は非表示だった/ <>0:実行前から表示されていた
-            _logger.LogInformation("ShowWindow {_hWindow:X} {result} {GetLastWin32Error}", _hWindow, result, Marshal.GetLastWin32Error());
+            _logger.LogInformation("ShowWindow {_hWindow:X} {result} {GetLastWin32Error}", _hWindow, result, error);
+
+            if (error == 1400) // ERROR_INVALID_WINDOW_HANDLE
+            {
+                throw new WindowException(error, "ShowWindow failed");
+            }
 
             {
                 var wndpl = new User32.WINDOWPLACEMENT()

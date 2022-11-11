@@ -27,7 +27,7 @@ public class WaveException : Exception
     {
     }
 
-    static private string MakeMessage(MMRESULT mmResult)
+    private static string MakeMessage(MMRESULT mmResult)
     {
         var text = new System.Text.StringBuilder(256);
         NativeMethods.waveOutGetErrorText(mmResult, text, (uint)text.Capacity);

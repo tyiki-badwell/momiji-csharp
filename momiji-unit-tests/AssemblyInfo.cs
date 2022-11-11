@@ -1,6 +1,2 @@
-using System;
-
 [assembly: CLSCompliant(false)]
-namespace Momiji.Core
-{
-}
+namespace Momiji.Core;
