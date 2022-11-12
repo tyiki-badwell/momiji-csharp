@@ -1,6 +1,5 @@
 using Microsoft.Extensions.Logging;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
-using Microsoft.Windows.ApplicationModel.DynamicDependency;
 
 namespace Momiji.Core.Window;
 
