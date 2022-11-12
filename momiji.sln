@@ -29,6 +29,9 @@ EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "MomijiRTEffect", "momijiRTEffect\MomijiRTEffect.csproj", "{FBDDF5A9-CADC-4D45-B27B-9E58391A56F1}"
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "MomijiDriver", "MomijiDriver\MomijiDriver.csproj", "{6DDF453C-1ADF-41B7-9491-B85C05A85738}"
+	ProjectSection(ProjectDependencies) = postProject
+		{FBDDF5A9-CADC-4D45-B27B-9E58391A56F1} = {FBDDF5A9-CADC-4D45-B27B-9E58391A56F1}
+	EndProjectSection
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution

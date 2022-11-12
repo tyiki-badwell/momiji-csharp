@@ -1,12 +1,20 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Linq;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Hosting;
 using Microsoft.UI.Windowing;
 using Microsoft.UI.Xaml;
+using Momiji.Core.Timer;
 using Momiji.Core.Vst.Worker;
 using Momiji.Core.Window;
+using MomijiRTEffect.Core.Vst;
+using Windows.Devices.Enumeration;
+using Windows.Media.Audio;
+using Windows.Media.Devices;
+using Windows.Media.Effects;
+using Windows.Media.MediaProperties;
 
 // To learn more about WinUI, the WinUI project structure,
 // and more about our project templates, see: http://aka.ms/winui-project-info.
@@ -134,5 +142,198 @@ public sealed partial class MainWindow : Window
 
             window.Show(1);
         });
+    }
+
+    private AudioGraph? audioGraph;
+    private readonly ElapsedTimeCounter counter = new();
+    private double before;
+
+    private AudioEffectDefinition? effect;
+    private async void Audio_Click(object sender, RoutedEventArgs e)
+    {
+        var devices = await DeviceInformation.FindAllAsync(MediaDevice.GetAudioRenderSelector());
+        for (var idx = 0; idx < devices.Count; idx++)
+        {
+            var device = devices[idx];
+            Debug.Print("-------------------------------------");
+            Debug.Print($"device.Id {device.Id}");
+            Debug.Print($"device.IsDefault {device.IsDefault}");
+            Debug.Print($"device.IsEnabled {device.IsEnabled}");
+            Debug.Print($"device.Kind {device.Kind}");
+            Debug.Print($"device.Name {device.Name}");
+            Debug.Print($"device.Pairing {device.Pairing}");
+            /*
+            try
+            {
+                if (device.Properties != default)
+                {
+                    foreach (var key in device.Properties.Keys)
+                    {
+                        if (device.Properties.TryGetValue(key, out var value))
+                        {
+                            Debug.Print($"device.Properties {key} {value}");
+                        }
+                    }
+                }
+            }
+            catch(Exception _)
+            {
+            }
+            */
+        }
+        Debug.Print("-------------------------------------");
+
+        {
+            var settings = new AudioGraphSettings(Windows.Media.Render.AudioRenderCategory.Media)
+            {
+                QuantumSizeSelectionMode = QuantumSizeSelectionMode.SystemDefault,
+                //QuantumSizeSelectionMode = QuantumSizeSelectionMode.LowestLatency,
+                DesiredSamplesPerQuantum = default,
+                //QuantumSizeSelectionMode = QuantumSizeSelectionMode.ClosestToDesired,
+                //DesiredSamplesPerQuantum = 10000,
+                AudioRenderCategory = Windows.Media.Render.AudioRenderCategory.GameMedia,
+                MaxPlaybackSpeedFactor = 1,
+                //DesiredRenderDeviceAudioProcessing = Windows.Media.AudioProcessing.Raw,
+                DesiredRenderDeviceAudioProcessing = Windows.Media.AudioProcessing.Default,
+                EncodingProperties = default,
+                PrimaryRenderDevice = default
+            };
+
+            var result = await AudioGraph.CreateAsync(settings);
+            if (result.Status != AudioGraphCreationStatus.Success)
+            {
+                throw new InvalidOperationException("create failed.", result.ExtendedError);
+            }
+            audioGraph = result.Graph;
+        }
+        Debug.Print($"audioGraph.SamplesPerQuantum {audioGraph.SamplesPerQuantum}");
+        Debug.Print($"audioGraph.LatencyInSamples {audioGraph.LatencyInSamples}");
+
+        AudioDeviceOutputNode outNode;
+        {
+            var result = await audioGraph.CreateDeviceOutputNodeAsync();
+            if (result.Status != AudioDeviceNodeCreationStatus.Success)
+            {
+                throw new InvalidOperationException("create failed.", result.ExtendedError);
+            }
+            outNode = result.DeviceOutputNode;
+            outNode.Start();
+        }
+
+        AudioFrameInputNode inNode;
+        {
+            var prop = AudioEncodingProperties.CreatePcm(48000, 2, sizeof(float) * 8);
+            prop.Subtype = MediaEncodingSubtypes.Float;
+
+            Debug.Print($"prop.SampleRate {prop.SampleRate}");
+            Debug.Print($"prop.Type {prop.Type}");
+            Debug.Print($"prop.Subtype {prop.Subtype}");
+            Debug.Print($"prop.ChannelCount {prop.ChannelCount}");
+            Debug.Print($"prop.Bitrate {prop.Bitrate}");
+            Debug.Print($"prop.BitsPerSample {prop.BitsPerSample}");
+            Debug.Print($"prop.IsSpatial {prop.IsSpatial}");
+
+            if (prop.Properties != default)
+            {
+                foreach (var key in prop.Properties.Keys)
+                {
+                    if (prop.Properties.TryGetValue(key, out var value))
+                    {
+                        Debug.Print($"prop.Properties {key} {value}");
+                    }
+                }
+            }
+
+            inNode = audioGraph.CreateFrameInputNode(prop);
+            inNode.Stop();
+            inNode.QuantumStarted += (AudioFrameInputNode sender, FrameInputNodeQuantumStartedEventArgs args) =>
+            {
+                var now = counter.NowTicks;
+                //Debug.Print($"LAP {now - before}");
+                before = now;
+
+                //Debug.Print($"args.RequiredSamples {args.RequiredSamples}");
+                if (args.RequiredSamples <= 0)
+                {
+                    return;
+                }
+
+                var samples = (uint)args.RequiredSamples;
+                var bufferSize = samples * sizeof(float);
+
+                //TODO 別でメモリ管理する
+                var frame = new Windows.Media.AudioFrame(bufferSize);
+
+                /*
+                using (var buffer = frame.LockBuffer(Windows.Media.AudioBufferAccessMode.Write))
+                using (var reference = buffer.CreateReference())
+                {
+                    unsafe
+                    {
+                        IMemoryBufferByteAccess a = ((IWinRTObject)reference).As<IMemoryBufferByteAccess>();
+                        a.GetBuffer(out byte* dataInBytes, out uint capacityInBytes);
+                        var dataInFloat = (float*)dataInBytes;
+                        float freq = 0.480f; // choosing to generate frequency of 1kHz
+                        float amplitude = 0.3f;
+                        int sampleRate = (int)audioGraph.EncodingProperties.SampleRate;
+                        double sampleIncrement = (freq * (Math.PI * 2)) / sampleRate;
+                        // Generate a 1kHz sine wave and populate the values in the memory buffer
+                        for (int i = 0; i < samples; i++)
+                        {
+                            double sinValue = amplitude * Math.Sin(audioWaveTheta);
+                            dataInFloat[i] = (float)sinValue;
+                            audioWaveTheta += sampleIncrement;
+                        }
+                    }
+                }
+                */
+
+                sender.AddFrame(frame);
+            };
+
+            //inNode.AddOutgoingConnection(outNode);
+
+            inNode.Start();
+        }
+        /*
+        AudioFrameOutputNode frameOutNode;
+        {
+            frameOutNode = audioGraph.CreateFrameOutputNode();
+            frameOutNode.Stop();
+            audioGraph.QuantumStarted += (AudioGraph sender, object args) =>
+            {
+                Debug.Print($"args {args}");
+                var frame = frameOutNode.GetFrame();
+            };
+            frameOutNode.Start();
+        }
+        */
+
+        //if (false)
+        {
+
+            var subNode = audioGraph.CreateSubmixNode();
+            subNode.Stop();
+
+            //var _e = new Effect();
+
+            //var _e = Activator.CreateInstance<Effect>();
+
+            effect = new AudioEffectDefinition(typeof(Effect).FullName);
+
+            subNode.EffectDefinitions.Add(effect);
+
+            inNode.AddOutgoingConnection(subNode, 1.0);
+
+            subNode.AddOutgoingConnection(outNode, 1.0);
+
+            subNode.EnableEffectsByDefinition(effect);
+
+            subNode.Start();
+
+        }
+
+        audioGraph.Start();
+
     }
 }

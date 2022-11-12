@@ -45,4 +45,14 @@
   <Capabilities>
     <rescap:Capability Name="runFullTrust" />
   </Capabilities>
+
+  <Extensions>
+    <Extension Category="windows.activatableClass.inProcessServer">
+      <InProcessServer>
+        <Path>WinRT.Host.dll</Path>
+        <ActivatableClass ActivatableClassId="MomijiRTEffect.Core.Vst.Effect" ThreadingModel="both" />
+      </InProcessServer>
+    </Extension>
+  </Extensions>
+  
 </Package>

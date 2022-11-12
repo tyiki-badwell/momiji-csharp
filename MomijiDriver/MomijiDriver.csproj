@@ -38,9 +38,13 @@
     <ProjectCapability Include="Msix" />
   </ItemGroup>
   <ItemGroup>
+    <ProjectReference Include="..\momijiRTEffect\MomijiRTEffect.csproj" />
     <ProjectReference Include="..\momiji\Momiji.csproj" />
   </ItemGroup>
   <ItemGroup>
+    <None Update="app.manifest">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </None>
     <None Update="appsettings.json">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </None>

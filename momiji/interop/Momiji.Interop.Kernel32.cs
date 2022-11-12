@@ -121,15 +121,16 @@ internal static class NativeMethods
 
     [DllImport(Libraries.Kernel32, CallingConvention = CallingConvention.Winapi, ExactSpelling = true, SetLastError = true, CharSet = CharSet.Unicode)]
     [DefaultDllImportSearchPaths(DllImportSearchPath.System32)]
-    internal static extern uint FormatMessageW(
+    internal static unsafe extern uint FormatMessageW(
         [In] uint dwFlags,
         [In] IntPtr lpSource,
         [In] int dwMessageId,
         [In] uint dwLanguageId,
-        [Out] System.Text.StringBuilder pszText,
+        [In] char* pszText,
         [In] uint nSize,
         [In] IntPtr Arguments
     );
+
 }
 
 internal sealed class WaitableTimer : SafeHandleZeroOrMinusOneIsInvalid

@@ -25,17 +25,31 @@ public class WindowException : Exception
     }
     private static string MakeMessage(int error)
     {
-        var text = new System.Text.StringBuilder(256);
-        Kernel32.FormatMessageW(
-            0x00001000, //FORMAT_MESSAGE_FROM_SYSTEM,
-            IntPtr.Zero,
-            error,
-            0,
-            text, 
-            (uint)text.Capacity,
-            IntPtr.Zero
-        );
-        return $"{text}({error})";
+        unsafe
+        {
+            Span<char> buffer = stackalloc char[500];
+            fixed (char* ptr = buffer)
+            {
+                var result =
+                    Kernel32.FormatMessageW(
+                        0x00001000 //FORMAT_MESSAGE_FROM_SYSTEM
+                        | 0x00000200 //FORMAT_MESSAGE_IGNORE_INSERTS
+                        | 0x000000FF //FORMAT_MESSAGE_MAX_WIDTH_MASK
+                        ,
+                        IntPtr.Zero,
+                        error,
+                        0,
+                        ptr,
+                        (uint)buffer.Length,
+                        IntPtr.Zero
+                    );
+                if (result == 0)
+                {
+                    return $"*UNKNOWN ERROR*({error})";
+                }
+            }
+            return $"{new string(buffer.TrimEnd('\0'))}({error})";
+        }
     }
 }
 public interface IWindowManager

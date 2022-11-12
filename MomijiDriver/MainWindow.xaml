@@ -23,5 +23,6 @@
         <Button x:Name="Window" Click="Window_Click" HorizontalAlignment="Left" Margin="10,10,0,0" VerticalAlignment="Top" Height="56" Width="135" Grid.Row="2">Window</Button>
         <Button x:Name="Window2" Click="Window2_Click" HorizontalAlignment="Left" Margin="175,10,0,0" VerticalAlignment="Top" Height="56" Width="135" Grid.Row="2">Window2</Button>
 
+        <Button x:Name="Audio" Click="Audio_Click" HorizontalAlignment="Left" Margin="10,10,0,0" VerticalAlignment="Top" Height="56" Width="135" Grid.Row="3">Audio</Button>
     </Grid>
 </Window>
