@@ -1,0 +1,10 @@
+{
+  "profiles": {
+    "MomijiDriver (Package)": {
+      "commandName": "MsixPackage"
+    },
+    "MomijiDriver (Unpackaged)": {
+      "commandName": "Project"
+    }
+  }
+}

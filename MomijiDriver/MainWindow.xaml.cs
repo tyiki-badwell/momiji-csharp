@@ -1,13 +1,16 @@
-ï»¿using System;
+using System;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.Globalization;
 using System.Linq;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Hosting;
 using Microsoft.UI.Windowing;
 using Microsoft.UI.Xaml;
+using Microsoft.UI.Xaml.Controls;
 using Momiji.Core.Timer;
 using Momiji.Core.Vst.Worker;
+using Momiji.Core.WebMidi;
 using Momiji.Core.Window;
 using MomijiRTEffect.Core.Vst;
 using Windows.Devices.Enumeration;
@@ -86,7 +89,7 @@ public sealed partial class MainWindow : Window
                 return;
             }
             var window = worker.OpenEditor();
-            
+
             window.SetWindowStyle(
                 0x00800000 // WS_BORDER
                 | 0x00C00000 //WS_CAPTION
@@ -261,7 +264,7 @@ public sealed partial class MainWindow : Window
                 var samples = (uint)args.RequiredSamples;
                 var bufferSize = samples * sizeof(float);
 
-                //TODO åˆ¥ã§ãƒ¡ãƒ¢ãƒªç®¡ç†ã™ã‚‹
+                //TODO •Ê‚Åƒƒ‚ƒŠŠÇ—‚·‚é
                 var frame = new Windows.Media.AudioFrame(bufferSize);
 
                 /*
@@ -335,5 +338,27 @@ public sealed partial class MainWindow : Window
 
         audioGraph.Start();
 
+    }
+
+    private void Note_Click(object sender, RoutedEventArgs e)
+    {
+        var b = (Button)sender;
+        var note = (string)b.Tag;
+
+        var m = new MIDIMessageEvent();
+        m.receivedTime = 0;
+        m.data0 = byte.Parse(note.Substring(0, 2), NumberStyles.HexNumber);
+        m.data1 = byte.Parse(note.Substring(2, 2), NumberStyles.HexNumber);
+        m.data2 = byte.Parse(note.Substring(4, 2), NumberStyles.HexNumber);
+        m.data3 = 0;
+
+        list.AsParallel().ForAll(host => {
+            var worker = (IRunner?)host.Services.GetService(typeof(IRunner));
+            if (worker == null)
+            {
+                return;
+            }
+            worker.Note(m);
+        });
     }
 }

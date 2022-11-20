@@ -251,6 +251,19 @@ public class WindowManager : IDisposable, IWindowManager
 
     public void CloseAll()
     {
+        foreach (var window in _windowMap.Values)
+        {
+            try
+            {
+                window.Close();
+            }
+            catch (Exception e)
+            {
+                _logger.LogError(e, "close failed.");
+            }
+        }
+
+/*
         _windowMap.Values.AsParallel().ForAll(window => {
             try
             {
@@ -261,6 +274,7 @@ public class WindowManager : IDisposable, IWindowManager
                 _logger.LogError(e, "close failed.");
             }
         });
+*/
     }
 
     public async Task StartAsync(CancellationToken stoppingToken)
@@ -340,13 +354,17 @@ public class WindowManager : IDisposable, IWindowManager
         if (!_windowMap.IsEmpty)
         {
             _logger.LogWarning("window left {Count}", _windowMap.Count);
-            foreach (var hwnd in _windowMap.Keys)
-            {
-                _logger.LogWarning("DestroyWindow {hwnd:X}", hwnd);
-                User32.DestroyWindow(hwnd);
-            }
-        }
 
+            foreach (var item in _windowMap)
+            {
+                //TODO closeした通知を流す必要あり
+
+                _logger.LogWarning("DestroyWindow {hwnd:X}", item.Key);
+                User32.DestroyWindow(item.Key);
+            }
+
+            _windowMap.Clear();
+        }
     }
 
     private void MessageLoop()
@@ -761,14 +779,6 @@ internal class NativeWindow : IWindow
             IntPtr.Zero,
             IntPtr.Zero
         );
-
-/*
-        return SendMessage( //SendNotifyMessage(
-            0x0112, //WM_SYSCOMMAND
-            (IntPtr)0xF060, //SC_CLOSE
-            IntPtr.Zero
-        );
-*/
     }
 
     private bool SendMessage(
@@ -777,18 +787,18 @@ internal class NativeWindow : IWindow
         IntPtr lParam
     )
     {
-        _logger.LogMsgWithThreadId(LogLevel.Trace, "SendNotifyMessageW", _hWindow, nMsg, wParam, lParam, Environment.CurrentManagedThreadId);
-        var result =
-            User32.SendNotifyMessageW(
+        _logger.LogMsgWithThreadId(LogLevel.Trace, "SendMessageW", _hWindow, nMsg, wParam, lParam, Environment.CurrentManagedThreadId);
+        var _ =
+            User32.SendMessageW(
                 _hWindow,
                 nMsg,
                 wParam,
                 lParam
             );
-
-        if (!result)
+        var error = Marshal.GetLastWin32Error();
+        if (error != 0)
         {
-            _logger.LogWithHWndAndErrorId(LogLevel.Error, "SendNotifyMessageW", _hWindow, Marshal.GetLastWin32Error());
+            _logger.LogWithHWndAndErrorId(LogLevel.Error, "SendMessageW", _hWindow, error);
             return false;
         }
         return true;
@@ -919,8 +929,8 @@ internal class NativeWindow : IWindow
                             IntPtr.Zero,
                             0,
                             0,
-                            (int)width,
-                            (int)height,
+                            width,
+                            height,
                             0x0002 //SWP_NOMOVE
                             //| 0x0001 //SWP_NOSIZE
                             | 0x0004 //SWP_NOZORDER
@@ -1030,7 +1040,7 @@ internal class NativeWindow : IWindow
 
         if (_oldWndProcMap.TryGetValue(hwnd, out var pair))
         {
-            _logger.LogMsgWithThreadId(LogLevel.Trace, "CallWindowProc", pair.Item1, msg, wParam, lParam, Environment.CurrentManagedThreadId);
+            _logger.LogMsgWithThreadId(LogLevel.Trace, "CallWindowProc", hwnd, msg, wParam, lParam, Environment.CurrentManagedThreadId);
             result = isWindowUnicode
                         ? User32.CallWindowProcW(pair.Item1, hwnd, msg, wParam, lParam)
                         : User32.CallWindowProcA(pair.Item1, hwnd, msg, wParam, lParam)

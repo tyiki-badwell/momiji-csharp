@@ -60,8 +60,8 @@ public class Logic3
         MidiEventInput = midiEventInput;
         MidiEventOutput = midiEventOutput;
 
-        StreamKey = Configuration["MIXER_STREAM_KEY"];
-        IngestHostname = Configuration["MIXER_INGEST_HOSTNAME"];
+        StreamKey = Configuration["MIXER_STREAM_KEY"] ?? throw new ArgumentNullException("Configuration[\"MIXER_STREAM_KEY\"]");
+        IngestHostname = Configuration["MIXER_INGEST_HOSTNAME"] ?? throw new ArgumentNullException("Configuration[\"MIXER_INGEST_HOSTNAME\"]");
 
         var assembly = Assembly.GetExecutingAssembly();
         var directoryName = Path.GetDirectoryName(assembly.Location);
@@ -131,7 +131,7 @@ public class Logic3
 
         {
             var vstBlock =
-                new TransformBlock<VstBuffer2<float>, PcmBuffer<float>>(async buffer =>
+                new TransformBlock<VstBuffer2<float>, PcmBuffer<float>>(buffer =>
                 {
                     var pcmTask = pcmPool.ReceiveAsync(ct);
 
@@ -146,7 +146,7 @@ public class Logic3
                     effect.ProcessReplacing(nowTime, buffer);
 
                     //trans
-                    var pcm = await pcmTask.ConfigureAwait(false);
+                    var pcm = pcmTask.Result;
                     toPcm.Execute(buffer, pcm);
                     vstBufferPool.Post(buffer);
 
@@ -327,9 +327,9 @@ public class Logic3
                 {
                     unsafe
                     {
-                        reference.As<IMemoryBufferByteAccess>().GetBuffer(out byte* dataInBytes, out uint capacityInBytes);
+                        reference.As<IMemoryBufferByteAccess>().GetBuffer(out var dataInBytes, out var capacityInBytes);
                         var dataInFloat = (float*)dataInBytes;
-                        float freq = 0.480f; // choosing to generate frequency of 1kHz
+                        var freq = 0.480f; // choosing to generate frequency of 1kHz
                         float amplitude = 0.3f;
                         int sampleRate = (int)audioGraph.EncodingProperties.SampleRate;
                         double sampleIncrement = (freq * (Math.PI * 2)) / sampleRate;
@@ -380,7 +380,7 @@ public class Logic3
         };
 
         var vstBlock =
-            new TransformBlock<VstBuffer2<float>, PcmBuffer<float>>(async buffer =>
+            new TransformBlock<VstBuffer2<float>, PcmBuffer<float>>(buffer =>
             {
                 var pcmTask = pcmPool.ReceiveAsync(ct);
 
@@ -392,7 +392,7 @@ public class Logic3
                 effect.ProcessReplacing(nowTime, buffer);
 
                 //trans
-                var pcm = await pcmTask.ConfigureAwait(false);
+                var pcm = pcmTask.Result;
                 toPcm.Execute(buffer, pcm);
                 vstBufferPool.Post(buffer);
                 return pcm;

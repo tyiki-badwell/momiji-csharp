@@ -56,8 +56,8 @@ public class Logic4
         MidiEventInput = midiEventInput;
         MidiEventOutput = midiEventOutput;
 
-        StreamKey = Configuration["MIXER_STREAM_KEY"];
-        IngestHostname = Configuration["MIXER_INGEST_HOSTNAME"];
+        StreamKey = Configuration["MIXER_STREAM_KEY"] ?? throw new ArgumentNullException("Configuration[\"MIXER_STREAM_KEY\"]");
+        IngestHostname = Configuration["MIXER_INGEST_HOSTNAME"] ?? throw new ArgumentNullException("Configuration[\"MIXER_INGEST_HOSTNAME\"]");
 
         var assembly = Assembly.GetExecutingAssembly();
         var directoryName = Path.GetDirectoryName(assembly.Location);
@@ -124,7 +124,7 @@ public class Logic4
 
         {
             var audioBlock =
-                new ActionBlock<VstBuffer2<float>>(async buffer =>
+                new ActionBlock<VstBuffer2<float>>(buffer =>
                 {
                     var pcmTask = pcmPool.ReceiveAsync(ct);
                     var audioTask = audioPool.ReceiveAsync(ct);
@@ -139,12 +139,12 @@ public class Logic4
                     effect.ProcessReplacing(nowTime, buffer);
 
                     //trans
-                    var pcm = await pcmTask.ConfigureAwait(false);
+                    var pcm = pcmTask.Result;
                     buffer.Log.Add("[audio] opus input get", counter.NowTicks);
                     toPcm.Execute(buffer, pcm);
                     vstBufferPool.Post(buffer);
 
-                    var audio = await audioTask.ConfigureAwait(false);
+                    var audio = audioTask.Result;
                     pcm.Log.Add("[audio] opus output get", counter.NowTicks);
                     opus.Execute(pcm, audio);
 
@@ -180,7 +180,7 @@ public class Logic4
             var intraFrameCount = 0.0;
 
             var videoBlock =
-                new ActionBlock<H264InputBuffer>(async buffer =>
+                new ActionBlock<H264InputBuffer>(buffer =>
                 {
                     var videoTask = videoPool.ReceiveAsync(ct);
 
@@ -193,7 +193,7 @@ public class Logic4
                     fft.Execute(buffer);
 
                     //H264
-                    var video = await videoTask.ConfigureAwait(false);
+                    var video = videoTask.Result;
                     buffer.Log.Add("[video] h264 output get", counter.NowTicks);
 
                     var insertIntraFrame = (intraFrameCount <= 0);
@@ -269,7 +269,7 @@ public class Logic4
 
         {
             var audioBlock =
-                new ActionBlock<VstBuffer2<float>>(async buffer =>
+                new ActionBlock<VstBuffer2<float>>(buffer =>
                 {
                     var pcmTask = pcmPool.ReceiveAsync(ct);
                     var audioTask = audioPool.ReceiveAsync(ct);
@@ -284,11 +284,11 @@ public class Logic4
                     effect.ProcessReplacing(nowTime, buffer);
 
                     //trans
-                    var pcm = await pcmTask.ConfigureAwait(false);
+                    var pcm = pcmTask.Result;
                     toPcm.Execute(buffer, pcm);
                     vstBufferPool.Post(buffer);
 
-                    var audio = await audioTask.ConfigureAwait(false);
+                    var audio = audioTask.Result;
                     pcm.Log.Add("[audio] opus output get", counter.NowTicks);
                     opus.Execute(pcm, audio);
 
@@ -323,7 +323,7 @@ public class Logic4
             var intraFrameCount = 0.0;
 
             var videoBlock =
-                new ActionBlock<H264InputBuffer>(async buffer =>
+                new ActionBlock<H264InputBuffer>(buffer =>
                 {
                     var videoTask = videoPool.ReceiveAsync(ct);
 
@@ -336,7 +336,7 @@ public class Logic4
                     fft.Execute(buffer);
 
                     //H264
-                    var video = await videoTask.ConfigureAwait(false);
+                    var video = videoTask.Result;
                     buffer.Log.Add("[video] h264 output get", counter.NowTicks);
                     var insertIntraFrame = (intraFrameCount <= 0);
                     h264.Execute(buffer, video, insertIntraFrame);

@@ -66,7 +66,9 @@ public class Runner : IRunner, IDisposable
         WindowManager = windowManager;
 
         var param = new Param();
-        Configuration.GetSection(typeof(Param).FullName).Bind(param);
+
+        var key = typeof(Param).FullName ?? throw new Exception("typeof(Param).FullName is null");
+        Configuration.GetSection(key).Bind(param);
         Param = param;
 
         BroadcastStatus("stop");

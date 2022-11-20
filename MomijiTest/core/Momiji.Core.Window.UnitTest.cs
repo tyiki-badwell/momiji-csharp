@@ -77,13 +77,4 @@ public class WindowUnitTest
         task.Wait();
     }
 
-    /*
-    [TestMethod]
-    public void Test2()
-    {
-        Bootstrap.Initialize(0x00010001);
-
-        Bootstrap.Shutdown();
-    }
-    */
 }

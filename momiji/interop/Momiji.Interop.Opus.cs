@@ -199,7 +199,7 @@ internal sealed class Encoder : Microsoft.Win32.SafeHandles.SafeHandleZeroOrMinu
     {
     }
 
-    override protected bool ReleaseHandle()
+    protected override bool ReleaseHandle()
     {
         //Trace.WriteLine("opus_encoder_destroy");
         NativeMethods.opus_encoder_destroy(handle);

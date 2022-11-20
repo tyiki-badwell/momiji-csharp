@@ -10,6 +10,7 @@ using Momiji.Core.SharedMemory;
 using Momiji.Core.Timer;
 using Momiji.Core.Trans;
 using Momiji.Core.Wave;
+using Momiji.Core.WebMidi;
 using Momiji.Core.Window;
 using System.Threading.Tasks.Dataflow;
 
@@ -36,7 +37,8 @@ public class VstBridgeWorker : BackgroundService
             services.AddSingleton<IRunner, Runner>();
             services.AddSingleton<IWindowManager, WindowManager>();
 
-            services.Configure<Param>(hostContext.Configuration.GetSection(typeof(Param).FullName));
+            var key = typeof(Param).FullName ?? throw new Exception("typeof(Param).FullName is null");
+            services.Configure<Param>(hostContext.Configuration.GetSection(key));
         });
 
         var host = builder.Build();
@@ -99,7 +101,7 @@ public interface IRunner
     IWindow OpenEditor();
     void CloseEditor();
 
-    //void Note(MIDIMessageEvent[] midiMessage);
+    void Note(MIDIMessageEvent midiMessage);
     //Task AcceptWebSocket(WebSocket webSocket);
 }
 
@@ -117,6 +119,9 @@ public class Runner : IRunner, IDisposable
     private CancellationTokenSource? _processCancel;
     private Task? _processTask;
     private IEffect<float>? _effect;
+
+    private readonly ElapsedTimeCounter _counter = new();
+    private readonly BufferBlock<MIDIMessageEvent2> _midiEventInput = new();
 
     public Runner(ILoggerFactory loggerFactory, IDllManager dllManager, IWindowManager windowManager, IOptions<Param> param)
     {
@@ -225,10 +230,9 @@ public class Runner : IRunner, IDisposable
         //            using var vstBufferPool = new BufferPool<VstBuffer<float>>(param.BufferCount, () => new VstBuffer<float>(blockSize, 2), LoggerFactory);
         using var vstBufferPool = new BufferPool<VstBuffer2<float>>(_param.BufferCount, () => new VstBuffer2<float>(blockSize, 2, buf), _loggerFactory);
         using var pcmPool = new BufferPool<PcmBuffer<float>>(_param.BufferCount, () => new PcmBuffer<float>(blockSize, 2), _loggerFactory);
-        var counter = new ElapsedTimeCounter();
-        using var audioWaiter = new Waiter(counter, audioInterval, true);
-        using var vst = new AudioMaster<float>(_param.SamplingRate, blockSize, _loggerFactory, counter, _dllManager, _windowManager);
-        using var toPcm = new ToPcm<float>(_loggerFactory, counter);
+        using var audioWaiter = new Waiter(_counter, audioInterval, true);
+        using var vst = new AudioMaster<float>(_param.SamplingRate, blockSize, _loggerFactory, _counter, _dllManager, _windowManager);
+        using var toPcm = new ToPcm<float>(_loggerFactory, _counter);
 
         _logger.LogInformation($"AddEffect:{_param.EffectName}");
 
@@ -240,7 +244,7 @@ public class Runner : IRunner, IDisposable
             _param.SamplingRate,
             SPEAKER.FrontLeft | SPEAKER.FrontRight,
             _loggerFactory,
-            counter,
+            _counter,
             pcmPool);
 
         var options = new ExecutionDataflowBlockOptions
@@ -266,7 +270,8 @@ public class Runner : IRunner, IDisposable
             new TransformBlock<VstBuffer2<float>, PcmBuffer<float>>(buffer =>
             {
                 //VST
-                var nowTime = counter.NowTicks / 10;
+                var nowTime = _counter.NowTicks / 10;
+                _effect.ProcessEvent(nowTime, _midiEventInput);
                 _effect.ProcessReplacing(nowTime, buffer);
 
                 //trans
@@ -337,5 +342,13 @@ public class Runner : IRunner, IDisposable
             throw new InvalidOperationException($"{nameof(_effect)} is null.");
         }
         _effect.CloseEditor();
+    }
+    public void Note(MIDIMessageEvent midiMessage)
+    {
+        var m = new MIDIMessageEvent2();
+        m.receivedTimeUSec = _counter.NowTicks / 10;
+        m.midiMessageEvent = midiMessage;
+
+        _midiEventInput.Post(m);
     }
 }

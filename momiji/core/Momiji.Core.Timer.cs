@@ -21,8 +21,6 @@ public class TimerException : Exception
 
 public class ElapsedTimeCounter
 {
-    private long _startTicks;
-
     private long _startTimestamp;
 
     public ElapsedTimeCounter()
@@ -32,15 +30,21 @@ public class ElapsedTimeCounter
 
     public void Reset()
     {
-        _startTicks = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds() * 10_000;
         _startTimestamp = Stopwatch.GetTimestamp();
+    }
+
+    public static readonly double TickFrequency = (double)10_000_000 / Stopwatch.Frequency;
+
+    public static long TimestampToTicks(long timestamp)
+    {
+        return (long)(timestamp * TickFrequency);
     }
 
     public long Elapsed => Stopwatch.GetTimestamp() - _startTimestamp;
 
-    public long ElapsedTicks => Elapsed * 10_000_000 / Stopwatch.Frequency;
+    public long ElapsedTicks => TimestampToTicks(Elapsed);
 
-    public long NowTicks => _startTicks + ElapsedTicks;
+    public long NowTicks => TimestampToTicks(Stopwatch.GetTimestamp());
 }
 
 public class Waiter : IDisposable

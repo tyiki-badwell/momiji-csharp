@@ -560,7 +560,7 @@ internal class Effect<T> : IEffect<T>, IDisposable where T : struct
             {
                 numEvents = list.Count
             };
-
+            
             //TODO 境界チェック
             Marshal.StructureToPtr(vstEvents, eventsPtr, false);
             eventsPtr += SIZE_OF_VSTEVENTS;
@@ -690,6 +690,30 @@ internal class Effect<T> : IEffect<T>, IDisposable where T : struct
 
         try
         {
+            using var rectPtrBuffer = new PinnedBuffer<IntPtr>(new IntPtr());
+
+            {
+                var result =
+                    Dispatcher(
+                        AEffect.Opcodes.effEditGetRect,
+                        default,
+                        default,
+                        rectPtrBuffer.AddrOfPinnedObject,
+                        default
+                    );
+                if (result == IntPtr.Zero)
+                {
+                    _logger.LogInformation("[vst] pre open effEditGetRect failed");
+                    throw new VstException("pre open effEditGetRect failed.");
+                }
+
+                EditorRect = Marshal.PtrToStructure<ERect>(rectPtrBuffer.Target);
+                var width = EditorRect.right - EditorRect.left;
+                var height = EditorRect.bottom - EditorRect.top;
+
+                _logger.LogInformation($"[vst] pre open effEditGetRect width:{width} height:{height}");
+            }
+
             _window.Dispatch(() =>
             {
                 var result =
@@ -709,26 +733,25 @@ internal class Effect<T> : IEffect<T>, IDisposable where T : struct
             });
 
             {
-                using var buffer = new PinnedBuffer<IntPtr>(new IntPtr());
                 var result =
                     Dispatcher(
                         AEffect.Opcodes.effEditGetRect,
                         default,
                         default,
-                        buffer.AddrOfPinnedObject,
+                        rectPtrBuffer.AddrOfPinnedObject,
                         default
                     );
                 if (result == IntPtr.Zero)
                 {
-                    _logger.LogInformation("[vst] effEditGetRect failed");
-                    throw new VstException("effEditGetRect failed.");
+                    _logger.LogInformation("[vst] post open effEditGetRect failed");
+                    throw new VstException("post open effEditGetRect failed.");
                 }
 
-                EditorRect = Marshal.PtrToStructure<ERect>(buffer.Target);
+                EditorRect = Marshal.PtrToStructure<ERect>(rectPtrBuffer.Target);
                 var width = EditorRect.right - EditorRect.left;
                 var height = EditorRect.bottom - EditorRect.top;
 
-                _logger.LogInformation($"[vst] effEditGetRect width;{width} height:{height}");
+                _logger.LogInformation($"[vst] post open effEditGetRect width:{width} height:{height}");
                 width = (width == 0) ? 100 : width;
                 height = (height == 0) ? 100 : height;
 

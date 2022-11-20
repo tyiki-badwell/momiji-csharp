@@ -142,7 +142,7 @@ namespace Momiji.Interop.Vst
     }
 
     [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Ansi, Pack = 8)]
-    unsafe internal struct AEffect
+    internal unsafe struct AEffect
     {
         //-------------------------------------------------------------------------------------------------------
         /** Basic dispatcher Opcodes (Host to Plug-in) */
@@ -568,9 +568,31 @@ namespace Momiji.Interop.Vst
         public byte reserved1;         ///< zero (Reserved for future use)
         public byte reserved2;         ///< zero (Reserved for future use)
         //-------------------------------------------------------------------------------------------------------
-        override public string ToString()
+        public override string ToString()
         {
             return $"type[{type:F}] byteSize[{byteSize}] deltaFrames[{deltaFrames}] flags[{flags:F}] noteLength[{noteLength}] noteOffset[{noteOffset}] midiData[{midiData0:X2}{midiData1:X2}{midiData2:X2}{midiData3:X2}] detune[{detune}] noteOffVelocity[{noteOffVelocity}]";
+        }
+    };
+
+    //-------------------------------------------------------------------------------------------------------
+    /** MIDI Sysex Event (to be casted from #VstEvent). */
+    //-------------------------------------------------------------------------------------------------------
+    [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Ansi, Pack = 8)]
+    internal struct VstMidiSysexEvent
+    {
+        //-------------------------------------------------------------------------------------------------------
+        public VstEvent.VstEventTypes type;          ///< #kVstSysexType
+        public int byteSize;         ///< sizeof (VstMidiSysexEvent)
+        public int deltaFrames;     ///< sample frames related to the current block start sample position
+        public int flags;           ///< none defined yet (should be zero)
+        public int dumpBytes;       ///< byte size of sysexDump
+        public IntPtr resvd1;       ///< zero (Reserved for future use)
+        public IntPtr sysexDump;    ///< sysex dump
+        public IntPtr resvd2;       ///< zero (Reserved for future use)
+        //-------------------------------------------------------------------------------------------------------
+        public override string ToString()
+        {
+            return $"type[{type:F}] byteSize[{byteSize}] deltaFrames[{deltaFrames}] flags[{flags:F}] dumpBytes[{dumpBytes}] sysexDump[{sysexDump:X}]";
         }
     };
 

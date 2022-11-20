@@ -7,13 +7,13 @@
   IgnorableNamespaces="uap rescap">
 
   <Identity
-    Name="856388c8-e2c5-4375-9f60-d9b9c8f57ba7"
-    Publisher="CN=tyikibadwell"
+    Name="1f7ff88e-7522-4736-9bfc-ad42010137ab"
+    Publisher="CN=tyiki.badwell"
     Version="1.0.0.0" />
 
   <Properties>
     <DisplayName>MomijiDriver</DisplayName>
-    <PublisherDisplayName>tyikibadwell</PublisherDisplayName>
+    <PublisherDisplayName>tyiki.badwell</PublisherDisplayName>
     <Logo>Assets\StoreLogo.png</Logo>
   </Properties>
 
@@ -45,14 +45,4 @@
   <Capabilities>
     <rescap:Capability Name="runFullTrust" />
   </Capabilities>
-
-  <Extensions>
-    <Extension Category="windows.activatableClass.inProcessServer">
-      <InProcessServer>
-        <Path>WinRT.Host.dll</Path>
-        <ActivatableClass ActivatableClassId="MomijiRTEffect.Core.Vst.Effect" ThreadingModel="both" />
-      </InProcessServer>
-    </Extension>
-  </Extensions>
-  
 </Package>

@@ -58,8 +58,8 @@ public class Logic2 : ILogic
         MidiEventInput = midiEventInput;
         MidiEventOutput = midiEventOutput;
 
-        StreamKey = Configuration["MIXER_STREAM_KEY"];
-        IngestHostname = Configuration["MIXER_INGEST_HOSTNAME"];
+        StreamKey = Configuration["MIXER_STREAM_KEY"] ?? throw new ArgumentNullException("Configuration[\"MIXER_STREAM_KEY\"]");
+        IngestHostname = Configuration["MIXER_INGEST_HOSTNAME"] ?? throw new ArgumentNullException("Configuration[\"MIXER_INGEST_HOSTNAME\"]");
 
         var assembly = Assembly.GetExecutingAssembly();
         var directoryName = Path.GetDirectoryName(assembly.Location);
@@ -142,7 +142,7 @@ public class Logic2 : ILogic
             vstBufferPool.LinkTo(audioStartBlock);
 
             var vstBlock =
-                new TransformBlock<VstBuffer2<float>, PcmBuffer<float>>(async buffer =>
+                new TransformBlock<VstBuffer2<float>, PcmBuffer<float>>(buffer =>
                 {
                     var pcmTask = pcmPool.ReceiveAsync(ct);
 
@@ -154,7 +154,7 @@ public class Logic2 : ILogic
                     effect.ProcessReplacing(nowTime, buffer);
 
                     //trans
-                    var pcm = await pcmTask.ConfigureAwait(false);
+                    var pcm = pcmTask.Result;
                     toPcm.Execute(buffer, pcm);
                     vstBufferPool.Post(buffer);
 
@@ -321,7 +321,7 @@ public class Logic2 : ILogic
         vstBufferPool.LinkTo(audioStartBlock);
 
         var vstBlock =
-            new TransformBlock<VstBuffer2<float>, PcmBuffer<float>>(async buffer =>
+            new TransformBlock<VstBuffer2<float>, PcmBuffer<float>>(buffer =>
             {
                 var pcmTask = pcmPool.ReceiveAsync(ct);
 
@@ -331,7 +331,7 @@ public class Logic2 : ILogic
                 effect.ProcessReplacing(nowTime, buffer);
 
                 //trans
-                var pcm = await pcmTask.ConfigureAwait(false);
+                var pcm = pcmTask.Result;
                 toPcm.Execute(buffer, pcm);
                 vstBufferPool.Post(buffer);
                 return pcm;

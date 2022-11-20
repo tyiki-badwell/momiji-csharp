@@ -133,8 +133,7 @@ public class AudioMaster<T> : IDisposable where T : struct
         float opt
     )
     {
-        /*
-        Logger.LogInformation(
+        _logger.LogTrace(
             $"AudioMasterCallBackProc " +
             $"{nameof(aeffectPtr)}:{aeffectPtr:X} " +
             $"{nameof(opcode)}:{opcode:F} " +
@@ -143,7 +142,6 @@ public class AudioMaster<T> : IDisposable where T : struct
             $"{nameof(ptr)}:{ptr:X} " +
             $"{nameof(opt)}:{opt}"
         );
-        */
 
         switch (opcode)
         {
@@ -172,7 +170,7 @@ public class AudioMaster<T> : IDisposable where T : struct
                 }
 
             default:
-                //Logger.LogInformation("NOP");
+                _logger.LogTrace("NOP");
                 return default;
         }
     }
