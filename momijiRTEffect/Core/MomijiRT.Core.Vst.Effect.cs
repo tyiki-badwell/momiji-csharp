@@ -15,7 +15,7 @@ internal unsafe interface IMemoryBufferByteAccess
     void GetBuffer(out byte* buffer, out uint capacity);
 }
 
-public sealed class Effect : IBasicAudioEffect
+public sealed class Effect : IBasicAudioEffect//, IWinRTObject
 {
     private AudioEncodingProperties? currentEncodingProperties;
     private readonly List<AudioEncodingProperties> supportedEncodingProperties = new();

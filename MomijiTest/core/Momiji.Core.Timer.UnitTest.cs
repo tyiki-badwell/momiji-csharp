@@ -7,7 +7,18 @@ namespace Momiji.Core.Timer;
 public class WaiterTest
 {
     [TestMethod]
-    public void Test1()
+    public void Test1_1()
+    {
+        Test1Impl(false);
+    }
+
+    [TestMethod]
+    public void Test1_2()
+    {
+        Test1Impl(true);
+    }
+
+    private void Test1Impl(bool highResolution)
     {
         using var loggerFactory = LoggerFactory.Create(builder =>
         {
@@ -27,7 +38,7 @@ public class WaiterTest
 
         var list = new List<(int, long, double, double)>();
 
-        using var waiter = new Waiter(counter, interval, true);
+        using var waiter = new Waiter(counter, interval, highResolution);
         counter.Reset();
 
         for (var i = 0; i < 100; i++)
@@ -35,7 +46,7 @@ public class WaiterTest
             var before = (double)counter.ElapsedTicks / 10_000;
             var r = waiter.Wait();
             var after = (double)counter.ElapsedTicks / 10_000;
-            while(--r > 1)
+            while (--r > 1)
             {
                 list.Add((i++, default, default, default));
             }
@@ -45,7 +56,7 @@ public class WaiterTest
 
         foreach (var (i, laps, before, after) in list)
         {
-            log.LogInformation($"count:{i}\tlaps:{laps}\tbefore:{before}\tafter:{after}\tdiff:{after-before}");
+            log.LogInformation($"count:{i}\tlaps:{laps}\tbefore:{before}\tafter:{after}\tdiff:{after - before}");
         }
     }
 
