@@ -1,6 +1,6 @@
-﻿using Momiji.Interop.Kernel32;
-using System.Diagnostics;
+﻿using System.Diagnostics;
 using System.Runtime.InteropServices;
+using Momiji.Interop.Kernel32;
 
 namespace Momiji.Core.Timer;
 
@@ -52,9 +52,10 @@ public class Waiter : IDisposable
     private bool _disposed;
     private readonly ElapsedTimeCounter _counter;
     private readonly long _intervalTicks;
-    public long ProgressedFrames { set; get; }
+    public long ProgressedFrames { private set; get; }
 
     private readonly WaitableTimer _handle;
+    private long _progressedTicks = 0;
 
     public Waiter(ElapsedTimeCounter counter, long intervalTicks) : this(counter, intervalTicks, false)
     {
@@ -67,6 +68,7 @@ public class Waiter : IDisposable
             throw new ArgumentOutOfRangeException(nameof(intervalTicks));
         }
         _intervalTicks = intervalTicks;
+        _progressedTicks = _counter.ElapsedTicks;
 
         _handle =
             NativeMethods.CreateWaitableTimerEx(
@@ -86,12 +88,16 @@ public class Waiter : IDisposable
 
     private void Reset()
     {
-        ProgressedFrames = _counter.ElapsedTicks / _intervalTicks;
+        _progressedTicks = _counter.ElapsedTicks;
+        ProgressedFrames = _progressedTicks / _intervalTicks;
     }
 
     public int Wait()
     {
-        var left = (_intervalTicks * (ProgressedFrames + 1)) - _counter.ElapsedTicks;
+        _progressedTicks += _intervalTicks;
+        var nowTicks = _counter.ElapsedTicks;
+        var left = _progressedTicks - nowTicks;
+
         var frames = 1;
 
         if (left > 0)
@@ -125,9 +131,10 @@ public class Waiter : IDisposable
         {
             //遅れているならバーストさせる
             frames = (int)(left / _intervalTicks * -1)+1;
+            _progressedTicks = nowTicks;
         }
 
-        Reset();
+        ProgressedFrames = _progressedTicks / _intervalTicks;
 
         return frames;
     }
