@@ -37,7 +37,7 @@ public class WaiterTest
         var sample = 1;
         var interval = (long)(10_000 * sample);
 
-        var list = new List<(int, long, double, double)>();
+        var list = new List<(int, long, double, double, double)>();
 
         using var waiter = new Waiter(counter, interval, highResolution);
         counter.Reset();
@@ -46,24 +46,26 @@ public class WaiterTest
             var before = (double)counter.ElapsedTicks / 10_000;
             for (var i = 0; i < 100; i++)
             {
-                var r = waiter.Wait();
+                var leftTicks = waiter.Wait();
 
                 var after = (double)counter.ElapsedTicks / 10_000;
-                while (r-- > 1)
+
+                list.Add((i, waiter.ProgressedFrames, before, after, (double)leftTicks / 10_000));
+
+                if (leftTicks < 0)
                 {
-                    list.Add((i++, waiter.ProgressedFrames, before, after));
+                    i += (int)((leftTicks * -1) / interval);
                 }
 
-                list.Add((i, waiter.ProgressedFrames, before, after));
                 before = after;
 
                 //Thread.Sleep(1);
             }
         }
 
-        foreach (var (i, laps, before, after) in list)
+        foreach (var (i, laps, before, after, leftTicks) in list)
         {
-            log.LogInformation($"count:{i}\tlaps:{laps}\tbefore:{before}\tafter:{after}\tdiff:{after - before}");
+            log.LogInformation($"count:{i}\tlaps:{laps}\tbefore:{before}\tafter:{after}\tdiff:{after - before}\t{leftTicks}");
         }
     }
 

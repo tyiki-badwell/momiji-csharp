@@ -68,7 +68,6 @@ public class Waiter : IDisposable
             throw new ArgumentOutOfRangeException(nameof(intervalTicks));
         }
         _intervalTicks = intervalTicks;
-        _progressedTicks = _counter.ElapsedTicks;
 
         _handle =
             NativeMethods.CreateWaitableTimerEx(
@@ -83,28 +82,20 @@ public class Waiter : IDisposable
             throw new TimerException($"CreateWaitableTimerEx failed [{Marshal.GetLastWin32Error()}]");
         }
 
-        Reset();
-    }
-
-    private void Reset()
-    {
         _progressedTicks = _counter.ElapsedTicks;
-        ProgressedFrames = _progressedTicks / _intervalTicks;
+        ProgressedFrames = 0;
     }
 
-    public int Wait()
+    public long Wait()
     {
-        _progressedTicks += _intervalTicks;
-        var nowTicks = _counter.ElapsedTicks;
-        var left = _progressedTicks - nowTicks;
+        var nextTicks = _intervalTicks * (ProgressedFrames + 1);
+        var leftTicks = nextTicks - _counter.ElapsedTicks;
 
-        var frames = 1;
-
-        if (left > 0)
+        if (leftTicks > 0)
         {
             //１回分以内なら時間調整を行う
             {
-                var dueTime = left * -1;
+                var dueTime = leftTicks * -1;
                 var result =
                     _handle.SetWaitableTimerEx(
                         ref dueTime,
@@ -126,17 +117,15 @@ public class Waiter : IDisposable
                     throw new TimerException($"WaitForSingleObject failed [{Marshal.GetLastWin32Error()}]");
                 }
             }
-        }
-        else
-        {
-            //遅れているならバーストさせる
-            frames = (int)(left / _intervalTicks * -1)+1;
-            _progressedTicks = nowTicks;
+
+            //待ち過ぎた時間を計測
+            leftTicks = nextTicks - _counter.ElapsedTicks;
         }
 
+        _progressedTicks = _counter.ElapsedTicks;
         ProgressedFrames = _progressedTicks / _intervalTicks;
 
-        return frames;
+        return leftTicks;
     }
 
     ~Waiter()
