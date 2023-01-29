@@ -1,7 +1,22 @@
-﻿GetStartupInfoW
+﻿CoGetApartmentType
 
-D3D11CreateDevice
-CreateDirect3D11DeviceFromDXGIDevice
+//GetStartupInfoW
+
+//D3D11CreateDevice
+//CreateDirect3D11DeviceFromDXGIDevice
+
+ActivateAudioInterfaceAsync
+IAudioClient3
+
+MFCreateAsyncResult
+
+//RtwqCreateAsyncResult
+//RtwqScheduleWorkItem
+//RtwqPutWorkItem
+//RtwqUnlockWorkQueue
+//RtwqLockSharedWorkQueue
+//RtwqStartup
+//RtwqShutdown
 
 //ID2D1Factory6
 //D2D1CreateFactory

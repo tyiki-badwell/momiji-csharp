@@ -16,13 +16,6 @@ public class WindowExceptionUnitTest
     [TestMethod]
     public void Test2()
     {
-        var test = new WindowException(1400, "test2");
-        Assert.IsNotNull(test.Message);
-    }
-
-    [TestMethod]
-    public void Test3()
-    {
         var test = new WindowException("test2", new Exception("inner"));
         Assert.IsNotNull(test.Message);
     }

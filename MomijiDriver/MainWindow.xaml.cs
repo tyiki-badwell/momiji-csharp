@@ -345,12 +345,14 @@ public sealed partial class MainWindow : Window
         var b = (Button)sender;
         var note = (string)b.Tag;
 
-        var m = new MIDIMessageEvent();
-        m.receivedTime = 0;
-        m.data0 = byte.Parse(note.Substring(0, 2), NumberStyles.HexNumber);
-        m.data1 = byte.Parse(note.Substring(2, 2), NumberStyles.HexNumber);
-        m.data2 = byte.Parse(note.Substring(4, 2), NumberStyles.HexNumber);
-        m.data3 = 0;
+        var m = new MIDIMessageEvent
+        {
+            receivedTime = 0,
+            data0 = byte.Parse(note.Substring(0, 2), NumberStyles.HexNumber),
+            data1 = byte.Parse(note.Substring(2, 2), NumberStyles.HexNumber),
+            data2 = byte.Parse(note.Substring(4, 2), NumberStyles.HexNumber),
+            data3 = 0
+        };
 
         list.AsParallel().ForAll(host => {
             var worker = (IRunner?)host.Services.GetService(typeof(IRunner));

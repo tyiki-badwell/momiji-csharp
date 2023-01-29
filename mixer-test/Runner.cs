@@ -1,14 +1,93 @@
-﻿using Momiji.Core.Configuration;
-using Momiji.Core.Dll;
-using Momiji.Core.Timer;
-using Momiji.Core.WebMidi;
-using Momiji.Core.Window;
-using System.Net.WebSockets;
+﻿using System.Net.WebSockets;
 using System.Text;
 using System.Text.Json;
 using System.Threading.Tasks.Dataflow;
+using Momiji.Core.Configuration;
+using Momiji.Core.Dll;
+using Momiji.Core.RTWorkQueue;
+using Momiji.Core.RTWorkQueue.Tasks;
+using Momiji.Core.Timer;
+using Momiji.Core.WebMidi;
+using Momiji.Core.Window;
 
 namespace mixerTest;
+
+
+public static class Main
+{
+    public static void Run(string[] args)
+    {
+        var builder = WebApplication.CreateBuilder(args);
+
+        builder.Logging.AddAzureWebAppDiagnostics();
+
+        // Add services to the container.
+        builder.Services.AddRazorPages();
+
+        builder.Services.Configure<CookiePolicyOptions>(options =>
+        {
+            options.CheckConsentNeeded = context => true;
+            options.MinimumSameSitePolicy = SameSiteMode.None;
+        });
+
+        builder.Services.AddSingleton<IDllManager, DllManager>();
+        builder.Services.AddSingleton<IWindowManager, WindowManager>();
+        builder.Services.AddSingleton<IRTWorkQueuePlatformEventsHandler, RTWorkQueuePlatformEventsHandler>();
+        builder.Services.AddSingleton<IRTWorkQueueManager, RTWorkQueueManager>();
+        builder.Services.AddSingleton<IRTWorkQueueTaskScheduler, RTWorkQueueTaskScheduler>();
+        builder.Services.AddSingleton<IRunner, Runner>();
+
+        var app = builder.Build();
+
+        // Configure the HTTP request pipeline.
+        if (app.Environment.IsDevelopment())
+        {
+            app.UseDeveloperExceptionPage();
+        }
+        else
+        {
+            app.UseExceptionHandler("/Error");
+            // The default HSTS value is 30 days. You may want to change this for production scenarios, see https://aka.ms/aspnetcore-hsts.
+            app.UseHsts();
+        }
+
+        app.UseHttpsRedirection();
+        app.UseStaticFiles();
+        app.UseCookiePolicy();
+
+        app.UseRouting();
+
+        //app.UseAuthorization();
+
+        app.MapRazorPages();
+
+        app.Map("/ws", subApp =>
+        {
+            subApp.UseWebSockets();
+            subApp.UseWebSocketToRunner();
+        });
+
+        var logger = app.Services.GetService<ILogger<Program>>();
+
+        app.Lifetime.ApplicationStarted.Register(() =>
+        {
+            //app.ApplicationServices.GetService<IRunner>().Start();
+            logger?.LogInformation("ApplicationStarted");
+        });
+        app.Lifetime.ApplicationStopping.Register(() =>
+        {
+
+            logger?.LogInformation("ApplicationStopping");
+        });
+        app.Lifetime.ApplicationStopped.Register(() =>
+        {
+            app.Services.GetService<IRunner>()?.Cancel();
+            logger?.LogInformation("ApplicationStopped");
+        });
+
+        app.Run();
+    }
+}
 
 public interface IRunner
 {
@@ -35,6 +114,8 @@ public class Runner : IRunner, IDisposable
     private ILogger Logger { get; }
     private IDllManager DllManager { get; }
     private IWindowManager WindowManager { get; }
+    private IRTWorkQueueManager WorkQueueManager { get; }
+    private IRTWorkQueueTaskScheduler WorkQueueTaskScheduler { get; }
     private Param Param { get; set; }
 
     private bool _disposed;
@@ -57,13 +138,22 @@ public class Runner : IRunner, IDisposable
     //private BufferBlock<OpusOutputBuffer> audioOutput = new BufferBlock<OpusOutputBuffer>();
     //private BufferBlock<H264OutputBuffer> videoOutput = new BufferBlock<H264OutputBuffer>();
 
-    public Runner(IConfiguration configuration, ILoggerFactory loggerFactory, IDllManager dllManager, IWindowManager windowManager)
+    public Runner(
+        IConfiguration configuration, 
+        ILoggerFactory loggerFactory, 
+        IDllManager dllManager, 
+        IWindowManager windowManager,
+        IRTWorkQueueManager workQueueManager,
+        IRTWorkQueueTaskScheduler workQueueTaskScheduler
+    )
     {
         Configuration = configuration ?? throw new ArgumentNullException(nameof(configuration));
         LoggerFactory = loggerFactory;
         Logger = LoggerFactory.CreateLogger<Runner>();
         DllManager = dllManager;
         WindowManager = windowManager;
+        WorkQueueManager = workQueueManager;
+        WorkQueueTaskScheduler = workQueueTaskScheduler;
 
         var param = new Param();
 
@@ -127,7 +217,7 @@ public class Runner : IRunner, IDisposable
             try
             {
                 //logic = new Logic1(Configuration, LoggerFactory, DllManager, Param, midiEventInput, midiEventOutput, processCancel);
-                _logic = new Logic2(Configuration, LoggerFactory, DllManager, WindowManager, Param, _midiEventInput, _midiEventOutput, _processCancel);
+                _logic = new Logic2(Configuration, LoggerFactory, DllManager, WindowManager, WorkQueueManager, WorkQueueTaskScheduler, Param, _midiEventInput, _midiEventOutput, _processCancel);
                 //logic = new Logic4(Configuration, LoggerFactory, DllManager, Param, midiEventInput, midiEventOutput, processCancel);
 
                 _processTask = _logic.RunAsync();
@@ -290,7 +380,7 @@ public class Runner : IRunner, IDisposable
 
                 if (result.MessageType == WebSocketMessageType.Binary)
                 {
-                    MIDIMessageEvent midiEvent = ToMIDIMessageEvent(buf.Array);
+                    var midiEvent = ToMIDIMessageEvent(buf.Array);
                     /*
                     Logger.LogInformation(
                         $"note {DateTimeOffset.FromUnixTimeMilliseconds((long)(timer.USecDouble / 1000)).ToUniversalTime():HH:mm:ss.fff} {DateTimeOffset.FromUnixTimeMilliseconds((long)midiEvent.receivedTime).ToUniversalTime():HH:mm:ss.fff} => " +
@@ -396,7 +486,7 @@ public class Runner : IRunner, IDisposable
         }
     }
 
-    static MIDIMessageEvent ToMIDIMessageEvent(byte[]? buf)
+    private static MIDIMessageEvent ToMIDIMessageEvent(byte[]? buf)
     {
         unsafe
         {

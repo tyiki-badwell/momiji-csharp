@@ -18,6 +18,24 @@
       "nativeDebugging": true,
       "use64Bit": false
     },
+    "IIS Express64": {
+      "commandName": "IISExpress",
+      "launchBrowser": true,
+      "environmentVariables": {
+        "ASPNETCORE_ENVIRONMENT": "Development"
+      },
+      "ancmHostingModel": "OutOfProcess",
+      "nativeDebugging": true,
+      "use64Bit": true
+    },
+    "IIS": {
+      "commandName": "IIS",
+      "launchBrowser": true,
+      "launchUrl": "http://localhost:51504",
+      "environmentVariables": {
+        "ASPNETCORE_ENVIRONMENT": "Development"
+      }
+    },
     "mixerTest": {
       "commandName": "Project",
       "launchBrowser": true,

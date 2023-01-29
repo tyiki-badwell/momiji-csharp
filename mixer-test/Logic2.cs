@@ -1,10 +1,13 @@
-﻿using Momiji.Core.Buffer;
+﻿using System.Reflection;
+using System.Threading.Tasks.Dataflow;
+using Momiji.Core.Buffer;
 using Momiji.Core.Configuration;
 using Momiji.Core.Dll;
 using Momiji.Core.FFT;
 using Momiji.Core.Ftl;
 using Momiji.Core.H264;
 using Momiji.Core.Opus;
+using Momiji.Core.RTWorkQueue;
 using Momiji.Core.SharedMemory;
 using Momiji.Core.Timer;
 using Momiji.Core.Trans;
@@ -13,8 +16,6 @@ using Momiji.Core.Wave;
 using Momiji.Core.WebMidi;
 using Momiji.Core.Window;
 using Momiji.Interop.Opus;
-using System.Reflection;
-using System.Threading.Tasks.Dataflow;
 
 namespace mixerTest;
 
@@ -25,6 +26,8 @@ public class Logic2 : ILogic
     private ILogger Logger { get; }
     private IDllManager DllManager { get; }
     private IWindowManager WindowManager { get; }
+    private IRTWorkQueueManager WorkQueueManager { get; }
+    private IRTWorkQueueTaskScheduler WorkQueueTaskScheduler { get; }
     private string StreamKey { get; }
     private string IngestHostname { get; }
     private string CaInfoPath { get; }
@@ -42,6 +45,8 @@ public class Logic2 : ILogic
         ILoggerFactory loggerFactory,
         IDllManager dllManager,
         IWindowManager windowManager,
+        IRTWorkQueueManager workQueueManager,
+        IRTWorkQueueTaskScheduler workQueueTaskScheduler,
         Param param,
         BufferBlock<MIDIMessageEvent2> midiEventInput,
         BufferBlock<MIDIMessageEvent2> midiEventOutput,
@@ -53,6 +58,8 @@ public class Logic2 : ILogic
         Logger = LoggerFactory.CreateLogger<Runner>();
         DllManager = dllManager;
         WindowManager = windowManager;
+        WorkQueueManager = workQueueManager;
+        WorkQueueTaskScheduler = workQueueTaskScheduler;
         Param = param;
         ProcessCancel = processCancel;
         MidiEventInput = midiEventInput;
@@ -128,14 +135,16 @@ public class Logic2 : ILogic
         var options = new ExecutionDataflowBlockOptions
         {
             CancellationToken = ct,
-            MaxDegreeOfParallelism = 1
+            MaxDegreeOfParallelism = 1,
+            TaskScheduler = WorkQueueTaskScheduler.TaskScheduler
         };
 
         {
             var audioStartBlock =
                 new TransformBlock<VstBuffer2<float>, VstBuffer2<float>>(buffer => {
                     buffer.Log.Clear();
-                    audioWaiter.Wait();
+                    var left = audioWaiter.Wait();
+                    buffer.Log.Add($"[audio] wait {left}", counter.NowTicks);
                     return buffer;
                 }, options);
             taskSet.Add(audioStartBlock.Completion);
@@ -211,7 +220,8 @@ public class Logic2 : ILogic
             var videoStartBlock =
                 new TransformBlock<H264InputBuffer, H264InputBuffer>(buffer => {
                     buffer.Log.Clear();
-                    videoWaiter.Wait();
+                    var left = videoWaiter.Wait();
+                    buffer.Log.Add($"[video] wait {left}", counter.NowTicks);
                     return buffer;
                 }, options);
             taskSet.Add(videoStartBlock.Completion);
@@ -314,7 +324,8 @@ public class Logic2 : ILogic
         var audioStartBlock =
             new TransformBlock<VstBuffer2<float>, VstBuffer2<float>>(buffer => {
                 buffer.Log.Clear();
-                audioWaiter.Wait();
+                var left = audioWaiter.Wait();
+                buffer.Log.Add($"[audio] wait {left}", counter.NowTicks);
                 return buffer;
             }, options);
         taskSet.Add(audioStartBlock.Completion);

@@ -1,8 +1,8 @@
+using System.Threading.Tasks.Dataflow;
 using Microsoft.Extensions.Logging;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using Momiji.Core.Buffer;
 using Momiji.Core.Timer;
-using System.Threading.Tasks.Dataflow;
 
 namespace Momiji.Core.Wave;
 

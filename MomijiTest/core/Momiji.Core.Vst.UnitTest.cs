@@ -1,3 +1,4 @@
+using System.Threading.Tasks.Dataflow;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
@@ -5,8 +6,6 @@ using Momiji.Core.Dll;
 using Momiji.Core.Timer;
 using Momiji.Core.WebMidi;
 using Momiji.Core.Window;
-using System.Runtime.InteropServices;
-using System.Threading.Tasks.Dataflow;
 
 namespace Momiji.Core.Vst;
 

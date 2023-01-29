@@ -1,25 +1,102 @@
-using System.Diagnostics.Metrics;
+using System.Collections.Concurrent;
 using Microsoft.Extensions.Logging;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 
 namespace Momiji.Core.Timer;
 
 [TestClass]
-public class WaiterTest
+public class WaitableTimerTest
 {
+    private const int TIMES = 100;
+    private const int INTERVAL = 5_000_0;
+
+    private ILoggerFactory CreateLoggerFactory()
+    {
+        return LoggerFactory.Create(builder =>
+        {
+            builder.AddFilter("Momiji", LogLevel.Trace);
+            builder.AddFilter("Microsoft", LogLevel.Warning);
+            builder.AddFilter("System", LogLevel.Warning);
+            builder.AddConsole();
+            builder.AddDebug();
+        });
+    }
+    private void PrintResult(
+        ConcurrentQueue<(string, long)> list,
+        ILogger logger
+    )
+    {
+        {
+            var (tag, time) = list.ToList()[^1];
+            logger.LogInformation($"LAST: {tag}\t{(double)time / 10000}");
+        }
+
+        foreach (var (tag, time) in list)
+        {
+            logger.LogInformation($"{tag}\t{(double)time / 10000}");
+        }
+    }
+
     [TestMethod]
     public void Test1_1()
     {
-        Test1Impl(false);
+        Test1Impl(true, true);
     }
 
     [TestMethod]
     public void Test1_2()
     {
-        Test1Impl(true);
+        Test1Impl(true, false);
+    }
+    [TestMethod]
+    public void Test1_3()
+    {
+        Test1Impl(false, true);
+    }
+    [TestMethod]
+    public void Test1_4()
+    {
+        Test1Impl(false, false);
     }
 
-    private void Test1Impl(bool highResolution)
+    private void Test1Impl(
+        bool manualReset,
+        bool highResolution
+    )
+    {
+        using var loggerFactory = CreateLoggerFactory();
+        var logger = loggerFactory.CreateLogger("WaitableTimerTest.Test1");
+        var list = new ConcurrentQueue<(string, long)>();
+
+        var counter = new ElapsedTimeCounter();
+
+        using var timer = new WaitableTimer(manualReset, highResolution);
+
+        var dueTime = -INTERVAL;
+
+        for (var i = 0; i < TIMES; i++)
+        {
+            timer.Set(dueTime);
+
+            var start = counter.ElapsedTicks;
+
+            timer.WaitOne();
+
+            var end = counter.ElapsedTicks;
+
+            list.Enqueue(($"LAP {(double)(end - start) / 10_000}", counter.ElapsedTicks));
+        }
+        PrintResult(list, logger);
+    }
+
+}
+
+public class WaiterTest
+{
+    [DataTestMethod]
+    [DataRow(false)]
+    [DataRow(true)]
+    public void Test1(bool highResolution)
     {
         using var loggerFactory = LoggerFactory.Create(builder =>
         {
@@ -70,13 +147,7 @@ public class WaiterTest
     }
 
     [TestMethod]
-    public void Test2()
-    {
-        Test2Async().Wait();
-    }
-
-
-    private async Task Test2Async()
+    public async Task Test2Async()
     {
         using var loggerFactory = LoggerFactory.Create(builder =>
         {
@@ -120,11 +191,6 @@ public class WaiterTest
     }
 
     [TestMethod]
-    public void Test3()
-    {
-        Test3Async().Wait();
-    }
-
     public async Task Test3Async()
     {
         using var loggerFactory = LoggerFactory.Create(builder =>
