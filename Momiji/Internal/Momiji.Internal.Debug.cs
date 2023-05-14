@@ -352,21 +352,46 @@ public class WindowDebug
 
 public class ThreadDebug
 {
-    public readonly struct ApartmentType
+    public static void PrintObjectContext(
+        ILoggerFactory loggerFactory
+    )
     {
-        internal readonly Ole32.APTTYPE AptType;
-        internal readonly Ole32.APTTYPEQUALIFIER AptQualifier;
-        internal readonly int ManagedThreadId;
+        var logger = loggerFactory.CreateLogger<ThreadDebug>();
+        {
+            var guid = typeof(Ole32.IComThreadingInfo).GUID;
+            var result = Ole32.CoGetObjectContext(ref guid, out var ppv);
+            logger.LogInformation($"CoGetObjectContext {result}");
 
-        internal ApartmentType(Ole32.APTTYPE aptType, Ole32.APTTYPEQUALIFIER aptQualifier) => (AptType, AptQualifier, ManagedThreadId) = (aptType, aptQualifier, Environment.CurrentManagedThreadId);
+            if (ppv is Ole32.IComThreadingInfo comThreadingInfo)
+            {
+                comThreadingInfo.GetCurrentApartmentType(out var pAptType);
+                comThreadingInfo.GetCurrentThreadType(out var pThreadType);
+                comThreadingInfo.GetCurrentLogicalThreadId(out var pguidLogicalThreadId);
+                logger.LogInformation($"IComThreadingInfo {pAptType} {pThreadType} {pguidLogicalThreadId}");
+            }
+        }
 
-        public override string ToString() => $"AptType:{AptType} AptQualifier:{AptQualifier} ManagedThreadId:{ManagedThreadId:X}";
-    }
+        {
+            var guid = typeof(Ole32.IContext).GUID;
+            var result = Ole32.CoGetObjectContext(ref guid, out var ppv);
+            logger.LogInformation($"CoGetObjectContext {result}");
 
+            if (ppv is Ole32.IContext context)
+            {
+                var result2 = context.EnumContextProps(out var props);
+                if (result2 == 0)
+                {
+                    if (props is Ole32.IEnumContextProps enumContextProps)
+                    {
+                        enumContextProps.Count(out var pcelt);
+                        logger.LogInformation($"EnumContextProps Count {pcelt}");
 
-    public static ApartmentType GetApartmentType()
-    {
-        var _ = Ole32.CoGetApartmentType(out var pAptType, out var pAptQualifier);
-        return new ApartmentType(pAptType, pAptQualifier);
+                        enumContextProps.Next(0, out var pContextProperties, out var pceltFetched);
+                        logger.LogInformation($"EnumContextProps Next {pContextProperties.policyId} {pContextProperties.pUnk} {pceltFetched}");
+
+                    }
+                }
+            }
+        }
     }
 }

@@ -74,7 +74,10 @@ public abstract class InternalGCHandleBuffer<T> : IDisposable where T : notnull
 
     protected virtual void Dispose(bool disposing)
     {
-        if (_disposed) return;
+        if (_disposed)
+        {
+            return;
+        }
 
         if (Handle.IsAllocated)
         {

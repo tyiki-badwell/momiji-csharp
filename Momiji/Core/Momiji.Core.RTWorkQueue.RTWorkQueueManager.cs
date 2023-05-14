@@ -4,7 +4,7 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using Momiji.Core.Buffer;
 using Momiji.Core.Cache;
-using Momiji.Internal.Debug;
+using Momiji.Core.Threading;
 using RTWorkQ = Momiji.Interop.RTWorkQ.NativeMethods;
 
 namespace Momiji.Core.RTWorkQueue;
@@ -118,7 +118,7 @@ public class RTWorkQueueManager : IRTWorkQueueManager
 
     private bool _shutdown;
 
-    internal ThreadDebug.ApartmentType CreatedApartmentType { get; init; }
+    internal ApartmentType CreatedApartmentType { get; init; }
 
     private record class Param
     {
@@ -146,13 +146,15 @@ public class RTWorkQueueManager : IRTWorkQueueManager
         _loggerFactory = loggerFactory;
         _logger = _loggerFactory.CreateLogger<RTWorkQueueManager>();
 
-        CreatedApartmentType = ThreadDebug.GetApartmentType();
+        CreatedApartmentType = ApartmentType.GetApartmentType();
 
         _logger.LogTrace($"create {CreatedApartmentType}");
 
+        //TODO これの呼び出しはプロセス単位？スレッド単位？ STAかどうかは気にする？
         _logger.LogTrace("RtwqStartup");
         Marshal.ThrowExceptionForHR(RTWorkQ.RtwqStartup());
 
+        //TODO これの呼び出しはプロセス単位？スレッド単位？ STAかどうかは気にする？
         _logger.LogTrace("RtwqLockPlatform");
         Marshal.ThrowExceptionForHR(RTWorkQ.RtwqLockPlatform());
 
@@ -190,7 +192,7 @@ public class RTWorkQueueManager : IRTWorkQueueManager
     {
         _shutdown = true;
 
-        var apartmentType = ThreadDebug.GetApartmentType();
+        var apartmentType = ApartmentType.GetApartmentType();
 
         if (_disposed)
         {
@@ -245,7 +247,7 @@ public class RTWorkQueueManager : IRTWorkQueueManager
     {
         if (_shutdown)
         {
-        //    throw new InvalidOperationException("in shutdown.");
+            throw new InvalidOperationException("in shutdown.");
         }
     }
 
@@ -298,8 +300,6 @@ public class RTWorkQueueManager : IRTWorkQueueManager
 
     public void UnregisterMMCSS()
     {
-        CheckShutdown();
-
         _logger.LogTrace("RtwqUnregisterPlatformFromMMCSS");
         Marshal.ThrowExceptionForHR(RTWorkQ.RtwqUnregisterPlatformFromMMCSS());
 

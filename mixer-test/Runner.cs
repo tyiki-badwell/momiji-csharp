@@ -34,7 +34,7 @@ public static class Main
         builder.Services.AddSingleton<IWindowManager, WindowManager>();
         builder.Services.AddSingleton<IRTWorkQueuePlatformEventsHandler, RTWorkQueuePlatformEventsHandler>();
         builder.Services.AddSingleton<IRTWorkQueueManager, RTWorkQueueManager>();
-        builder.Services.AddSingleton<IRTWorkQueueTaskScheduler, RTWorkQueueTaskScheduler>();
+        builder.Services.AddSingleton<IRTWorkQueueTaskSchedulerManager, RTWorkQueueTaskSchedulerManager>();
         builder.Services.AddSingleton<IRunner, Runner>();
 
         var app = builder.Build();
@@ -115,7 +115,7 @@ public class Runner : IRunner, IDisposable
     private IDllManager DllManager { get; }
     private IWindowManager WindowManager { get; }
     private IRTWorkQueueManager WorkQueueManager { get; }
-    private IRTWorkQueueTaskScheduler WorkQueueTaskScheduler { get; }
+    private IRTWorkQueueTaskSchedulerManager WorkQueueTaskSchedulerManager { get; }
     private Param Param { get; set; }
 
     private bool _disposed;
@@ -144,7 +144,7 @@ public class Runner : IRunner, IDisposable
         IDllManager dllManager, 
         IWindowManager windowManager,
         IRTWorkQueueManager workQueueManager,
-        IRTWorkQueueTaskScheduler workQueueTaskScheduler
+        IRTWorkQueueTaskSchedulerManager workQueueTaskSchedulerManager
     )
     {
         Configuration = configuration ?? throw new ArgumentNullException(nameof(configuration));
@@ -153,7 +153,7 @@ public class Runner : IRunner, IDisposable
         DllManager = dllManager;
         WindowManager = windowManager;
         WorkQueueManager = workQueueManager;
-        WorkQueueTaskScheduler = workQueueTaskScheduler;
+        WorkQueueTaskSchedulerManager = workQueueTaskSchedulerManager;
 
         var param = new Param();
 
@@ -171,7 +171,10 @@ public class Runner : IRunner, IDisposable
 
     protected virtual void Dispose(bool disposing)
     {
-        if (_disposed) return;
+        if (_disposed)
+        {
+            return;
+        }
 
         if (disposing)
         {
@@ -217,7 +220,7 @@ public class Runner : IRunner, IDisposable
             try
             {
                 //logic = new Logic1(Configuration, LoggerFactory, DllManager, Param, midiEventInput, midiEventOutput, processCancel);
-                _logic = new Logic2(Configuration, LoggerFactory, DllManager, WindowManager, WorkQueueManager, WorkQueueTaskScheduler, Param, _midiEventInput, _midiEventOutput, _processCancel);
+                _logic = new Logic2(Configuration, LoggerFactory, DllManager, WindowManager, WorkQueueManager, WorkQueueTaskSchedulerManager, Param, _midiEventInput, _midiEventOutput, _processCancel);
                 //logic = new Logic4(Configuration, LoggerFactory, DllManager, Param, midiEventInput, midiEventOutput, processCancel);
 
                 _processTask = _logic.RunAsync();

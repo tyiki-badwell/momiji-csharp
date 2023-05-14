@@ -104,7 +104,11 @@ public class FtlIngest : IDisposable
 
     protected virtual void Dispose(bool disposing)
     {
-        if (disposed) return;
+        if (disposed)
+        {
+            return;
+        }
+
         disposed = true;
 
         if (disposing)

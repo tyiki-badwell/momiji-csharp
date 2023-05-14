@@ -2,6 +2,7 @@
 using System.Runtime.Versioning;
 using System.Text;
 using Microsoft.Extensions.Logging;
+using Momiji.Core.Threading;
 using Momiji.Internal.Debug;
 using Momiji.Interop.RTWorkQ;
 using RTWorkQ = Momiji.Interop.RTWorkQ.NativeMethods;
@@ -15,12 +16,26 @@ public class RTWorkQueue : IRTWorkQueue
     private readonly ILogger<RTWorkQueue> _logger;
     private bool _disposed;
     private bool _shutdown;
-    internal ThreadDebug.ApartmentType CreatedApartmentType { get; init; }
+    internal ApartmentType CreatedApartmentType { get; init; }
 
     private readonly RTWorkQueueManager _parent;
     private readonly RTWorkQ.WorkQueueId _workQueueid;
 
     private readonly int _taskId;
+
+    private RTWorkQueue(
+        ILoggerFactory loggerFactory,
+        RTWorkQueueManager parent
+    )
+    {
+        //STAからの呼び出しはサポート外にする
+        ApartmentType.CheckNeedMTA();
+
+        _loggerFactory = loggerFactory;
+        _logger = _loggerFactory.CreateLogger<RTWorkQueue>();
+        _parent = parent;
+        CreatedApartmentType = ApartmentType.GetApartmentType();
+    }
 
     internal RTWorkQueue(
         ILoggerFactory loggerFactory,
@@ -28,13 +43,8 @@ public class RTWorkQueue : IRTWorkQueue
         string usageClass,
         IRTWorkQueue.TaskPriority basePriority,
         int taskId
-    )
+    ) : this(loggerFactory, parent)
     {
-        _loggerFactory = loggerFactory;
-        _logger = _loggerFactory.CreateLogger<RTWorkQueue>();
-        _parent = parent;
-
-        CreatedApartmentType = ThreadDebug.GetApartmentType();
         _logger.LogTrace($"create RTWorkQueue(shared) {CreatedApartmentType}");
 
         if (usageClass != "")
@@ -71,13 +81,8 @@ public class RTWorkQueue : IRTWorkQueue
         ILoggerFactory loggerFactory,
         RTWorkQueueManager parent,
         IRTWorkQueue.WorkQueueType type
-    )
+    ) : this(loggerFactory, parent)
     {
-        _loggerFactory = loggerFactory;
-        _logger = _loggerFactory.CreateLogger<RTWorkQueue>();
-        _parent = parent;
-
-        CreatedApartmentType = ThreadDebug.GetApartmentType();
         _logger.LogTrace($"create RTWorkQueue(private) {CreatedApartmentType}");
 
         //Lock +1
@@ -94,13 +99,8 @@ public class RTWorkQueue : IRTWorkQueue
         ILoggerFactory loggerFactory,
         RTWorkQueueManager parent,
         RTWorkQueue workQueue
-    )
+    ) : this(loggerFactory, parent)
     {
-        _loggerFactory = loggerFactory;
-        _logger = _loggerFactory.CreateLogger<RTWorkQueue>();
-        _parent = parent;
-
-        CreatedApartmentType = ThreadDebug.GetApartmentType();
         _logger.LogTrace($"create RTWorkQueue(serial) {CreatedApartmentType}");
 
         //Lock +1
@@ -140,6 +140,8 @@ public class RTWorkQueue : IRTWorkQueue
         {
         }
 
+        //TODO STAから呼ばれたときはMTAに移動して解放しないとダメ？
+
         if (_workQueueid.Id != default)
         {
             try
@@ -160,23 +162,32 @@ public class RTWorkQueue : IRTWorkQueue
     {
         if (_shutdown)
         {
-        //    throw new InvalidOperationException("in shutdown.");
+            throw new InvalidOperationException("in shutdown.");
         }
     }
 
     public int GetMMCSSTaskId()
     {
+        //STAからの呼び出しはサポート外にする
+        ApartmentType.CheckNeedMTA();
+
         Marshal.ThrowExceptionForHR(_workQueueid.RtwqGetWorkQueueMMCSSTaskId(out var taskId));
         return taskId;
     }
     public IRTWorkQueue.TaskPriority GetMMCSSPriority()
     {
+        //STAからの呼び出しはサポート外にする
+        ApartmentType.CheckNeedMTA();
+
         Marshal.ThrowExceptionForHR(_workQueueid.RtwqGetWorkQueueMMCSSPriority(out var priority));
         return (IRTWorkQueue.TaskPriority)priority;
     }
 
     public string GetMMCSSClass()
     {
+        //STAからの呼び出しはサポート外にする
+        ApartmentType.CheckNeedMTA();
+
         var text = new StringBuilder();
         var length = 0;
 
@@ -244,6 +255,9 @@ public class RTWorkQueue : IRTWorkQueue
         int taskId
     )
     {
+        //STAからの呼び出しはサポート外にする
+        ApartmentType.CheckNeedMTA();
+
         CheckShutdown();
 
         var tcs = new TaskCompletionSource(TaskCreationOptions.AttachedToParent);
@@ -278,6 +292,9 @@ public class RTWorkQueue : IRTWorkQueue
 
     public Task UnregisterMMCSSAsync()
     {
+        //STAからの呼び出しはサポート外にする
+        ApartmentType.CheckNeedMTA();
+
         CheckShutdown();
 
         var tcs = new TaskCompletionSource(TaskCreationOptions.AttachedToParent);
@@ -309,6 +326,9 @@ public class RTWorkQueue : IRTWorkQueue
 
     public void SetLongRunning(bool enable)
     {
+        //STAからの呼び出しはサポート外にする
+        ApartmentType.CheckNeedMTA();
+
         CheckShutdown();
 
         Marshal.ThrowExceptionForHR(_workQueueid.RtwqSetLongRunning(enable));
@@ -320,11 +340,14 @@ public class RTWorkQueue : IRTWorkQueue
         Action<Exception?, CancellationToken>? afterAction = default
     )
     {
+        //QueueとAsyncResultを作ったApartmentTypeが一致している必要がある
+        //STAからの呼び出しはサポート外にする
+        ApartmentType.CheckNeedMTA();
+
         CheckShutdown();
 
         var asyncResult = _parent.GetAsyncResult(0, _workQueueid, action, afterAction);
 
-        //QueueとAsyncResultを作ったApartmentTypeが一致している必要がある
         try
         {
             _logger.LogTrace($"PutWorkItem Id:{asyncResult.Id} {asyncResult.CreatedApartmentType}");

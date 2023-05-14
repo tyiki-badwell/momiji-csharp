@@ -27,7 +27,7 @@ public class Logic2 : ILogic
     private IDllManager DllManager { get; }
     private IWindowManager WindowManager { get; }
     private IRTWorkQueueManager WorkQueueManager { get; }
-    private IRTWorkQueueTaskScheduler WorkQueueTaskScheduler { get; }
+    private IRTWorkQueueTaskSchedulerManager WorkQueueTaskSchedulerManager { get; }
     private string StreamKey { get; }
     private string IngestHostname { get; }
     private string CaInfoPath { get; }
@@ -46,7 +46,7 @@ public class Logic2 : ILogic
         IDllManager dllManager,
         IWindowManager windowManager,
         IRTWorkQueueManager workQueueManager,
-        IRTWorkQueueTaskScheduler workQueueTaskScheduler,
+        IRTWorkQueueTaskSchedulerManager workQueueTaskSchedulerManager,
         Param param,
         BufferBlock<MIDIMessageEvent2> midiEventInput,
         BufferBlock<MIDIMessageEvent2> midiEventOutput,
@@ -59,7 +59,7 @@ public class Logic2 : ILogic
         DllManager = dllManager;
         WindowManager = windowManager;
         WorkQueueManager = workQueueManager;
-        WorkQueueTaskScheduler = workQueueTaskScheduler;
+        WorkQueueTaskSchedulerManager = workQueueTaskSchedulerManager;
         Param = param;
         ProcessCancel = processCancel;
         MidiEventInput = midiEventInput;
@@ -132,14 +132,14 @@ public class Logic2 : ILogic
         using var ftl = new FtlIngest(StreamKey, IngestHostname, LoggerFactory, counter, audioInterval, videoInterval, default, CaInfoPath);
         ftl.Connect();
 
-        var options = new ExecutionDataflowBlockOptions
         {
-            CancellationToken = ct,
-            MaxDegreeOfParallelism = 1,
-            TaskScheduler = WorkQueueTaskScheduler.TaskScheduler
-        };
+            var options = new ExecutionDataflowBlockOptions
+            {
+                CancellationToken = ct,
+                MaxDegreeOfParallelism = 1,
+                TaskScheduler = WorkQueueTaskSchedulerManager.GetTaskScheduler("Pro Audio")
+            };
 
-        {
             var audioStartBlock =
                 new TransformBlock<VstBuffer2<float>, VstBuffer2<float>>(buffer => {
                     buffer.Log.Clear();
@@ -200,6 +200,13 @@ public class Logic2 : ILogic
         }
 
         {
+            var options = new ExecutionDataflowBlockOptions
+            {
+                CancellationToken = ct,
+                MaxDegreeOfParallelism = 1,
+                TaskScheduler = WorkQueueTaskSchedulerManager.GetTaskScheduler("Playback")
+            };
+
             var midiDataStoreBlock =
                 new ActionBlock<MIDIMessageEvent2>(buffer =>
                 {
@@ -318,7 +325,8 @@ public class Logic2 : ILogic
         var options = new ExecutionDataflowBlockOptions
         {
             CancellationToken = ct,
-            MaxDegreeOfParallelism = 1
+            MaxDegreeOfParallelism = 1,
+            TaskScheduler = WorkQueueTaskSchedulerManager.GetTaskScheduler("Pro Audio")
         };
 
         var audioStartBlock =

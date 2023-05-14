@@ -4,6 +4,7 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using Momiji.Core.Timer;
+using Momiji.Internal.Debug;
 
 namespace Momiji.Core.RTWorkQueue.Tasks;
 
@@ -43,8 +44,7 @@ public class RTWorkQueueTasksTest
     private static ILoggerFactory? _loggerFactory;
     private static ILogger<RTWorkQueueTasksTest>? _logger;
     private static RTWorkQueuePlatformEventsHandler? _workQueuePlatformEventsHandler;
-    //private static RTWorkQueueManager? _workQueueManager;
-    private static RTWorkQueueTaskScheduler? _workQueueTaskScheduler;
+    private static RTWorkQueueTaskSchedulerManager? _workQueueTaskSchedulerManager;
 
     [ClassInitialize]
     public static void ClassInitialize(TestContext _)
@@ -69,15 +69,14 @@ public class RTWorkQueueTasksTest
 
         _workQueuePlatformEventsHandler = new(_loggerFactory);
         //_workQueueManager = new(configuration, _loggerFactory);
-        _workQueueTaskScheduler = new(configuration, _loggerFactory);
+        _workQueueTaskSchedulerManager = new(configuration, _loggerFactory);
     }
 
     [ClassCleanup]
     public static void ClassCleanup()
     {
         _loggerFactory?.Dispose();
-        _workQueueTaskScheduler?.Dispose();
-        //_workQueueManager?.Dispose();
+        _workQueueTaskSchedulerManager?.Dispose();
         _workQueuePlatformEventsHandler?.Dispose();
     }
 
@@ -157,7 +156,7 @@ public class RTWorkQueueTasksTest
 
         var options = new ParallelOptions
         {
-            TaskScheduler = rtwqTaskScheduler ? _workQueueTaskScheduler : TaskScheduler.Default
+            TaskScheduler = rtwqTaskScheduler ? _workQueueTaskSchedulerManager!.GetTaskScheduler("Pro Audio") : TaskScheduler.Default
         };
 
         Parallel.For(0, TIMES, options, (index) => {
@@ -177,40 +176,73 @@ public class RTWorkQueueTasksTest
     [DataRow(true, ApartmentState.STA, ApartmentState.MTA)]
     [DataRow(false, ApartmentState.MTA, ApartmentState.MTA)]
     [DataRow(true, ApartmentState.MTA, ApartmentState.MTA)]
-    public void TestApartment(
+    public async Task TestApartment(
         bool rtwqTaskScheduler, 
         ApartmentState apartmentState1, 
         ApartmentState apartmentState2
     )
     {
         var configuration = CreateConfiguration();
-        var scheduler = rtwqTaskScheduler ? _workQueueTaskScheduler : TaskScheduler.Default;
+        var scheduler = rtwqTaskScheduler ? _workQueueTaskSchedulerManager!.GetTaskScheduler("Pro Audio") : TaskScheduler.Default;
 
-        var thread = new Thread(() => {
+        var tcs = new TaskCompletionSource(TaskCreationOptions.AttachedToParent);
+
+        var thread = new Thread(async () => {
+            _logger!.LogInformation($"thread 1 start {Environment.CurrentManagedThreadId:X}");
+            ThreadDebug.PrintObjectContext(_loggerFactory!);
+
             var factory = new TaskFactory(scheduler);
 
-            var task = 
+            var task =
                 factory.StartNew(() => {
-                    _logger!.LogInformation("task 1");
+                    ThreadDebug.PrintObjectContext(_loggerFactory!);
+                    _logger!.LogInformation($"task 1 {Environment.CurrentManagedThreadId:X}");
                 });
+            await task.ContinueWith((task) => {
+                _logger!.LogInformation($"task 1 continue {Environment.CurrentManagedThreadId:X}");
+            });
+
             task.Wait();
+            _logger!.LogInformation($"thread 1 end {Environment.CurrentManagedThreadId:X}");
 
             {
-                var thread = new Thread(() => {
+                var tcs = new TaskCompletionSource(TaskCreationOptions.AttachedToParent);
+
+                var thread = new Thread(async () => {
+                    _logger!.LogInformation($"thread 2 start {Environment.CurrentManagedThreadId:X}");
+                    ThreadDebug.PrintObjectContext(_loggerFactory!);
+
                     var task =
                         factory.StartNew(() => {
-                            _logger!.LogInformation("task 2");
+                            ThreadDebug.PrintObjectContext(_loggerFactory!);
+                            _logger!.LogInformation($"task 2 {Environment.CurrentManagedThreadId:X}");
                         });
+                    await task.ContinueWith((task) => {
+                        _logger!.LogInformation($"task 2 continue {Environment.CurrentManagedThreadId:X}");
+                    });
                     task.Wait();
+                    _logger!.LogInformation($"thread 2 end {Environment.CurrentManagedThreadId:X}");
+
+                    tcs.SetResult();
                 });
                 thread.TrySetApartmentState(apartmentState2);
                 thread.Start();
-                thread.Join();
+                await tcs.Task.ContinueWith((task) => {
+                    _logger!.LogInformation($"thread 2 continue {Environment.CurrentManagedThreadId:X}");
+                });
+                _logger!.LogInformation($"thread 2 join {Environment.CurrentManagedThreadId:X}");
             }
+
+            tcs.SetResult();
         });
         thread.TrySetApartmentState(apartmentState1);
         thread.Start();
-        thread.Join();
+
+        await tcs.Task.ContinueWith((task) => {
+            _logger!.LogInformation($"thread 1 continue {Environment.CurrentManagedThreadId:X}");
+        });
+
+        _logger!.LogInformation($"thread 1 join {Environment.CurrentManagedThreadId:X}");
     }
 
     [DataTestMethod]
@@ -229,7 +261,7 @@ public class RTWorkQueueTasksTest
         var options = new ExecutionDataflowBlockOptions
         {
             MaxDegreeOfParallelism = maxDegreeOfParallelism,
-            TaskScheduler = rtwqTaskScheduler ? _workQueueTaskScheduler! : TaskScheduler.Default
+            TaskScheduler = rtwqTaskScheduler ? _workQueueTaskSchedulerManager!.GetTaskScheduler("Pro Audio") : TaskScheduler.Default
         };
 
         var block = new TransformBlock<int, int>(index => {
@@ -312,7 +344,7 @@ public class RTWorkQueueTasksTest
         bool childError = false
     )
     {
-        var scheduler = rtwqTaskScheduler ? _workQueueTaskScheduler : TaskScheduler.Default;
+        var scheduler = rtwqTaskScheduler ? _workQueueTaskSchedulerManager!.GetTaskScheduler("Pro Audio") : TaskScheduler.Default;
         var factory =
             new TaskFactory(
                 CancellationToken.None,
@@ -411,7 +443,7 @@ public class RTWorkQueueTasksTest
         TaskCreationOptions taskCreationOptionsParent
     )
     {
-        var scheduler = rtwqTaskScheduler ? _workQueueTaskScheduler : TaskScheduler.Default;
+        var scheduler = rtwqTaskScheduler ? _workQueueTaskSchedulerManager!.GetTaskScheduler("Pro Audio") : TaskScheduler.Default;
         var factory = new TaskFactory(CancellationToken.None, taskCreationOptionsParent, TaskContinuationOptions.None, scheduler);
 
         _logger?.LogInformation("START 1");

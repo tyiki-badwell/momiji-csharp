@@ -37,7 +37,7 @@ public class VstBridgeWorker : BackgroundService
             services.AddSingleton<IDllManager, DllManager>();
             services.AddSingleton<IRTWorkQueuePlatformEventsHandler, RTWorkQueuePlatformEventsHandler>();
             services.AddSingleton<IRTWorkQueueManager, RTWorkQueueManager>();
-            services.AddSingleton<IRTWorkQueueTaskScheduler, RTWorkQueueTaskScheduler>();
+            services.AddSingleton<IRTWorkQueueTaskSchedulerManager, RTWorkQueueTaskSchedulerManager>();
             services.AddSingleton<IWindowManager, WindowManager>();
             services.AddSingleton<IRunner, Runner>();
 
@@ -114,7 +114,7 @@ public class Runner : IRunner, IDisposable
     private readonly ILogger _logger;
     private readonly IDllManager _dllManager;
     private readonly IWindowManager _windowManager;
-    private readonly IRTWorkQueueTaskScheduler _workQueueTaskScheduler;
+    private readonly IRTWorkQueueTaskSchedulerManager _workQueueTaskSchedulerManager;
     private readonly Param _param;
 
     private bool _disposed;
@@ -130,7 +130,7 @@ public class Runner : IRunner, IDisposable
         ILoggerFactory loggerFactory, 
         IDllManager dllManager, 
         IWindowManager windowManager,
-        IRTWorkQueueTaskScheduler workQueueTaskScheduler,
+        IRTWorkQueueTaskSchedulerManager workQueueTaskSchedulerManager,
         IOptions<Param> param
     )
     {
@@ -138,7 +138,7 @@ public class Runner : IRunner, IDisposable
         _logger = _loggerFactory.CreateLogger<Runner>();
         _dllManager = dllManager;
         _windowManager = windowManager;
-        _workQueueTaskScheduler = workQueueTaskScheduler;
+        _workQueueTaskSchedulerManager = workQueueTaskSchedulerManager;
 
         if (param == default)
         {
@@ -192,7 +192,7 @@ public class Runner : IRunner, IDisposable
             _processCancel = CancellationTokenSource.CreateLinkedTokenSource(stoppingToken);
         }
 
-        var factory = new TaskFactory(_workQueueTaskScheduler.TaskScheduler);
+        var factory = new TaskFactory(_workQueueTaskSchedulerManager.GetTaskScheduler());
 
         _processTask = factory.StartNew(Run);
         try
@@ -268,7 +268,7 @@ public class Runner : IRunner, IDisposable
         {
             CancellationToken = ct,
             MaxDegreeOfParallelism = 1,
-            TaskScheduler = _workQueueTaskScheduler.TaskScheduler
+            TaskScheduler = _workQueueTaskSchedulerManager.GetTaskScheduler("Pro Audio")
         };
 
         var audioStartBlock =

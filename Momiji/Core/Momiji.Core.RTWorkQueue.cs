@@ -4,12 +4,19 @@ public interface IRTWorkQueuePlatformEventsHandler : IDisposable
 {
 }
 
-public interface IRTWorkQueueTaskScheduler : IDisposable
+public interface IRTWorkQueueTaskSchedulerManager : IDisposable
 {
-    public TaskScheduler TaskScheduler
-    {
-        get;
-    }
+    public TaskScheduler GetTaskScheduler(
+        string usageClass = "",
+        IRTWorkQueue.WorkQueueType? type = null,
+        bool serial = false,
+        IRTWorkQueue.TaskPriority basePriority = IRTWorkQueue.TaskPriority.NORMAL,
+        int taskId = 0
+    );
+
+    public void ShutdownTaskScheduler(
+        TaskScheduler taskScheduler
+    );
 }
 
 public interface IRTWorkQueueManager : IDisposable

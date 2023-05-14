@@ -436,7 +436,7 @@ namespace Momiji.Interop.Vst
         public string categoryLabel;        //< category label, e.g. "Osc 1" 
 
         [MarshalAs(UnmanagedType.ByValArray, SizeConst = 16)]
-        readonly char[] future;  //< reserved for future use
+        private readonly char[] future;  //< reserved for future use
                                     //-------------------------------------------------------------------------------------------------------
     };
 
@@ -507,7 +507,7 @@ namespace Momiji.Interop.Vst
         public string shortLabel;           //< short name (recommended: 6 + delimiter)
 
         [MarshalAs(UnmanagedType.ByValArray, SizeConst = 48)]
-        readonly char[] future;              //< reserved for future use
+        private readonly char[] future;              //< reserved for future use
                                                 //-------------------------------------------------------------------------------------------------------
     };
 

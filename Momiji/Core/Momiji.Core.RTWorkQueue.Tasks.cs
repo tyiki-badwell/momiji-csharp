@@ -1,43 +1,41 @@
 ﻿using System.Collections.Concurrent;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
-using Momiji.Internal.Debug;
-using Ole32 = Momiji.Interop.Ole32.NativeMethods;
 
 namespace Momiji.Core.RTWorkQueue.Tasks;
+public class RTWorkQueueTaskSchedulerManagerException : Exception
+{
+    public RTWorkQueueTaskSchedulerManagerException(string message) : base(message)
+    {
+    }
 
-public class RTWorkQueueTaskScheduler : TaskScheduler, IRTWorkQueueTaskScheduler
+    public RTWorkQueueTaskSchedulerManagerException(string message, Exception innerException) : base(message, innerException)
+    {
+    }
+}
+
+public class RTWorkQueueTaskSchedulerManager : IRTWorkQueueTaskSchedulerManager
 {
     private readonly IConfiguration _configuration;
     private readonly ILoggerFactory _loggerFactory;
-    private readonly ILogger<RTWorkQueueTaskScheduler> _logger;
+    private readonly ILogger<RTWorkQueueTaskSchedulerManager> _logger;
 
-    private readonly WorkQueues _workQueuesMTA = new();
-    private readonly ConcurrentDictionary<int, WorkQueues> _workQueuesSTA = new();
-
-    private class WorkQueues
-    {
-        public IRTWorkQueueManager? workQueueManager;
-        public IRTWorkQueue? workQueue;
-        public IRTWorkQueue? workQueueForLongRunning;
-    }
+    private readonly ConcurrentDictionary<RTWorkQueueTaskScheduler.Key, RTWorkQueueTaskScheduler> _taskSchedulerMap = new();
 
     private bool _disposed;
     private bool _shutdown;
 
-    public TaskScheduler TaskScheduler => this;
-
-    public RTWorkQueueTaskScheduler(
+    public RTWorkQueueTaskSchedulerManager(
         IConfiguration configuration,
         ILoggerFactory loggerFactory
     )
     {
         _configuration = configuration;
         _loggerFactory = loggerFactory;
-        _logger = _loggerFactory.CreateLogger<RTWorkQueueTaskScheduler>();
+        _logger = _loggerFactory.CreateLogger<RTWorkQueueTaskSchedulerManager>();
     }
 
-    ~RTWorkQueueTaskScheduler()
+    ~RTWorkQueueTaskSchedulerManager()
     {
         Dispose(false);
     }
@@ -62,61 +60,177 @@ public class RTWorkQueueTaskScheduler : TaskScheduler, IRTWorkQueueTaskScheduler
 
         if (disposing)
         {
-            lock (_workQueuesMTA)
+            foreach (var (_, taskScheduler) in _taskSchedulerMap)
             {
-                _workQueuesMTA.workQueueForLongRunning?.Dispose();
-                _workQueuesMTA.workQueue?.Dispose();
-                _workQueuesMTA.workQueueManager?.Dispose();
+                taskScheduler.Dispose();
             }
-
-            foreach (var (id, sta) in _workQueuesSTA)
-            {
-                lock (sta)
-                {
-                    sta.workQueueForLongRunning?.Dispose();
-                    sta.workQueue?.Dispose();
-                    sta.workQueueManager?.Dispose();
-                }
-            }
-            _workQueuesSTA.Clear();
+            _taskSchedulerMap.Clear();
         }
 
         _disposed = true;
         _logger.LogTrace("Dispose");
     }
 
+    private void CheckShutdown()
+    {
+        if (_shutdown)
+        {
+            throw new InvalidOperationException("in shutdown.");
+        }
+    }
+
+    public TaskScheduler GetTaskScheduler(
+        string usageClass = "",
+        IRTWorkQueue.WorkQueueType? type = null,
+        bool serial = false,
+        IRTWorkQueue.TaskPriority basePriority = IRTWorkQueue.TaskPriority.NORMAL,
+        int taskId = 0
+    )
+    {
+        CheckShutdown();
+
+        var key =
+            new RTWorkQueueTaskScheduler.Key(
+                usageClass,
+                type,
+                serial,
+                basePriority,
+                taskId
+        );
+
+        //valueFactory は多重に実行される可能性があるが、RTWorkQueueTaskSchedulerを作っただけではリソース確保はしないので、良しとする
+        return _taskSchedulerMap.GetOrAdd(key, (key) => {
+            return 
+                new RTWorkQueueTaskScheduler(
+                    _configuration,
+                    _loggerFactory,
+                    key
+                );
+        });
+    }
+
+    public void ShutdownTaskScheduler(
+        TaskScheduler taskScheduler
+    )
+    {
+        if (taskScheduler is not RTWorkQueueTaskScheduler target)
+        {
+            throw new RTWorkQueueTaskSchedulerManagerException("invalid taskScheduler.");
+        }
+
+        if (_taskSchedulerMap.TryRemove(target.SelfKey, out var _))
+        {
+            target.Dispose();
+        }
+        else
+        {
+            throw new RTWorkQueueTaskSchedulerManagerException("not found taskScheduler.");
+        }
+    }
+}
+
+internal class RTWorkQueueTaskScheduler : TaskScheduler, IDisposable
+{
+    private readonly IConfiguration _configuration;
+    private readonly ILoggerFactory _loggerFactory;
+    private readonly ILogger<RTWorkQueueTaskScheduler> _logger;
+
+    private readonly WorkQueues _workQueues = new();
+
+    internal record class Key(
+        string UsageClass,
+        IRTWorkQueue.WorkQueueType? Type,
+        bool Serial,
+        IRTWorkQueue.TaskPriority BasePriority,
+        int TaskId
+    );
+
+    private readonly Key _key;
+    internal Key SelfKey => _key;
+
+    private class WorkQueues
+    {
+        public IRTWorkQueueManager? workQueueManager;
+        public IRTWorkQueue? workQueue;
+        public IRTWorkQueue? workQueueForLongRunning;
+    }
+
+    private bool _disposed;
+    private bool _shutdown;
+
+    public RTWorkQueueTaskScheduler(
+        IConfiguration configuration,
+        ILoggerFactory loggerFactory,
+        Key key
+    )
+    {
+        _configuration = configuration;
+        _loggerFactory = loggerFactory;
+        _logger = _loggerFactory.CreateLogger<RTWorkQueueTaskScheduler>();
+        _key = key;
+    }
+
+    ~RTWorkQueueTaskScheduler()
+    {
+        Dispose(false);
+    }
+
+    public void Dispose()
+    {
+        Dispose(true);
+        GC.SuppressFinalize(this);
+    }
+
+    protected virtual void Dispose(bool disposing)
+    {
+        _shutdown = true;
+
+        if (_disposed)
+        {
+            _logger.LogDebug($"Disposed {_key}");
+            return;
+        }
+
+        _logger.LogTrace($"Dispose start {_key}");
+
+        if (disposing)
+        {
+            lock (_workQueues)
+            {
+                _workQueues.workQueueForLongRunning?.Dispose();
+                _workQueues.workQueue?.Dispose();
+                _workQueues.workQueueManager?.Dispose();
+            }
+        }
+
+        _disposed = true;
+        _logger.LogTrace($"Dispose {_key}");
+    }
+
+    private void CheckShutdown()
+    {
+        if (_shutdown)
+        {
+            throw new InvalidOperationException("in shutdown.");
+        }
+    }
+
     protected override IEnumerable<Task>? GetScheduledTasks() => throw new NotImplementedException();
 
     private IRTWorkQueue GetWorkQueue(bool longRunning)
     {
-        var apartmentType = ThreadDebug.GetApartmentType();
-
-        //STAから実行するときは、そのスレッドで作ったQueueとResultを使って処理しないと、0xC0000005が発生する
-        var isSTA = (apartmentType.AptType == Ole32.APTTYPE.MAINSTA || apartmentType.AptType == Ole32.APTTYPE.STA);
-        WorkQueues? workQueues;
-        if (isSTA)
-        {
-            var threadId = apartmentType.ManagedThreadId;
-            _logger.LogTrace($"STA {threadId:X}");
-            if (!_workQueuesSTA.TryGetValue(threadId, out workQueues))
-            {
-                workQueues = _workQueuesSTA.GetOrAdd(threadId, new WorkQueues());
-            }
-        }
-        else
-        {
-            _logger.LogTrace("MTA");
-            workQueues = _workQueuesMTA;
-        }
-
-        IRTWorkQueueManager? workQueueManager = workQueues.workQueueManager;
+        var workQueues = _workQueues;
+        var workQueueManager = workQueues.workQueueManager;
         if (workQueueManager == null)
         {
             lock (workQueues)
             {
                 if (workQueueManager == null)
                 {
-                    workQueueManager = new RTWorkQueueManager(_configuration, _loggerFactory);
+                    workQueueManager = MTAExecuter.Invoke(_logger, () => { 
+                        return new RTWorkQueueManager(_configuration, _loggerFactory);
+                    });
+
                     workQueues.workQueueManager = workQueueManager;
                 }
             }
@@ -147,18 +261,20 @@ public class RTWorkQueueTaskScheduler : TaskScheduler, IRTWorkQueueTaskScheduler
 
                 if (workQueue == null)
                 {
-                    //TODO STAからQueueを作るとInvokeでAsyncResultを更新できない問題　WorkQueueType.Windowは意味ナシ
-
-                    if (isSTA)
+                    if (_key.Type != null)
                     {
-                        workQueue = workQueueManager.CreatePlatformWorkQueue("Pro Audio", IRTWorkQueue.TaskPriority.NORMAL);
-                        //workQueue = workQueueManager.CreatePrivateWorkQueue(IRTWorkQueue.WorkQueueType.Window);
-                        //workQueue.RegisterMMCSSAsync("Pro Audio", IRTWorkQueue.TaskPriority.NORMAL, 0).Wait();
+                        workQueue = MTAExecuter.Invoke(_logger, () => {
+                            return workQueueManager.CreatePrivateWorkQueue((IRTWorkQueue.WorkQueueType)_key.Type);
+                        });
                     }
                     else
                     {
-                        workQueue = workQueueManager.CreatePlatformWorkQueue("Pro Audio", IRTWorkQueue.TaskPriority.NORMAL);
+                        workQueue = MTAExecuter.Invoke(_logger, () => {
+                            return workQueueManager.CreatePlatformWorkQueue(_key.UsageClass, _key.BasePriority, _key.TaskId);
+                        });
                     }
+
+                    //TODO serial
 
                     if (longRunning)
                     {
@@ -177,20 +293,21 @@ public class RTWorkQueueTaskScheduler : TaskScheduler, IRTWorkQueueTaskScheduler
 
     protected override void QueueTask(Task task)
     {
+        CheckShutdown();
+
         _logger.LogTrace($"QueueTask {task.Id} {task.CreationOptions}");
 
-        if (_shutdown)
-        {
-        //    throw new InvalidOperationException("in shutdown.");
-        }
-
         var workQueue = GetWorkQueue(((task.CreationOptions & TaskCreationOptions.LongRunning) != 0));
-        workQueue.PutWorkItem(
-            IRTWorkQueue.TaskPriority.NORMAL,
-            () => {
-                TryExecuteTask(task);
-            }
-        );
+
+        //TODO IContextCallbackのキャプチャは要る？
+        MTAExecuter.Invoke(_logger, () => {
+            workQueue.PutWorkItem(
+                IRTWorkQueue.TaskPriority.NORMAL,
+                () => {
+                    TryExecuteTask(task);
+                }
+            );
+        });
     }
 
     protected override bool TryExecuteTaskInline(Task task, bool taskWasPreviouslyQueued) {
