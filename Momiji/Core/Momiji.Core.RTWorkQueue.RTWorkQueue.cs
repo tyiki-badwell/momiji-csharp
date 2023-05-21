@@ -3,7 +3,6 @@ using System.Runtime.Versioning;
 using System.Text;
 using Microsoft.Extensions.Logging;
 using Momiji.Core.Threading;
-using Momiji.Internal.Debug;
 using Momiji.Interop.RTWorkQ;
 using RTWorkQ = Momiji.Interop.RTWorkQ.NativeMethods;
 

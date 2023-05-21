@@ -2,80 +2,10 @@
 using Microsoft.Extensions.Logging;
 using Momiji.Core.Cache;
 using Momiji.Core.Threading;
-using Momiji.Internal.Debug;
 using Momiji.Interop.RTWorkQ;
 using RTWorkQ = Momiji.Interop.RTWorkQ.NativeMethods;
 
 namespace Momiji.Core.RTWorkQueue;
-
-
-internal static class MTAExecuter
-{
-    internal static TResult Invoke<TResult>(
-        ILogger logger,
-        Func<TResult> func
-    )
-    {
-        var apartmentType = ApartmentType.GetApartmentType();
-        
-        if (apartmentType.IsSTA())
-        {
-            logger.LogTrace($"STA");
-
-            var tcs = new TaskCompletionSource<TResult>(TaskCreationOptions.AttachedToParent);
-            ThreadPool.UnsafeQueueUserWorkItem((tcs) => {
-                try
-                {
-                    tcs.SetResult(func());
-                }
-                catch (Exception e)
-                {
-                    tcs.SetException(e);
-                }
-            }, tcs, true);
-
-            return tcs.Task.Result;
-        }
-        else
-        {
-            logger.LogTrace($"MTA");
-            return func();
-        }
-    }
-
-    internal static void Invoke(
-        ILogger logger,
-        Action func
-    )
-    {
-        var apartmentType = ApartmentType.GetApartmentType();
-
-        if (apartmentType.IsSTA())
-        {
-            logger.LogTrace($"STA");
-            var tcs = new TaskCompletionSource(TaskCreationOptions.AttachedToParent);
-            ThreadPool.UnsafeQueueUserWorkItem((tcs) => {
-                try
-                {
-                    func();
-                    tcs.SetResult();
-                }
-                catch (Exception e)
-                {
-                    tcs.SetException(e);
-                }
-            }, tcs, true);
-
-            tcs.Task.Wait();
-        }
-        else
-        {
-            logger.LogTrace($"MTA");
-            func();
-        }
-    }
-}
-
 
 internal class RTWorkQueueAsyncResultPoolValue : PoolValue
 {
