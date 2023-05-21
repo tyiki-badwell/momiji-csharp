@@ -72,10 +72,10 @@ internal static class MTAExecuter
 
         if (apartmentType.IsSTA())
         {
-            logger.LogTrace($"STA");
+            logger.LogTrace($"STA {apartmentType}");
 
             var tcs = new TaskCompletionSource<TResult>(TaskCreationOptions.AttachedToParent);
-            ThreadPool.UnsafeQueueUserWorkItem((tcs) => {
+            ThreadPool.QueueUserWorkItem((tcs) => {
                 try
                 {
                     tcs.SetResult(func());
@@ -84,13 +84,13 @@ internal static class MTAExecuter
                 {
                     tcs.SetException(e);
                 }
-            }, tcs, true);
+            }, tcs, false);
 
             return tcs.Task.Result;
         }
         else
         {
-            logger.LogTrace($"MTA");
+            logger.LogTrace($"MTA {apartmentType}");
             return func();
         }
     }
@@ -104,9 +104,9 @@ internal static class MTAExecuter
 
         if (apartmentType.IsSTA())
         {
-            logger.LogTrace($"STA");
+            logger.LogTrace($"STA {apartmentType}");
             var tcs = new TaskCompletionSource(TaskCreationOptions.AttachedToParent);
-            ThreadPool.UnsafeQueueUserWorkItem((tcs) => {
+            ThreadPool.QueueUserWorkItem((tcs) => {
                 try
                 {
                     func();
@@ -116,13 +116,13 @@ internal static class MTAExecuter
                 {
                     tcs.SetException(e);
                 }
-            }, tcs, true);
+            }, tcs, false);
 
             tcs.Task.Wait();
         }
         else
         {
-            logger.LogTrace($"MTA");
+            logger.LogTrace($"MTA {apartmentType}");
             func();
         }
     }
