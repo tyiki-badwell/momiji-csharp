@@ -74,6 +74,7 @@ internal static class MTAExecuter
         {
             logger.LogTrace($"STA {apartmentType}");
 
+            //TODO 一旦、スレッドプールに投げて逃げ。OSのスレッドプールに差し替える意義があれば
             var tcs = new TaskCompletionSource<TResult>(TaskCreationOptions.AttachedToParent);
             ThreadPool.QueueUserWorkItem((tcs) => {
                 try
