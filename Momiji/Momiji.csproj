@@ -19,7 +19,7 @@
     <PackageReference Include="Microsoft.Extensions.Logging" Version="7.0.0" />
 	  <PackageReference Include="System.Drawing.Common" Version="7.0.0" />
     <PackageReference Include="System.Drawing.Primitives" Version="4.3.0" />
-    <PackageReference Include="Microsoft.Direct3D.D3D12" Version="1.608.2" />
+    <PackageReference Include="Microsoft.Direct3D.D3D12" Version="1.610.3" />
   </ItemGroup>
 
   <ItemGroup>

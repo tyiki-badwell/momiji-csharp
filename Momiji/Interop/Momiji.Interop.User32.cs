@@ -1,5 +1,8 @@
 ﻿using System.Runtime.InteropServices;
 using Microsoft.Win32.SafeHandles;
+using Momiji.Interop.Opus;
+using static Momiji.Interop.Kernel32.NativeMethods.WAITABLE_TIMER;
+using Windows.Devices.I2c;
 
 namespace Momiji.Interop.User32;
 
@@ -175,7 +178,7 @@ internal static class NativeMethods
     [DefaultDllImportSearchPaths(DllImportSearchPath.System32)]
     internal static extern HDesktop GetThreadDesktop(int dwThreadId);
 
-    [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Unicode)]
+    [StructLayout(LayoutKind.Sequential, Pack = 2)]
     internal struct WNDCLASS
     {
         [Flags]
@@ -268,7 +271,7 @@ internal static class NativeMethods
         [In] nint pvParam
     );
 
-    [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Unicode)]
+    [StructLayout(LayoutKind.Sequential, Pack = 2)]
     internal struct CREATESTRUCT
     {
         public nint lpCreateParams;
@@ -292,7 +295,7 @@ internal static class NativeMethods
         [In] nint hwnd
     );
 
-    [StructLayout(LayoutKind.Sequential)]
+    [StructLayout(LayoutKind.Sequential, Pack = 2)]
     internal struct MSG
     {
         public nint hwnd;
@@ -300,8 +303,13 @@ internal static class NativeMethods
         public nint wParam;
         public nint lParam;
         public int time;
-        public int pt_x;
-        public int pt_y;
+        public POINT pt;
+
+        public override string ToString()
+        {
+            return
+                $"hwnd[{hwnd:X}] message[{message:X}] wParam[{wParam:X}] lParam[{lParam:X}] time[{time}] pt[{pt}]";
+        }
     }
 
     [DllImport(Libraries.User32, CallingConvention = CallingConvention.Winapi, ExactSpelling = true, SetLastError = true)]
@@ -504,15 +512,20 @@ internal static class NativeMethods
         [In] int nCmdShow
     );
 
-    [StructLayout(LayoutKind.Sequential)]
+    [StructLayout(LayoutKind.Sequential, Pack = 2)]
     internal struct POINT
     {
         public long x;
         public long y;
+        public override string ToString()
+        {
+            return
+                $"x[{x}] y[{y}]";
+        }
     }
 
 
-    [StructLayout(LayoutKind.Sequential)]
+    [StructLayout(LayoutKind.Sequential, Pack = 2)]
     internal struct WINDOWPLACEMENT
     {
         [Flags]
@@ -529,6 +542,11 @@ internal static class NativeMethods
         public POINT ptMaxPosition;
         public RECT rcNormalPosition;
         public RECT rcDevice;
+        public override string ToString()
+        {
+            return
+                $"formatType[{flags:F}] showCmd[{showCmd:X}] ptMinPosition[{ptMinPosition}] ptMaxPosition[{ptMaxPosition}] rcNormalPosition[{rcNormalPosition}] rcDevice[{rcDevice}]";
+        }
     }
 
     [DllImport(Libraries.User32, CallingConvention = CallingConvention.Winapi, ExactSpelling = true, SetLastError = true)]
@@ -573,13 +591,18 @@ internal static class NativeMethods
         [In] nint hDC
     );
 
-    [StructLayout(LayoutKind.Sequential)]
+    [StructLayout(LayoutKind.Sequential, Pack = 2)]
     internal struct RECT
     {
         public int left;
         public int top;
         public int right;
         public int bottom;
+        public override string ToString()
+        {
+            return
+                $"left[{left}] top[{top}] right[{right}] bottom[{bottom}]";
+        }
     };
 
     [DllImport(Libraries.User32, CallingConvention = CallingConvention.Winapi, ExactSpelling = true, SetLastError = true)]

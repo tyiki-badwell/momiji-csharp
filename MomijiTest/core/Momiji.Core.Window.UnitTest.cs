@@ -44,15 +44,36 @@ public class WindowUnitTest
         var task = manager.StartAsync(tokenSource.Token);
 
         var window = manager.CreateWindow();
-        window.Show(1);
         window.Move(0, 0, 100, 100, true);
+        window.Show(1);
         window.Move(100, 100, 100, 100, true);
         window.Move(200, 200, 200, 200, true);
         window.Show(0);
 
         window.SetWindowStyle(0);
 
-        window.Dispatch(() => { return 0; });
+        {
+            var result = window.Dispatch(() => { 
+                //immidiate mode
+                return window.SetWindowStyle(0); 
+            });
+            Assert.AreEqual(true, result);
+        }
+
+        {
+            var result = window.Dispatch(() => { return 999; });
+            Assert.AreEqual(999, result);
+        }
+
+        {
+            var result = window.Dispatch(() => {
+                return window.Dispatch(() =>
+                { //re-entrant
+                    return 888;
+                }); 
+            });
+            Assert.AreEqual(888, result);
+        }
 
         window.Close();
 

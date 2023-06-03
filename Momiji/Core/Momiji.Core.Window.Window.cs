@@ -115,6 +115,7 @@ internal class NativeWindow : IWindow
         var error = Marshal.GetLastPInvokeError();
         if (error != 0)
         {
+            //UIPIに引っかかると5が返ってくる
             _logger.LogWithHWndAndErrorId(LogLevel.Error, "SendMessageW", _hWindow, error);
             return false;
         }
@@ -180,27 +181,23 @@ internal class NativeWindow : IWindow
                 };
                 User32.GetWindowPlacement(_hWindow, ref wndpl);
 
-                _logger.LogInformation($"GetWindowPlacement result {cmdShow} -> {wndpl.showCmd}");
+                _logger.LogInformation($"GetWindowPlacement result cmdShow:{cmdShow} -> wndpl:{wndpl}");
             }
 
             return result;
         });
     }
 
-    public void SetWindowStyle(int style)
+    public bool SetWindowStyle(
+        int style
+    )
     {
-        SetWindowStyle(-16, new nint(style)); //GWL_STYLE
-    }
-
-    private void SetWindowStyle(int nIndex, nint dwNewLong)
-    {
-        var _ = Dispatch(() =>
+        return Dispatch(() =>
         {
             var clientRect = new User32.RECT();
 
             {
                 var result = User32.GetClientRect(_hWindow, ref clientRect);
-
                 if (!result)
                 {
                     _logger.LogWithHWndAndErrorId(LogLevel.Error, "GetClientRect failed", _hWindow, Marshal.GetLastPInvokeError());
@@ -209,8 +206,7 @@ internal class NativeWindow : IWindow
             }
 
             {
-                var result = User32.AdjustWindowRect(ref clientRect, dwNewLong.ToInt32(), false);
-
+                var result = User32.AdjustWindowRect(ref clientRect, style, false);
                 if (!result)
                 {
                     _logger.LogWithHWndAndErrorId(LogLevel.Error, "AdjustWindowRect failed", _hWindow, Marshal.GetLastPInvokeError());
@@ -219,15 +215,7 @@ internal class NativeWindow : IWindow
             }
 
             {
-                Marshal.SetLastPInvokeError(0);
-                _logger.LogInformation($"SetWindowLong {_hWindow:X} {nIndex:X} {dwNewLong:X} current {Environment.CurrentManagedThreadId:X}");
-                var result =
-                    Environment.Is64BitProcess
-                        ? User32.SetWindowLongPtrW(_hWindow, nIndex, dwNewLong)
-                        : User32.SetWindowLongW(_hWindow, nIndex, dwNewLong);
-
-                var error = Marshal.GetLastPInvokeError();
-
+                var (result, error) = SetWindowLong(-16, new nint(style)); //GWL_STYLE
                 if (result == nint.Zero && error != 0)
                 {
                     _logger.LogWithHWndAndErrorId(LogLevel.Error, "SetWindowLong failed", _hWindow, error);
@@ -265,6 +253,23 @@ internal class NativeWindow : IWindow
         });
     }
 
+    private (nint, int) SetWindowLong(
+        int nIndex,
+        nint dwNewLong
+    )
+    {
+        Marshal.SetLastPInvokeError(0);
+        _logger.LogInformation($"SetWindowLong {_hWindow:X} {nIndex:X} {dwNewLong:X} current {Environment.CurrentManagedThreadId:X}");
+        var result =
+            Environment.Is64BitProcess
+                ? User32.SetWindowLongPtrW(_hWindow, nIndex, dwNewLong)
+                : User32.SetWindowLongW(_hWindow, nIndex, dwNewLong);
+        var error = Marshal.GetLastPInvokeError();
+
+        return (result, error);
+    }
+
+
     internal nint WndProc(uint msg, nint wParam, nint lParam, out bool handled)
     {
         handled = false;
@@ -287,15 +292,15 @@ internal class NativeWindow : IWindow
                 {
                     _logger.LogError(e, "onPreCloseWindow error");
                 }
-
+                /*
                 _logger.LogTrace($"DestroyWindow {_hWindow:X} current {Environment.CurrentManagedThreadId:X}");
                 var result = User32.DestroyWindow(_hWindow);
                 if (!result)
                 {
                     _logger.LogWithHWndAndErrorId(LogLevel.Error, "DestroyWindow", _hWindow, Marshal.GetLastPInvokeError());
                 }
-
                 handled = true;
+                */
                 break;
 
             case 0x0210://WM_PARENTNOTIFY

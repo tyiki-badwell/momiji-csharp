@@ -123,8 +123,7 @@ public class WindowManager : IDisposable, IWindowManager
         Dispatch(() => {
             try
             {
-                var result = item.Invoke();
-                tcs.SetResult(result);
+                tcs.SetResult(item.Invoke());
             }
             catch (Exception e)
             {
@@ -455,7 +454,7 @@ public class WindowManager : IDisposable, IWindowManager
                 _logger.LogTrace("PeekMessage NONE");
                 return;
             }
-            _logger.LogTrace($"MSG {msg.hwnd:X} {msg.message:X} {msg.wParam:X} {msg.lParam:X} {msg.time} {msg.pt_x} {msg.pt_y}");
+            _logger.LogTrace($"MSG {msg}");
 
             var IsWindowUnicode = (msg.hwnd != nint.Zero) && User32.IsWindowUnicode(msg.hwnd);
             _logger.LogTrace($"IsWindowUnicode {IsWindowUnicode}");

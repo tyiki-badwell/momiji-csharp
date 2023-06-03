@@ -83,7 +83,7 @@ public interface IWindow
         int cmdShow
     );
 
-    void SetWindowStyle(
+    bool SetWindowStyle(
         int style
     );
 }
