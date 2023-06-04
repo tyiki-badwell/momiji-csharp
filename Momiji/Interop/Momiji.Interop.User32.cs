@@ -1,8 +1,5 @@
 ﻿using System.Runtime.InteropServices;
 using Microsoft.Win32.SafeHandles;
-using Momiji.Interop.Opus;
-using static Momiji.Interop.Kernel32.NativeMethods.WAITABLE_TIMER;
-using Windows.Devices.I2c;
 
 namespace Momiji.Interop.User32;
 
@@ -178,8 +175,8 @@ internal static class NativeMethods
     [DefaultDllImportSearchPaths(DllImportSearchPath.System32)]
     internal static extern HDesktop GetThreadDesktop(int dwThreadId);
 
-    [StructLayout(LayoutKind.Sequential, Pack = 2)]
-    internal struct WNDCLASS
+    [StructLayout(LayoutKind.Sequential)]
+    internal struct WNDCLASSEX
     {
         [Flags]
         internal enum CS : uint
@@ -200,6 +197,7 @@ internal static class NativeMethods
             DROPSHADOW = 0x00020000
         }
 
+        public int cbSize;
         public CS style;
         public nint lpfnWndProc;
         public int cbClsExtra;
@@ -210,6 +208,7 @@ internal static class NativeMethods
         public nint hbrBackground;
         public nint lpszMenuName;
         public nint lpszClassName;
+        public nint hIconSm;
     }
 
     [UnmanagedFunctionPointer(CallingConvention.Winapi, CharSet = CharSet.Ansi, SetLastError = false)]
@@ -217,8 +216,8 @@ internal static class NativeMethods
 
     [DllImport(Libraries.User32, CallingConvention = CallingConvention.Winapi, ExactSpelling = true, SetLastError = true)]
     [DefaultDllImportSearchPaths(DllImportSearchPath.System32)]
-    internal static extern ushort RegisterClassW(
-        [In] ref WNDCLASS lpWndClass
+    internal static extern ushort RegisterClassExW(
+        [In] ref WNDCLASSEX lpWndClass
     );
 
     [DllImport(Libraries.User32, CallingConvention = CallingConvention.Winapi, ExactSpelling = true, SetLastError = true)]

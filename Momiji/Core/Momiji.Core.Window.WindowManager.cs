@@ -49,7 +49,7 @@ public class WindowManager : IDisposable, IWindowManager
             new WindowClass(
                 _loggerFactory,
                 _wndProc,
-                User32.WNDCLASS.CS.OWNDC
+                User32.WNDCLASSEX.CS.OWNDC
             );
     }
     ~WindowManager()

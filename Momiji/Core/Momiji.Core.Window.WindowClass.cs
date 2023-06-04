@@ -12,7 +12,7 @@ internal class WindowClass : IDisposable
     private readonly ILogger _logger;
     private bool _disposed;
 
-    private User32.WNDCLASS _windowClass;
+    private User32.WNDCLASSEX _windowClass;
 
     internal nint ClassName => _windowClass.lpszClassName;
 
@@ -21,21 +21,22 @@ internal class WindowClass : IDisposable
     internal WindowClass(
         ILoggerFactory loggerFactory,
         PinnedDelegate<User32.WNDPROC> wndProc,
-        User32.WNDCLASS.CS cs = User32.WNDCLASS.CS.NONE
+        User32.WNDCLASSEX.CS cs = User32.WNDCLASSEX.CS.NONE
     )
     {
         _loggerFactory = loggerFactory;
         _logger = _loggerFactory.CreateLogger<WindowClass>();
 
-        _windowClass = new User32.WNDCLASS
+        _windowClass = new User32.WNDCLASSEX
         {
+            cbSize = Marshal.SizeOf<User32.WNDCLASSEX>(),
             style = cs,
             lpfnWndProc = wndProc.FunctionPointer,
             hInstance = Kernel32.GetModuleHandleW(default),
             lpszClassName = Marshal.StringToHGlobalUni(nameof(WindowClass) + Guid.NewGuid().ToString())
         };
 
-        var atom = User32.RegisterClassW(ref _windowClass);
+        var atom = User32.RegisterClassExW(ref _windowClass);
         var error = Marshal.GetLastPInvokeError();
         _logger.LogInformation($"RegisterClass {_windowClass} {atom} {error}");
         if (atom == 0)
