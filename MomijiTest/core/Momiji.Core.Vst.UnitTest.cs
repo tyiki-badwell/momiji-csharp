@@ -1,29 +1,27 @@
 using System.Threading.Tasks.Dataflow;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
-using Microsoft.VisualStudio.TestTools.UnitTesting;
 using Momiji.Core.Dll;
 using Momiji.Core.Timer;
 using Momiji.Core.WebMidi;
 using Momiji.Core.Window;
+using Xunit;
 
 namespace Momiji.Core.Vst;
 
-[TestClass]
 public class VstExceptionUnitTest
 {
-    [TestMethod]
+    [Fact]
     public void Test1()
     {
         var test = new VstException("test");
-        Assert.IsNotNull(test.Message);
+        Assert.NotNull(test.Message);
     }
 }
 
-[TestClass]
 public class VstUnitTest
 {
-    [TestMethod]
+    [Fact]
     public void Test1()
     {
         var configuration =
@@ -143,7 +141,7 @@ public class VstUnitTest
         }
     }
 
-    [TestMethod]
+    [Fact]
     public void Test2()
     {
         var configuration =
@@ -184,7 +182,7 @@ public class VstUnitTest
         task.Wait();
     }
 
-    [TestMethod]
+    [Fact]
     public void Test3()
     {
         var configuration =

@@ -1,26 +1,24 @@
 using System.Threading.Tasks.Dataflow;
 using Microsoft.Extensions.Logging;
-using Microsoft.VisualStudio.TestTools.UnitTesting;
 using Momiji.Core.Buffer;
 using Momiji.Core.Timer;
+using Xunit;
 
 namespace Momiji.Core.Wave;
 
-[TestClass]
 public class WaveExceptionUnitTest
 {
-    [TestMethod]
+    [Fact]
     public void Test1()
     {
         var test = new WaveException();
-        Assert.IsNotNull(test.Message);
+        Assert.NotNull(test.Message);
     }
 }
 
-[TestClass]
 public class WaveOutShortUnitTest
 {
-    [TestMethod]
+    [Fact]
     public void Test1()
     {
         var deviceID = 0;

@@ -1,12 +1,11 @@
 using Microsoft.Extensions.Logging;
-using Microsoft.VisualStudio.TestTools.UnitTesting;
+using Xunit;
 
 namespace Momiji.Internal.Debug;
 
-[TestClass]
 public class WindowDebugUnitTest
 {
-    [TestMethod]
+    [Fact]
     public void Test1()
     {
         using var loggerFactory = LoggerFactory.Create(builder =>
@@ -21,7 +20,7 @@ public class WindowDebugUnitTest
         WindowDebug.CheckIntegrityLevel(loggerFactory);
     }
 
-    [TestMethod]
+    [Fact]
     public void Test2()
     {
         using var loggerFactory = LoggerFactory.Create(builder =>
@@ -35,7 +34,7 @@ public class WindowDebugUnitTest
 
         WindowDebug.CheckDesktop(loggerFactory);
     }
-    [TestMethod]
+    [Fact]
     public void Test3()
     {
         using var loggerFactory = LoggerFactory.Create(builder =>

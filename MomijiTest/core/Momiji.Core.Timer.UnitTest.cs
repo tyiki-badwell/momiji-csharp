@@ -1,16 +1,15 @@
 using System.Collections.Concurrent;
 using Microsoft.Extensions.Logging;
-using Microsoft.VisualStudio.TestTools.UnitTesting;
+using Xunit;
 
 namespace Momiji.Core.Timer;
 
-[TestClass]
 public class WaitableTimerTest
 {
     private const int TIMES = 100;
     private const int INTERVAL = 5_000_0;
 
-    private ILoggerFactory CreateLoggerFactory()
+    private static ILoggerFactory CreateLoggerFactory()
     {
         return LoggerFactory.Create(builder =>
         {
@@ -21,7 +20,7 @@ public class WaitableTimerTest
             builder.AddDebug();
         });
     }
-    private void PrintResult(
+    private static void PrintResult(
         ConcurrentQueue<(string, long)> list,
         ILogger logger
     )
@@ -37,29 +36,29 @@ public class WaitableTimerTest
         }
     }
 
-    [TestMethod]
+    [Fact]
     public void Test1_1()
     {
         Test1Impl(true, true);
     }
 
-    [TestMethod]
+    [Fact]
     public void Test1_2()
     {
         Test1Impl(true, false);
     }
-    [TestMethod]
+    [Fact]
     public void Test1_3()
     {
         Test1Impl(false, true);
     }
-    [TestMethod]
+    [Fact]
     public void Test1_4()
     {
         Test1Impl(false, false);
     }
 
-    private void Test1Impl(
+    private static void Test1Impl(
         bool manualReset,
         bool highResolution
     )
@@ -93,9 +92,9 @@ public class WaitableTimerTest
 
 public class WaiterTest
 {
-    [DataTestMethod]
-    [DataRow(false)]
-    [DataRow(true)]
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
     public void Test1(bool highResolution)
     {
         using var loggerFactory = LoggerFactory.Create(builder =>
@@ -146,7 +145,7 @@ public class WaiterTest
         }
     }
 
-    [TestMethod]
+    [Fact]
     public async Task Test2Async()
     {
         using var loggerFactory = LoggerFactory.Create(builder =>
@@ -190,7 +189,7 @@ public class WaiterTest
 
     }
 
-    [TestMethod]
+    [Fact]
     public async Task Test3Async()
     {
         using var loggerFactory = LoggerFactory.Create(builder =>

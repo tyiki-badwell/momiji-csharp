@@ -1,27 +1,25 @@
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
-using Microsoft.VisualStudio.TestTools.UnitTesting;
 using Momiji.Core.Dll;
 using Momiji.Core.Timer;
 using Momiji.Interop.Opus;
+using Xunit;
 
 namespace Momiji.Core.Opus;
 
-[TestClass]
 public class OpusExceptionUnitTest
 {
-    [TestMethod]
+    [Fact]
     public void Test1()
     {
         var test = new OpusException("test");
-        Assert.IsNotNull(test.Message);
+        Assert.NotNull(test.Message);
     }
 }
 
-[TestClass]
 public class OpusUnitTest
 {
-    [TestMethod]
+    [Fact]
     public void Test1()
     {
         var configuration =

@@ -1,26 +1,24 @@
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
-using Microsoft.VisualStudio.TestTools.UnitTesting;
 using Momiji.Core.Dll;
 using Momiji.Core.Timer;
+using Xunit;
 
 namespace Momiji.Core.Ftl;
 
-[TestClass]
 public class FtlExceptionUnitTest
 {
-    [TestMethod]
+    [Fact]
     public void Test1()
     {
         var test = new FtlException("test");
-        Assert.IsNotNull(test.Message);
+        Assert.NotNull(test.Message);
     }
 }
 
-[TestClass]
 public class FtlUnitTest
 {
-    [TestMethod]
+    [Fact]
     public void Test1()
     {
         var configuration =

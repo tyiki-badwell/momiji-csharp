@@ -1,9 +1,8 @@
 using Microsoft.Extensions.Logging;
-using Microsoft.VisualStudio.TestTools.UnitTesting;
+using Xunit;
 
 namespace Momiji.Core.Buffer;
 
-[TestClass]
 public class BufferPoolUnitTest
 {
     internal class DummyItem : IDisposable
@@ -14,7 +13,7 @@ public class BufferPoolUnitTest
         }
     }
 
-    [TestMethod]
+    [Fact]
     public void Test1()
     {
         using var loggerFactory = new LoggerFactory();

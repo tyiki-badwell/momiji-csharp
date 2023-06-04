@@ -156,7 +156,7 @@ internal struct WaveOutCapabilities
     public Guid productGuid;           // for extensible PID mapping
     public Guid nameGuid;              // for name lookup in registry
 
-    public override string ToString()
+    public readonly override string ToString()
     {
         return
             $"manufacturerID[{manufacturerID}] " +
@@ -198,7 +198,7 @@ internal struct WaveFormatEx
     public ushort bitsPerSample;               // Number of bits per sample of mono data
     public ushort size;                        // The count in bytes of the size of extra information (after cbSize)
 
-    public override string ToString()
+    public readonly override string ToString()
     {
         return "formatType[" + formatType.ToString("F") + "] channels[" + channels + "] samplesPerSecond[" + samplesPerSecond + "] averageBytesPerSecond[" + averageBytesPerSecond + "] blockAlign[" + blockAlign + "] bitsPerSample[" + bitsPerSample + "] size[" + size + "]";
     }
@@ -213,7 +213,7 @@ internal struct WaveFormat
     public uint averageBytesPerSecond;   // for buffer estimation
     public ushort blockAlign;              // block size of data
 
-    public override string ToString()
+    public readonly override string ToString()
     {
         return
             "formatType[" + formatType.ToString("F") + "] channels[" + channels + "] samplesPerSecond[" + samplesPerSecond + "] averageBytesPerSecond[" + averageBytesPerSecond + "] blockAlign[" + blockAlign + "]";
@@ -226,7 +226,7 @@ internal struct PcmWaveFormat
     public WaveFormat wf;
     public short bitsPerSample;               // Number of bits per sample of mono data
 
-    public override string ToString()
+    public readonly override string ToString()
     {
         return
             "wf[" + wf.ToString() + "] bitsPerSample[" + bitsPerSample + "]";
@@ -273,7 +273,7 @@ internal struct WaveFormatExtensiblePart
     public SPEAKER channelMask;
     public Guid subFormat;
 
-    public override string ToString()
+    public readonly override string ToString()
     {
         return
             "validBitsPerSample[" + validBitsPerSample + "] channelMask[" + channelMask.ToString("F") + "] subFormat[" + subFormat + "]";
@@ -291,7 +291,7 @@ internal struct WaveFormatExtensible
     public WaveFormatEx wfe;
     public WaveFormatExtensiblePart exp;
 
-    public override string ToString()
+    public readonly override string ToString()
     {
         return
             "wfe[" + wfe.ToString() + "] exp[" + exp.ToString() + "]";

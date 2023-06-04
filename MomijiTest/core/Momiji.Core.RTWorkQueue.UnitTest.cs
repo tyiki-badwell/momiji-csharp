@@ -2,16 +2,51 @@ using System.Collections.Concurrent;
 using System.Runtime.InteropServices;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
-using Microsoft.VisualStudio.TestTools.UnitTesting;
 using Momiji.Core.Timer;
+using Xunit;
 
 namespace Momiji.Core.RTWorkQueue;
 
-[TestClass]
-public class RTWorkQueueTest
+public class RTWorkQueueTest : IDisposable
 {
     private const int TIMES = 100;
     private const int WAIT = 10;
+
+    private readonly ILoggerFactory _loggerFactory;
+    private readonly ILogger<RTWorkQueueTest> _logger;
+    private readonly RTWorkQueuePlatformEventsHandler _workQueuePlatformEventsHandler;
+    private readonly RTWorkQueueManager _workQueueManager;
+
+    public RTWorkQueueTest()
+    {
+        var configuration = CreateConfiguration(/*usageClass, 0, taskId*/);
+
+        _loggerFactory = LoggerFactory.Create(builder =>
+        {
+            builder.AddConfiguration(configuration);
+
+            builder.AddFilter("Momiji", LogLevel.Warning);
+            builder.AddFilter("Momiji.Core.Cache", LogLevel.Information);
+            builder.AddFilter("Momiji.Core.RTWorkQueue", LogLevel.Trace);
+            builder.AddFilter("Microsoft", LogLevel.Warning);
+            builder.AddFilter("System", LogLevel.Warning);
+
+            builder.AddConsole();
+            builder.AddDebug();
+        });
+        _logger = _loggerFactory.CreateLogger<RTWorkQueueTest>();
+
+        _workQueuePlatformEventsHandler = new(_loggerFactory);
+        _workQueueManager = new(configuration, _loggerFactory);
+    }
+
+    public void Dispose()
+    {
+        _workQueueManager.Dispose();
+        _workQueuePlatformEventsHandler.Dispose();
+        _loggerFactory.Dispose();
+        GC.SuppressFinalize(this);
+    }
 
     private static IConfiguration CreateConfiguration(string usageClass = "", int basePriority = 0, int taskId = 0)
     {
@@ -40,43 +75,6 @@ public class RTWorkQueueTest
         return configuration;
     }
 
-    private static ILoggerFactory? _loggerFactory;
-    private static ILogger<RTWorkQueueTest>? _logger;
-    private static RTWorkQueuePlatformEventsHandler? _workQueuePlatformEventsHandler;
-    private static RTWorkQueueManager? _workQueueManager;
-
-    [ClassInitialize]
-    public static void ClassInitialize(TestContext _)
-    {
-        var configuration = CreateConfiguration(/*usageClass, 0, taskId*/);
-
-        _loggerFactory = LoggerFactory.Create(builder =>
-        {
-            builder.AddConfiguration(configuration);
-
-            builder.AddFilter("Momiji", LogLevel.Warning);
-            builder.AddFilter("Momiji.Core.Cache", LogLevel.Information);
-            builder.AddFilter("Momiji.Core.RTWorkQueue", LogLevel.Trace);
-            builder.AddFilter("Microsoft", LogLevel.Warning);
-            builder.AddFilter("System", LogLevel.Warning);
-
-            builder.AddConsole();
-            builder.AddDebug();
-        });
-        _logger = _loggerFactory.CreateLogger<RTWorkQueueTest>();
-
-        _workQueuePlatformEventsHandler = new(_loggerFactory);
-        _workQueueManager = new (configuration, _loggerFactory);
-    }
-
-    [ClassCleanup]
-    public static void ClassCleanup()
-    {
-        _loggerFactory?.Dispose();
-        _workQueueManager?.Dispose();
-        _workQueuePlatformEventsHandler?.Dispose();
-    }
-
     private static T TestTask<T>(
         ElapsedTimeCounter counter,
         ConcurrentQueue<(string, long)> list,
@@ -97,7 +95,7 @@ public class RTWorkQueueTest
         return id;
     }
 
-    private static void PrintResult(
+    private void PrintResult(
         ConcurrentQueue<(string, long)> list
     )
     {
@@ -112,7 +110,7 @@ public class RTWorkQueueTest
         }
     }
 
-    [TestMethod]
+    [Fact]
     public void TestRtwqStartupTwice()
     {
         var configuration = CreateConfiguration();
@@ -124,7 +122,7 @@ public class RTWorkQueueTest
 
     }
 
-    [TestMethod]
+    [Fact]
     public void TestRtwqCreateWorkQueue()
     {
         var usageClass = "Pro Audio";
@@ -133,34 +131,34 @@ public class RTWorkQueueTest
 
         using var workQueue = _workQueueManager!.CreatePlatformWorkQueue(usageClass, basePriority);
 
-        Assert.AreEqual(usageClass, workQueue.GetMMCSSClass());
-        Assert.AreEqual(basePriority, workQueue.GetMMCSSPriority());
-        Assert.AreNotEqual(taskId, workQueue.GetMMCSSTaskId());
+        Assert.Equal(usageClass, workQueue.GetMMCSSClass());
+        Assert.Equal(basePriority, workQueue.GetMMCSSPriority());
+        Assert.NotEqual(taskId, workQueue.GetMMCSSTaskId());
     }
 
-    [DataTestMethod]
-    [DataRow("Audio")]
-    [DataRow("Capture")]
-    [DataRow("DisplayPostProcessing", null, false, true)]
-    [DataRow("Distribution")]
-    [DataRow("Games")]
-    [DataRow("Playback")]
-    [DataRow("Pro Audio")]
-    [DataRow("Window Manager")]
-    [DataRow("Audio", null, true)]
-    [DataRow("Capture", null, true)]
-    [DataRow("DisplayPostProcessing", null, true, true)]
-    [DataRow("Distribution", null, true)]
-    [DataRow("Games", null, true)]
-    [DataRow("Playback", null, true)]
-    [DataRow("Pro Audio", null, true)]
-    [DataRow("Window Manager", null, true)]
-    [DataRow("", IRTWorkQueue.WorkQueueType.Standard)]
-    [DataRow("", IRTWorkQueue.WorkQueueType.Window)]
-    [DataRow("", IRTWorkQueue.WorkQueueType.MultiThreaded)]
-    [DataRow("", IRTWorkQueue.WorkQueueType.Standard, true)]
-    [DataRow("", IRTWorkQueue.WorkQueueType.Window, true, true)] //windowÇÃserialÇÕNGÇÁÇµÇ¢
-    [DataRow("", IRTWorkQueue.WorkQueueType.MultiThreaded, true)]
+    [Theory]
+    [InlineData("Audio")]
+    [InlineData("Capture")]
+    [InlineData("DisplayPostProcessing", null, false, true)]
+    [InlineData("Distribution")]
+    [InlineData("Games")]
+    [InlineData("Playback")]
+    [InlineData("Pro Audio")]
+    [InlineData("Window Manager")]
+    [InlineData("Audio", null, true)]
+    [InlineData("Capture", null, true)]
+    [InlineData("DisplayPostProcessing", null, true, true)]
+    [InlineData("Distribution", null, true)]
+    [InlineData("Games", null, true)]
+    [InlineData("Playback", null, true)]
+    [InlineData("Pro Audio", null, true)]
+    [InlineData("Window Manager", null, true)]
+    [InlineData("", IRTWorkQueue.WorkQueueType.Standard)]
+    [InlineData("", IRTWorkQueue.WorkQueueType.Window)]
+    [InlineData("", IRTWorkQueue.WorkQueueType.MultiThreaded)]
+    [InlineData("", IRTWorkQueue.WorkQueueType.Standard, true)]
+    [InlineData("", IRTWorkQueue.WorkQueueType.Window, true, true)] //windowÇÃserialÇÕNGÇÁÇµÇ¢
+    [InlineData("", IRTWorkQueue.WorkQueueType.MultiThreaded, true)]
     public async Task TestRtwqAsync(
         string usageClass,
         IRTWorkQueue.WorkQueueType? type = null,
@@ -262,41 +260,41 @@ public class RTWorkQueueTest
         }
     }
 
-    [DataTestMethod]
-    [DataRow(null, null, false, true)] //usage classÇ…nullÇÕNG
-    [DataRow("")] //shared queue Ç""Ç≈çÏê¨Ç∑ÇÈÇÃÇÕregular-priority queueÇçÏÇÈì¡éÍÇ»ìÆçÏÇ…Ç»Ç¡ÇƒÇ¢ÇÈ
-    [DataRow("Audio")]
-    [DataRow("Capture")]
-    [DataRow("DisplayPostProcessing", null, false, true)] //èâÇﬂÇ©ÇÁDisplayPostProcessingÇÕé∏îsÇ∑ÇÈ
-    [DataRow("Distribution")]
-    [DataRow("Games")]
-    [DataRow("Playback")]
-    [DataRow("Pro Audio")]
-    [DataRow("Window Manager")]
-    [DataRow("****", null, false, true)] //é∏îsÇ∑ÇÈ
-    [DataRow("Audio", null, true)]
-    [DataRow("Capture", null, true)]
-    [DataRow("DisplayPostProcessing", null, true, true)] //é∏îsÇ∑ÇÈ
-    [DataRow("Distribution", null, true)]
-    [DataRow("Games", null, true)]
-    [DataRow("Playback", null, true)]
-    [DataRow("Pro Audio", null, true)]
-    [DataRow("Window Manager", null, true)]
-    [DataRow(null, IRTWorkQueue.WorkQueueType.Standard)]
-    [DataRow("", IRTWorkQueue.WorkQueueType.Standard, false, true)] //private queueÇ""Ç…ìoò^Ç∑ÇÈÇ∆é∏îsÇ∑ÇÈ
-    [DataRow("Audio", IRTWorkQueue.WorkQueueType.Standard)]
-    [DataRow("Capture", IRTWorkQueue.WorkQueueType.Standard)]
-    [DataRow("DisplayPostProcessing", IRTWorkQueue.WorkQueueType.Standard)]
-    [DataRow("Distribution", IRTWorkQueue.WorkQueueType.Standard)]
-    [DataRow("Games", IRTWorkQueue.WorkQueueType.Standard)]
-    [DataRow("Playback", IRTWorkQueue.WorkQueueType.Standard)]
-    [DataRow("Pro Audio", IRTWorkQueue.WorkQueueType.Standard)]
-    [DataRow("Window Manager", IRTWorkQueue.WorkQueueType.Standard)]
-    [DataRow(null, IRTWorkQueue.WorkQueueType.Window)]
-    [DataRow(null, IRTWorkQueue.WorkQueueType.MultiThreaded)]
-    [DataRow(null, IRTWorkQueue.WorkQueueType.Standard, true)]
-    [DataRow(null, IRTWorkQueue.WorkQueueType.Window, true, true)]
-    [DataRow(null, IRTWorkQueue.WorkQueueType.MultiThreaded, true)]
+    [Theory]
+    [InlineData(null, null, false, true)] //usage classÇ…nullÇÕNG
+    [InlineData("")] //shared queue Ç""Ç≈çÏê¨Ç∑ÇÈÇÃÇÕregular-priority queueÇçÏÇÈì¡éÍÇ»ìÆçÏÇ…Ç»Ç¡ÇƒÇ¢ÇÈ
+    [InlineData("Audio")]
+    [InlineData("Capture")]
+    [InlineData("DisplayPostProcessing", null, false, true)] //èâÇﬂÇ©ÇÁDisplayPostProcessingÇÕé∏îsÇ∑ÇÈ
+    [InlineData("Distribution")]
+    [InlineData("Games")]
+    [InlineData("Playback")]
+    [InlineData("Pro Audio")]
+    [InlineData("Window Manager")]
+    [InlineData("****", null, false, true)] //é∏îsÇ∑ÇÈ
+    [InlineData("Audio", null, true)]
+    [InlineData("Capture", null, true)]
+    [InlineData("DisplayPostProcessing", null, true, true)] //é∏îsÇ∑ÇÈ
+    [InlineData("Distribution", null, true)]
+    [InlineData("Games", null, true)]
+    [InlineData("Playback", null, true)]
+    [InlineData("Pro Audio", null, true)]
+    [InlineData("Window Manager", null, true)]
+    [InlineData(null, IRTWorkQueue.WorkQueueType.Standard)]
+    [InlineData("", IRTWorkQueue.WorkQueueType.Standard, false, true)] //private queueÇ""Ç…ìoò^Ç∑ÇÈÇ∆é∏îsÇ∑ÇÈ
+    [InlineData("Audio", IRTWorkQueue.WorkQueueType.Standard)]
+    [InlineData("Capture", IRTWorkQueue.WorkQueueType.Standard)]
+    [InlineData("DisplayPostProcessing", IRTWorkQueue.WorkQueueType.Standard)]
+    [InlineData("Distribution", IRTWorkQueue.WorkQueueType.Standard)]
+    [InlineData("Games", IRTWorkQueue.WorkQueueType.Standard)]
+    [InlineData("Playback", IRTWorkQueue.WorkQueueType.Standard)]
+    [InlineData("Pro Audio", IRTWorkQueue.WorkQueueType.Standard)]
+    [InlineData("Window Manager", IRTWorkQueue.WorkQueueType.Standard)]
+    [InlineData(null, IRTWorkQueue.WorkQueueType.Window)]
+    [InlineData(null, IRTWorkQueue.WorkQueueType.MultiThreaded)]
+    [InlineData(null, IRTWorkQueue.WorkQueueType.Standard, true)]
+    [InlineData(null, IRTWorkQueue.WorkQueueType.Window, true, true)]
+    [InlineData(null, IRTWorkQueue.WorkQueueType.MultiThreaded, true)]
     public async Task TestRtwq(
         string? usageClass = null,
         IRTWorkQueue.WorkQueueType? type = null,
@@ -317,7 +315,7 @@ public class RTWorkQueueTest
                 workQueue = _workQueueManager!.CreatePlatformWorkQueue(usageClass!);
                 if (argumentException)
                 {
-                    Assert.Fail();
+                    Assert.Fail("");
                 }
             }
             catch (COMException)
@@ -356,7 +354,7 @@ public class RTWorkQueueTest
                     workQueue = _workQueueManager!.CreateSerialWorkQueue(workQueueOrg);
                     if (argumentException)
                     {
-                        Assert.Fail();
+                        Assert.Fail("");
                     }
                 }
                 catch (ArgumentException)
@@ -376,7 +374,7 @@ public class RTWorkQueueTest
                     await workQueue.RegisterMMCSSAsync(usageClass!, IRTWorkQueue.TaskPriority.NORMAL, 0);
                     if (argumentException)
                     {
-                        Assert.Fail();
+                        Assert.Fail("");
                     }
                 }
                 catch (COMException)
@@ -389,7 +387,7 @@ public class RTWorkQueueTest
                 }
 
                 var afterClass = workQueue.GetMMCSSClass();
-                Assert.AreEqual(usageClass, afterClass);
+                Assert.Equal(usageClass, afterClass);
             }
 
             {
@@ -453,7 +451,7 @@ public class RTWorkQueueTest
         }
     }
 
-    [TestMethod]
+    [Fact]
     public void TestWorkQueuePeriodicCallback()
     {
         _workQueueManager!.RegisterMMCSS("Pro Audio");
@@ -480,8 +478,8 @@ public class RTWorkQueueTest
         PrintResult(list);
     }
 
-    [DataTestMethod]
-    [DataRow("Pro Audio")]
+    [Theory]
+    [InlineData("Pro Audio")]
     public async Task TestRtwqPutWaitingAsync_WaitableTimer(string usageClass)
     {
         _workQueueManager!.RegisterMMCSS(usageClass);
@@ -518,8 +516,8 @@ public class RTWorkQueueTest
         PrintResult(list);
     }
 
-    [DataTestMethod]
-    [DataRow("Pro Audio")]
+    [Theory]
+    [InlineData("Pro Audio")]
     public void TestRtwqPutWaiting_WaitableTimer(string usageClass)
     {
         _workQueueManager!.RegisterMMCSS(usageClass);
@@ -576,12 +574,12 @@ public class RTWorkQueueTest
         PrintResult(list);
     }
 
-    [DataTestMethod]
-    [DataRow("Pro Audio", true, false, false, false)] //Fire
-    [DataRow("Pro Audio", false, true, false, false)] //Cancel
-    [DataRow("Pro Audio", true, true, false, false)] //Fire_Cancel
-    [DataRow("Pro Audio", false, false, true, false)] //Already_Cancel
-    [DataRow("Pro Audio", true, false, false, true)] //Fire_Error
+    [Theory]
+    [InlineData("Pro Audio", true, false, false, false)] //Fire
+    [InlineData("Pro Audio", false, true, false, false)] //Cancel
+    [InlineData("Pro Audio", true, true, false, false)] //Fire_Cancel
+    [InlineData("Pro Audio", false, false, true, false)] //Already_Cancel
+    [InlineData("Pro Audio", true, false, false, true)] //Fire_Error
     public void TestRtwqPutWaiting(
         string usageClass,
         bool fire,
@@ -656,7 +654,7 @@ public class RTWorkQueueTest
 
             if (!cancel && !alreadyCancel)
             {
-                Assert.Fail();
+                Assert.Fail("");
             }
         }
         else if (exception != null)
@@ -665,7 +663,7 @@ public class RTWorkQueueTest
 
             if (!error)
             {
-                Assert.Fail();
+                Assert.Fail("");
             }
         }
         else
@@ -674,21 +672,21 @@ public class RTWorkQueueTest
 
             if (fire)
             {
-                Assert.AreEqual(1, result);
+                Assert.Equal(1, result);
             }
             else
             {
-                Assert.Fail();
+                Assert.Fail("");
             }
         }
     }
 
-    [DataTestMethod]
-    [DataRow("Pro Audio", true, false, false, false)] //Fire
-    [DataRow("Pro Audio", false, true, false, false)] //Cancel
-    [DataRow("Pro Audio", true, true, false, false)] //Fire_Cancel
-    [DataRow("Pro Audio", false, false, true, false)] //Already_Cancel
-    [DataRow("Pro Audio", true, false, false, true)] //Fire_Error
+    [Theory]
+    [InlineData("Pro Audio", true, false, false, false)] //Fire
+    [InlineData("Pro Audio", false, true, false, false)] //Cancel
+    [InlineData("Pro Audio", true, true, false, false)] //Fire_Cancel
+    [InlineData("Pro Audio", false, false, true, false)] //Already_Cancel
+    [InlineData("Pro Audio", true, false, false, true)] //Fire_Error
     public async Task TestRtwqPutWaitingAsync(
         string usageClass,
         bool fire,
@@ -752,11 +750,11 @@ public class RTWorkQueueTest
 
             if (fire)
             {
-                Assert.AreEqual(1, result);
+                Assert.Equal(1, result);
             }
             else
             {
-                Assert.Fail();
+                Assert.Fail("");
             }
         }
         catch (TaskCanceledException e)
@@ -765,7 +763,7 @@ public class RTWorkQueueTest
 
             if (!cancel && !alreadyCancel)
             {
-                Assert.Fail();
+                Assert.Fail("");
             }
         }
         catch (Exception e)
@@ -774,13 +772,13 @@ public class RTWorkQueueTest
 
             if (!error)
             {
-                Assert.Fail();
+                Assert.Fail("");
             }
         }
     }
 
-    [DataTestMethod]
-    [DataRow("Pro Audio")]
+    [Theory]
+    [InlineData("Pro Audio")]
     public async Task TestRtwqScheduleAsync(string usageClass)
     {
         _workQueueManager!.RegisterMMCSS(usageClass);
@@ -823,7 +821,7 @@ public class RTWorkQueueTest
         PrintResult(list);
     }
 
-    [TestMethod]
+    [Fact]
     public void TestRegisterPlatformWithMMCSS()
     {
         var usageClass = "Audio";
@@ -838,23 +836,23 @@ public class RTWorkQueueTest
         _workQueueManager!.RegisterMMCSS(usageClass, IRTWorkQueue.TaskPriority.LOW, 2);
     }
 
-    [TestMethod]
+    [Fact]
     public async Task TestRegisterWorkQueueWithMMCSS()
     {
         var usageClass = "Audio";
 
         var workQueue = _workQueueManager!.CreatePlatformWorkQueue(usageClass);
-        Assert.AreEqual(usageClass, workQueue.GetMMCSSClass());
+        Assert.Equal(usageClass, workQueue.GetMMCSSClass());
 
         await workQueue.UnregisterMMCSSAsync();
 
-        Assert.AreEqual("", workQueue.GetMMCSSClass());
+        Assert.Equal("", workQueue.GetMMCSSClass());
 
         usageClass = "Pro Audio";
         await workQueue.RegisterMMCSSAsync(usageClass, IRTWorkQueue.TaskPriority.HIGH, 1);
 
-        Assert.AreEqual(usageClass, workQueue.GetMMCSSClass());
-        Assert.AreEqual(IRTWorkQueue.TaskPriority.HIGH, workQueue.GetMMCSSPriority());
+        Assert.Equal(usageClass, workQueue.GetMMCSSClass());
+        Assert.Equal(IRTWorkQueue.TaskPriority.HIGH, workQueue.GetMMCSSPriority());
 
     }
 

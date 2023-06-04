@@ -1,11 +1,10 @@
 using System.Runtime.InteropServices;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
-using Microsoft.VisualStudio.TestTools.UnitTesting;
+using Xunit;
 
 namespace Momiji.Core.SharedMemory;
 
-[TestClass]
 public class MemoryMappedFileUnitTest
 {
     [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Ansi)]
@@ -17,7 +16,7 @@ public class MemoryMappedFileUnitTest
         public byte d;
     }
 
-    [TestMethod]
+    [Fact]
     public void Test1()
     {
         var configuration =
@@ -47,16 +46,16 @@ public class MemoryMappedFileUnitTest
             s1[1].d = 80;
 
             var s2 = test.AsSpan(0, 1);
-            Assert.AreEqual(10, s2[0].a);
-            Assert.AreEqual(20, s2[0].b);
-            Assert.AreEqual(30, s2[0].c);
-            Assert.AreEqual(40, s2[0].d);
+            Assert.Equal(10, s2[0].a);
+            Assert.Equal(20, s2[0].b);
+            Assert.Equal(30, s2[0].c);
+            Assert.Equal(40, s2[0].d);
 
             var s3 = test.AsSpan(1, 1);
-            Assert.AreEqual(50, s3[0].a);
-            Assert.AreEqual(60, s3[0].b);
-            Assert.AreEqual(70, s3[0].c);
-            Assert.AreEqual(80, s3[0].d);
+            Assert.Equal(50, s3[0].a);
+            Assert.Equal(60, s3[0].b);
+            Assert.Equal(70, s3[0].c);
+            Assert.Equal(80, s3[0].d);
         }
 
 

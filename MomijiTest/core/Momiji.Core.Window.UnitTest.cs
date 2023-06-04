@@ -1,30 +1,28 @@
 using Microsoft.Extensions.Logging;
-using Microsoft.VisualStudio.TestTools.UnitTesting;
+using Xunit;
 
 namespace Momiji.Core.Window;
 
-[TestClass]
 public class WindowExceptionUnitTest
 {
-    [TestMethod]
+    [Fact]
     public void Test1()
     {
         var test = new WindowException("test1");
-        Assert.IsNotNull(test.Message);
+        Assert.NotNull(test.Message);
     }
 
-    [TestMethod]
+    [Fact]
     public void Test2()
     {
         var test = new WindowException("test2", new Exception("inner"));
-        Assert.IsNotNull(test.Message);
+        Assert.NotNull(test.Message);
     }
 }
 
-[TestClass]
 public class WindowUnitTest
 {
-    [TestMethod]
+    [Fact]
     public void Test1()
     {
         using var loggerFactory = LoggerFactory.Create(builder =>
@@ -57,12 +55,12 @@ public class WindowUnitTest
                 //immidiate mode
                 return window.SetWindowStyle(0); 
             });
-            Assert.AreEqual(true, result);
+            Assert.True(result);
         }
 
         {
             var result = window.Dispatch(() => { return 999; });
-            Assert.AreEqual(999, result);
+            Assert.Equal(999, result);
         }
 
         {
@@ -72,7 +70,7 @@ public class WindowUnitTest
                     return 888;
                 }); 
             });
-            Assert.AreEqual(888, result);
+            Assert.Equal(888, result);
         }
 
         window.Close();

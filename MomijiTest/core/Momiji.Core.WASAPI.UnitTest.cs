@@ -1,16 +1,15 @@
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
-using Microsoft.VisualStudio.TestTools.UnitTesting;
 using Momiji.Core.RTWorkQueue;
 using Momiji.Core.Timer;
 using Windows.Devices.Enumeration;
+using Xunit;
 
 namespace Momiji.Core.WASAPI;
 
-[TestClass]
 public class DeviceInformationUnitTest
 {
-    [TestMethod]
+    [Fact]
     public async Task Test1()
     {
         var configuration =

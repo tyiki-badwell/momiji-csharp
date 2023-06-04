@@ -304,7 +304,7 @@ internal static class NativeMethods
         public int time;
         public POINT pt;
 
-        public override string ToString()
+        public readonly override string ToString()
         {
             return
                 $"hwnd[{hwnd:X}] message[{message:X}] wParam[{wParam:X}] lParam[{lParam:X}] time[{time}] pt[{pt}]";
@@ -516,7 +516,7 @@ internal static class NativeMethods
     {
         public long x;
         public long y;
-        public override string ToString()
+        public readonly override string ToString()
         {
             return
                 $"x[{x}] y[{y}]";
@@ -541,7 +541,7 @@ internal static class NativeMethods
         public POINT ptMaxPosition;
         public RECT rcNormalPosition;
         public RECT rcDevice;
-        public override string ToString()
+        public readonly override string ToString()
         {
             return
                 $"formatType[{flags:F}] showCmd[{showCmd:X}] ptMinPosition[{ptMinPosition}] ptMaxPosition[{ptMaxPosition}] rcNormalPosition[{rcNormalPosition}] rcDevice[{rcDevice}]";
@@ -597,7 +597,7 @@ internal static class NativeMethods
         public int top;
         public int right;
         public int bottom;
-        public override string ToString()
+        public readonly override string ToString()
         {
             return
                 $"left[{left}] top[{top}] right[{right}] bottom[{bottom}]";

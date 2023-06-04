@@ -568,7 +568,7 @@ namespace Momiji.Interop.Vst
         public byte reserved1;         ///< zero (Reserved for future use)
         public byte reserved2;         ///< zero (Reserved for future use)
         //-------------------------------------------------------------------------------------------------------
-        public override string ToString()
+        public readonly override string ToString()
         {
             return $"type[{type:F}] byteSize[{byteSize}] deltaFrames[{deltaFrames}] flags[{flags:F}] noteLength[{noteLength}] noteOffset[{noteOffset}] midiData[{midiData0:X2}{midiData1:X2}{midiData2:X2}{midiData3:X2}] detune[{detune}] noteOffVelocity[{noteOffVelocity}]";
         }
@@ -590,7 +590,7 @@ namespace Momiji.Interop.Vst
         public nint sysexDump;    ///< sysex dump
         public nint resvd2;       ///< zero (Reserved for future use)
         //-------------------------------------------------------------------------------------------------------
-        public override string ToString()
+        public readonly override string ToString()
         {
             return $"type[{type:F}] byteSize[{byteSize}] deltaFrames[{deltaFrames}] flags[{flags:F}] dumpBytes[{dumpBytes}] sysexDump[{sysexDump:X}]";
         }
