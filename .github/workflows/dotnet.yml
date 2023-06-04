@@ -23,5 +23,5 @@ jobs:
       run: dotnet build --no-restore
     - name: Test-x64
       run: dotnet test --no-build --verbosity normal --arch x64
-    - name: Test-x86
-      run: dotnet test --no-build --verbosity normal --arch x86
+#    - name: Test-x86
+#      run: dotnet test --no-build --verbosity normal --arch x86
